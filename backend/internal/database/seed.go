@@ -41,29 +41,29 @@ func DefaultSeed() SeedData {
 			{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
 			{Key: "top-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
 			{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
-			{Key: "wearing", Name: "农机易损件（置顶，维修高频）", Icon: "wrench", MenuType: "sidebar", Path: "/products?category=wearing", SortOrder: 2, IsTop: true},
-			{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?category=transmission", SortOrder: 3, IsDefaultOpen: true},
-			{Key: "gear", ParentKey: "transmission", Name: "变速箱齿轮", Icon: "dot", MenuType: "sidebar", Path: "/products?category=gear", SortOrder: 1},
-			{Key: "differential", ParentKey: "transmission", Name: "后桥差速器", Icon: "dot", MenuType: "sidebar", Path: "/products?category=differential", SortOrder: 2},
-			{Key: "shaft", ParentKey: "transmission", Name: "半轴传动轴", Icon: "dot", MenuType: "sidebar", Path: "/products?category=shaft", SortOrder: 3},
-			{Key: "clutch", ParentKey: "transmission", Name: "离合器总成", Icon: "dot", MenuType: "sidebar", Path: "/products?category=clutch", SortOrder: 4},
-			{Key: "chain", ParentKey: "transmission", Name: "链条链轮、传动皮带", Icon: "dot", MenuType: "sidebar", Path: "/products?category=chain", SortOrder: 5},
-			{Key: "bearing", ParentKey: "transmission", Name: "轴承轴套、花键万向节", Icon: "dot", MenuType: "sidebar", Path: "/products?category=bearing", SortOrder: 6},
-			{Key: "reducer", ParentKey: "transmission", Name: "减速齿轮箱", Icon: "dot", MenuType: "sidebar", Path: "/products?category=reducer", SortOrder: 7},
-			{Key: "chassis", Name: "行走底盘配件", Icon: "truck", MenuType: "sidebar", Path: "/products?category=chassis", SortOrder: 4},
-			{Key: "hydraulic", Name: "液压系统配件", Icon: "droplet", MenuType: "sidebar", Path: "/products?category=hydraulic", SortOrder: 5},
-			{Key: "engine", Name: "动力发动机配件", Icon: "gauge", MenuType: "sidebar", Path: "/products?category=engine", SortOrder: 6},
-			{Key: "brake", Name: "制动换挡配件", Icon: "disc", MenuType: "sidebar", Path: "/products?category=brake", SortOrder: 7},
+			{Key: "wearing", Name: "农机易损件（置顶，维修高频）", Icon: "wrench", MenuType: "sidebar", Path: "/products?categoryId=1", SortOrder: 2, IsTop: true},
+			{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3, IsDefaultOpen: true},
+			{Key: "gear", ParentKey: "transmission", Name: "变速箱齿轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=齿轮", SortOrder: 1},
+			{Key: "differential", ParentKey: "transmission", Name: "后桥差速器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=差速器", SortOrder: 2},
+			{Key: "shaft", ParentKey: "transmission", Name: "半轴传动轴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=传动轴", SortOrder: 3},
+			{Key: "clutch", ParentKey: "transmission", Name: "离合器总成", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=离合器", SortOrder: 4},
+			{Key: "chain", ParentKey: "transmission", Name: "链条链轮、传动皮带", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=链条", SortOrder: 5},
+			{Key: "bearing", ParentKey: "transmission", Name: "轴承轴套、花键万向节", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=轴承", SortOrder: 6},
+			{Key: "reducer", ParentKey: "transmission", Name: "减速齿轮箱", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=减速", SortOrder: 7},
+			{Key: "chassis", Name: "行走底盘配件", Icon: "truck", MenuType: "sidebar", Path: "/products?categoryId=4", SortOrder: 4},
+			{Key: "hydraulic", Name: "液压系统配件", Icon: "droplet", MenuType: "sidebar", Path: "/products?categoryId=5", SortOrder: 5},
+			{Key: "engine", Name: "动力发动机配件", Icon: "gauge", MenuType: "sidebar", Path: "/products?categoryId=6", SortOrder: 6},
+			{Key: "brake", Name: "制动换挡配件", Icon: "disc", MenuType: "sidebar", Path: "/products?categoryId=7", SortOrder: 7},
 			{Key: "future", Name: "待扩展菜单", Icon: "circle", MenuType: "sidebar", Path: "/products", SortOrder: 8},
 			{Key: "aux-join", Name: "提交厂商", Icon: "clipboard-plus", MenuType: "auxiliary", Path: "/join", SortOrder: 1},
 			{Key: "aux-links", Name: "友情链接", Icon: "link", MenuType: "auxiliary", Path: "/links", SortOrder: 2},
 			{Key: "aux-about", Name: "关于平台", Icon: "info", MenuType: "auxiliary", Path: "/about", SortOrder: 3},
-			{Key: "mobile-wearing", Name: "农机易损件", Icon: "wrench", MenuType: "mobile", Path: "/products?category=wearing", SortOrder: 1},
-			{Key: "mobile-transmission", Name: "传动配件", Icon: "cog", MenuType: "mobile", Path: "/products?category=transmission", SortOrder: 2},
-			{Key: "mobile-chassis", Name: "行走底盘", Icon: "truck", MenuType: "mobile", Path: "/products?category=chassis", SortOrder: 3},
-			{Key: "mobile-hydraulic", Name: "液压系统", Icon: "droplet", MenuType: "mobile", Path: "/products?category=hydraulic", SortOrder: 4},
-			{Key: "mobile-engine", Name: "动力发动机", Icon: "gauge", MenuType: "mobile", Path: "/products?category=engine", SortOrder: 5},
-			{Key: "mobile-brake", Name: "制动换挡", Icon: "disc", MenuType: "mobile", Path: "/products?category=brake", SortOrder: 6},
+			{Key: "mobile-wearing", Name: "农机易损件", Icon: "wrench", MenuType: "mobile", Path: "/products?categoryId=1", SortOrder: 1},
+			{Key: "mobile-transmission", Name: "传动配件", Icon: "cog", MenuType: "mobile", Path: "/products?categoryId=2", SortOrder: 2},
+			{Key: "mobile-chassis", Name: "行走底盘", Icon: "truck", MenuType: "mobile", Path: "/products?categoryId=4", SortOrder: 3},
+			{Key: "mobile-hydraulic", Name: "液压系统", Icon: "droplet", MenuType: "mobile", Path: "/products?categoryId=5", SortOrder: 4},
+			{Key: "mobile-engine", Name: "动力发动机", Icon: "gauge", MenuType: "mobile", Path: "/products?categoryId=6", SortOrder: 5},
+			{Key: "mobile-brake", Name: "制动换挡", Icon: "disc", MenuType: "mobile", Path: "/products?categoryId=7", SortOrder: 6},
 			{Key: "mobile-service", Name: "加工服务", Icon: "settings", MenuType: "mobile", Path: "/service", SortOrder: 7},
 			{Key: "mobile-vendors", Name: "厂商目录", Icon: "factory", MenuType: "mobile", Path: "/vendors", SortOrder: 8},
 			{Key: "mobile-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "mobile", Path: "/purchase", SortOrder: 9},
@@ -86,19 +86,8 @@ func DefaultSeed() SeedData {
 			{Name: "制动换挡配件", Icon: "disc", SortOrder: 7, IsEnabled: true},
 			{Name: "加工服务", Icon: "settings", SortOrder: 8, IsEnabled: true},
 		},
-		Vendors: defaultVendors(),
-		Products: []model.Product{
-			{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
-			{Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机/收割机", Description: "耐磨齿轮件", IsHot: true, SortOrder: 2, Status: 1},
-			{Name: "液压油泵", CategoryID: 5, VendorID: 3, CompatibleModels: "农机液压系统", Description: "压力稳定", IsRecommended: true, SortOrder: 3, Status: 1},
-			{Name: "传动皮带", CategoryID: 2, VendorID: 4, CompatibleModels: "联合收割机", Description: "抗拉伸皮带", SortOrder: 4, Status: 1},
-			{Name: "离合器总成", CategoryID: 2, VendorID: 5, CompatibleModels: "多型号拖拉机", Description: "换挡平顺", SortOrder: 5, Status: 1},
-			{Name: "滤芯套件", CategoryID: 1, VendorID: 6, CompatibleModels: "发动机保养", Description: "过滤性能稳定", IsHot: true, SortOrder: 6, Status: 1},
-			{Name: "制动蹄片", CategoryID: 7, VendorID: 7, CompatibleModels: "制动系统", Description: "耐磨耐热", SortOrder: 7, Status: 1},
-			{Name: "刀片组件", CategoryID: 1, VendorID: 8, CompatibleModels: "收割机割台", Description: "锋利耐用", SortOrder: 8, Status: 1},
-			{Name: "后桥差速器", CategoryID: 2, VendorID: 9, CompatibleModels: "拖拉机后桥", Description: "传动稳定", SortOrder: 9, Status: 1},
-			{Name: "轴承轴套", CategoryID: 2, VendorID: 10, CompatibleModels: "通用传动", Description: "精密加工", SortOrder: 10, Status: 1},
-		},
+		Vendors:  defaultVendors(),
+		Products: defaultProducts(),
 		Banners: []model.Banner{{
 			Title:             "找农机配件，查源头厂商",
 			Subtitle:          "原厂品质 / 行业齐全 / 快速找工厂配件，助力维修厂与采购用户高效采购",
@@ -123,23 +112,23 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 			Name: item.Name, ParentID: parentID, Icon: item.Icon, MenuType: item.MenuType, Path: item.Path,
 			SortOrder: item.SortOrder, IsEnabled: true, IsTop: item.IsTop, IsDefaultOpen: item.IsDefaultOpen,
 		}
-		if err := firstOrCreateMenu(db, &menu); err != nil {
+		if err := upsertMenu(db, &menu); err != nil {
 			return err
 		}
 		menuIDs[item.Key] = menu.ID
 	}
 	for i := range seed.Tags {
-		if err := db.Where("name = ? AND tag_type = ?", seed.Tags[i].Name, seed.Tags[i].TagType).FirstOrCreate(&seed.Tags[i]).Error; err != nil {
+		if err := db.Where("tag_type = ? AND sort_order = ?", seed.Tags[i].TagType, seed.Tags[i].SortOrder).Assign(seed.Tags[i]).FirstOrCreate(&seed.Tags[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Categories {
-		if err := db.Where("name = ?", seed.Categories[i].Name).FirstOrCreate(&seed.Categories[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Categories[i].SortOrder).Assign(seed.Categories[i]).FirstOrCreate(&seed.Categories[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Vendors {
-		if err := db.Where("name = ?", seed.Vendors[i].Name).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Vendors[i].SortOrder).Assign(seed.Vendors[i]).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
 			return err
 		}
 		if err := attachDefaultTags(db, &seed.Vendors[i]); err != nil {
@@ -147,17 +136,17 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		}
 	}
 	for i := range seed.Products {
-		if err := db.Where("name = ?", seed.Products[i].Name).FirstOrCreate(&seed.Products[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Products[i].SortOrder).Assign(seed.Products[i]).FirstOrCreate(&seed.Products[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Banners {
-		if err := db.Where("title = ?", seed.Banners[i].Title).FirstOrCreate(&seed.Banners[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Banners[i].SortOrder).Assign(seed.Banners[i]).FirstOrCreate(&seed.Banners[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Configs {
-		if err := db.Where("config_key = ?", seed.Configs[i].ConfigKey).FirstOrCreate(&seed.Configs[i]).Error; err != nil {
+		if err := db.Where("config_key = ?", seed.Configs[i].ConfigKey).Assign(seed.Configs[i]).FirstOrCreate(&seed.Configs[i]).Error; err != nil {
 			return err
 		}
 	}
@@ -172,8 +161,23 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 	return nil
 }
 
-func firstOrCreateMenu(db *gorm.DB, menu *model.Menu) error {
-	return db.Where("name = ? AND menu_type = ? AND parent_id = ?", menu.Name, menu.MenuType, menu.ParentID).FirstOrCreate(menu).Error
+func upsertMenu(db *gorm.DB, menu *model.Menu) error {
+	if err := db.Where("menu_type = ? AND sort_order = ? AND parent_id = ?", menu.MenuType, menu.SortOrder, menu.ParentID).Assign(*menu).FirstOrCreate(menu).Error; err != nil {
+		return err
+	}
+	var duplicates []model.Menu
+	if err := db.Where("menu_type = ? AND sort_order = ? AND parent_id = ? AND id <> ?", menu.MenuType, menu.SortOrder, menu.ParentID, menu.ID).Find(&duplicates).Error; err != nil {
+		return err
+	}
+	for _, duplicate := range duplicates {
+		if err := db.Where("parent_id = ?", duplicate.ID).Delete(&model.Menu{}).Error; err != nil {
+			return err
+		}
+		if err := db.Delete(&duplicate).Error; err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func attachDefaultTags(db *gorm.DB, vendor *model.Vendor) error {
@@ -185,6 +189,21 @@ func attachDefaultTags(db *gorm.DB, vendor *model.Vendor) error {
 		return err
 	}
 	return db.Model(vendor).Association("Tags").Append(tags)
+}
+
+func defaultProducts() []model.Product {
+	return []model.Product{
+		{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
+		{Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", IsHot: true, SortOrder: 2, Status: 1},
+		{Name: "液压油泵总成", CategoryID: 5, VendorID: 3, CompatibleModels: "农机液压系统", Description: "压力稳定，适配多种液压回路", IsRecommended: true, SortOrder: 3, Status: 1},
+		{Name: "传动皮带", CategoryID: 2, VendorID: 4, CompatibleModels: "联合收割机", Description: "抗拉伸皮带", SortOrder: 4, Status: 1},
+		{Name: "离合器总成", CategoryID: 2, VendorID: 5, CompatibleModels: "多型号拖拉机", Description: "换挡平顺", SortOrder: 5, Status: 1},
+		{Name: "滤芯套件", CategoryID: 1, VendorID: 6, CompatibleModels: "发动机保养", Description: "过滤性能稳定", IsHot: true, SortOrder: 6, Status: 1},
+		{Name: "制动蹄片", CategoryID: 7, VendorID: 7, CompatibleModels: "制动系统", Description: "耐磨耐热", SortOrder: 7, Status: 1},
+		{Name: "刀片组件", CategoryID: 1, VendorID: 8, CompatibleModels: "收割机割台", Description: "锋利耐用", SortOrder: 8, Status: 1},
+		{Name: "后桥差速器", CategoryID: 2, VendorID: 9, CompatibleModels: "拖拉机后桥", Description: "传动稳定", SortOrder: 9, Status: 1},
+		{Name: "轴承轴套", CategoryID: 2, VendorID: 10, CompatibleModels: "通用传动", Description: "精密加工", SortOrder: 10, Status: 1},
+	}
 }
 
 func defaultVendors() []model.Vendor {

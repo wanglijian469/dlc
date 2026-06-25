@@ -49,6 +49,7 @@ func RegisterPublicRoutes(router *gin.Engine, db *gorm.DB) {
 	api.GET("/vendors/:id", handler.VendorDetail)
 	api.GET("/products", handler.Products)
 	api.GET("/search", handler.Search)
+	api.GET("/filter-options", handler.FilterOptions)
 }
 
 func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
@@ -90,13 +91,13 @@ func AdminAuth(secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
-			Fail(c, 401, 401, "unauthorized")
+			Fail(c, 401, 401, "未登录或登录已过期")
 			c.Abort()
 			return
 		}
 		username, err := auth.ParseToken(strings.TrimPrefix(header, "Bearer "), secret)
 		if err != nil {
-			Fail(c, 401, 401, "token expired")
+			Fail(c, 401, 401, "登录已过期，请重新登录")
 			c.Abort()
 			return
 		}
@@ -118,7 +119,7 @@ func RegisterStaticRoutes(router *gin.Engine, publicDir string) {
 	}
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
-			Fail(c, http.StatusNotFound, 404, "not found")
+			Fail(c, http.StatusNotFound, 404, "接口不存在")
 			return
 		}
 		c.File(filepath.Join(publicDir, "index.html"))

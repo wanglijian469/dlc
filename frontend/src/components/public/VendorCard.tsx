@@ -2,16 +2,24 @@ import { Link } from "react-router-dom";
 import type { Vendor } from "../../types/api";
 import { getVendorEntryTarget } from "../../utils/navigation";
 
+const coverFallback = "https://dummyimage.com/600x320/eaf3ff/1f2a3d&text=Factory";
+const logoFallback = "https://dummyimage.com/96x64/fff/0b5fea&text=DL";
+
 export function VendorCard({ vendor, compact = false }: { vendor: Vendor; compact?: boolean }) {
   const target = getVendorEntryTarget(vendor);
-  const image = vendor.coverImage || "https://dummyimage.com/600x320/eaf3ff/1f2a3d&text=Factory";
+  const image = vendor.coverImage || coverFallback;
+  const region = [vendor.province, vendor.city].filter(Boolean).join(" ");
   return (
     <article className={compact ? "vendor-card compact" : "vendor-card"}>
       <div className="vendor-cover" style={{ backgroundImage: `url(${image})` }}>
-        <img alt="" className="vendor-logo" src={vendor.logo || "https://dummyimage.com/96x64/fff/0b5fea&text=DL"} />
+        <img alt="" className="vendor-logo" src={vendor.logo || logoFallback} onError={(event) => { event.currentTarget.src = logoFallback; }} />
       </div>
       <div className="vendor-body">
         <h3>{vendor.name}</h3>
+        <p className="vendor-meta">
+          {region || "全国供应"}
+          {vendor.isVerified ? " · 平台认证" : ""}
+        </p>
         <p>主营：{vendor.mainProducts || "农机配件"}</p>
         <p>优势：{vendor.serviceAdvantages || "质量稳定，发货及时"}</p>
         <div className="tag-row">

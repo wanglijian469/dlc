@@ -13,7 +13,7 @@ type Banner struct {
 	Subtitle          string         `gorm:"size:500" json:"subtitle"`
 	BackgroundImage   string         `gorm:"size:255" json:"backgroundImage"`
 	SearchPlaceholder string         `gorm:"size:150" json:"searchPlaceholder"`
-	HotKeywordsRaw    string         `gorm:"column:hot_keywords;size:500" json:"-"`
+	HotKeywordsRaw    string         `gorm:"column:hot_keywords;size:500" json:"hotKeywordsRaw,omitempty"`
 	IsEnabled         bool           `gorm:"default:true;index" json:"isEnabled"`
 	SortOrder         int            `gorm:"default:0" json:"sortOrder"`
 	CreatedAt         time.Time      `json:"createdAt"`

@@ -12,6 +12,13 @@ type Response struct {
 	Data    interface{} `json:"data,omitempty"`
 }
 
+type PageResult struct {
+	Items    interface{} `json:"items"`
+	Page     int         `json:"page"`
+	PageSize int         `json:"pageSize"`
+	Total    int64       `json:"total"`
+}
+
 func OK(c *gin.Context, data interface{}) {
 	c.JSON(http.StatusOK, Response{Code: 0, Message: "ok", Data: data})
 }

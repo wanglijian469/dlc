@@ -29,6 +29,7 @@ type Vendor struct {
 	IsVisible         bool           `gorm:"default:true;index" json:"isVisible"`
 	SortOrder         int            `gorm:"default:0" json:"sortOrder"`
 	Tags              []Tag          `gorm:"many2many:vendor_tags;" json:"tags,omitempty"`
+	TagIDs            []uint         `gorm:"-" json:"tagIds,omitempty"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
 	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`

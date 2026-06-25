@@ -35,7 +35,7 @@ export function HomePage() {
       </div>
     );
   }
-  if (!home) return <div className="state-page">加载中...</div>;
+  if (!home) return <HomeSkeleton />;
   return <HomeView home={home} />;
 }
 
@@ -56,6 +56,25 @@ export function HomeView({ home }: { home: HomePayload }) {
       </main>
       <StatsFooter safeguards={home.safeguards} stats={home.stats} />
       <MobileBottomNav />
+    </div>
+  );
+}
+
+function HomeSkeleton() {
+  return (
+    <div className="site-shell">
+      <div className="skeleton-header" />
+      <main className="site-body">
+        <div className="skeleton-sidebar" />
+        <div className="content">
+          <div className="skeleton-hero" />
+          <div className="skeleton-grid">
+            {Array.from({ length: 10 }).map((_, index) => (
+              <div className="skeleton-card" key={index} />
+            ))}
+          </div>
+        </div>
+      </main>
     </div>
   );
 }

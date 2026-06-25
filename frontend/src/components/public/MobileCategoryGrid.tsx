@@ -5,7 +5,7 @@ export function MobileCategoryGrid({ menus }: { menus: Menu[] }) {
   return (
     <div className="mobile-category-grid">
       {menus.slice(0, 10).map((menu) => (
-        <Link key={menu.id} to={menu.path || "/"}>
+        <Link key={menu.id} to={menu.path || "/products"}>
           <span>{menu.icon?.slice(0, 1) || "类"}</span>
           <em>{menu.name}</em>
         </Link>

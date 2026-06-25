@@ -49,6 +49,7 @@ export interface Vendor {
   isVisible?: boolean;
   sortOrder?: number;
   tags?: Tag[];
+  tagIds?: number[];
 }
 
 export interface Category {
@@ -117,4 +118,23 @@ export interface HomePayload {
   stats: StatItem[];
   safeguards: string[];
   join: JoinConfig;
+}
+
+export interface PageResult<T> {
+  items: T[];
+  page: number;
+  pageSize: number;
+  total: number;
+}
+
+export interface FilterOptions {
+  provinces: string[];
+  categories: Category[];
+  serviceTags: Tag[];
+}
+
+export interface SearchPayload {
+  vendors: PageResult<Vendor>;
+  products: PageResult<Product>;
+  categories: PageResult<Category>;
 }
