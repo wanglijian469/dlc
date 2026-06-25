@@ -1,6 +1,9 @@
 package api
 
 import (
+	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 
 	"dalu-nongji-parts/backend/internal/auth"
@@ -28,6 +31,7 @@ func NewRouter(deps Deps) *gin.Engine {
 	RegisterHealthRoute(router)
 	RegisterPublicRoutes(router, deps.DB)
 	RegisterAdminRoutes(router, deps.DB, deps.Config)
+	RegisterStaticRoutes(router, deps.Config.PublicDir)
 	return router
 }
 
@@ -99,4 +103,24 @@ func AdminAuth(secret string) gin.HandlerFunc {
 		c.Set("username", username)
 		c.Next()
 	}
+}
+
+func RegisterStaticRoutes(router *gin.Engine, publicDir string) {
+	if publicDir == "" {
+		return
+	}
+	if _, err := os.Stat(publicDir); err != nil {
+		return
+	}
+	assetsDir := filepath.Join(publicDir, "assets")
+	if _, err := os.Stat(assetsDir); err == nil {
+		router.Static("/assets", assetsDir)
+	}
+	router.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
+			Fail(c, http.StatusNotFound, 404, "not found")
+			return
+		}
+		c.File(filepath.Join(publicDir, "index.html"))
+	})
 }

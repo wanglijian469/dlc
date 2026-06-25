@@ -15,6 +15,7 @@ type Config struct {
 	AdminUsername string
 	AdminPassword string
 	AuthSecret    string
+	PublicDir     string
 }
 
 func Load() Config {
@@ -28,6 +29,7 @@ func Load() Config {
 		AdminUsername: env("ADMIN_USERNAME", "admin"),
 		AdminPassword: env("ADMIN_PASSWORD", "admin123"),
 		AuthSecret:    env("AUTH_SECRET", "dev-secret-change-me"),
+		PublicDir:     env("PUBLIC_DIR", ""),
 	}
 }
 
