@@ -264,7 +264,7 @@ func defaultVendors() []model.Vendor {
 			Name:              name,
 			ShortName:         fmt.Sprintf("厂商%d", i+1),
 			Logo:              fmt.Sprintf("https://dummyimage.com/120x80/ffffff/0b5fea&text=%02d", i+1),
-			CoverImage:        fmt.Sprintf("https://dummyimage.com/600x320/eaf3ff/1f2a3d&text=Factory+%02d", i+1),
+			CoverImage:        "",
 			Province:          provinces[i],
 			City:              "产业基地",
 			Address:           provinces[i] + "农机产业园",

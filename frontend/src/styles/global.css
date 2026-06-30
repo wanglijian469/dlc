@@ -337,16 +337,86 @@ textarea {
 .vendor-card {
   background: #fff;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: 10px;
   box-shadow: 0 6px 20px rgba(15, 35, 80, 0.06);
   overflow: hidden;
+  transition: box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.vendor-card:hover {
+  box-shadow: 0 10px 26px rgba(15, 35, 80, 0.1);
+  transform: translateY(-2px);
 }
 
 .vendor-cover {
   background-position: center;
   background-size: cover;
-  height: 74px;
+  height: 110px;
+  overflow: hidden;
   position: relative;
+}
+
+.vendor-cover::after {
+  background: linear-gradient(180deg, rgba(11, 95, 234, 0.08), rgba(11, 95, 234, 0.2));
+  content: "";
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.vendor-cover-default {
+  align-items: center;
+  background:
+    radial-gradient(circle at 78% 20%, rgba(11, 95, 234, 0.12), transparent 26%),
+    linear-gradient(135deg, #f8fbff 0%, #eaf3ff 52%, #dcecff 100%);
+  color: var(--primary-blue);
+  display: flex;
+  justify-content: center;
+}
+
+.vendor-cover-pattern {
+  background-image:
+    linear-gradient(rgba(11, 95, 234, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(11, 95, 234, 0.08) 1px, transparent 1px);
+  background-size: 18px 18px;
+  inset: 0;
+  opacity: 0.5;
+  position: absolute;
+}
+
+.vendor-cover-main-icon {
+  color: #0b5fea;
+  opacity: 0.72;
+  position: relative;
+  z-index: 1;
+}
+
+.vendor-cover-index,
+.vendor-cover-badge {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(184, 206, 247, 0.7);
+  border-radius: 999px;
+  color: var(--primary-blue);
+  display: inline-flex;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+  min-height: 24px;
+  padding: 5px 8px;
+  position: absolute;
+  z-index: 2;
+}
+
+.vendor-cover-index {
+  bottom: 8px;
+  left: 10px;
+}
+
+.vendor-cover-badge {
+  font-weight: 700;
+  right: 10px;
+  top: 8px;
 }
 
 .vendor-logo {
@@ -359,6 +429,7 @@ textarea {
   padding: 4px;
   position: absolute;
   width: 56px;
+  z-index: 3;
 }
 
 .vendor-body {
@@ -606,10 +677,8 @@ textarea {
   overflow: hidden;
 }
 
-.vendor-detail-cover {
-  background-position: center;
-  background-size: cover;
-  min-height: 220px;
+.vendor-cover-detail {
+  height: 260px;
 }
 
 .vendor-detail-info {

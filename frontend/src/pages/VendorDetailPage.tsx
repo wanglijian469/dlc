@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { getVendor, listProducts } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
+import { VendorCover } from "../components/public/VendorCover";
 import type { Product, Vendor } from "../types/api";
 
 export function VendorDetailPage() {
@@ -33,7 +34,7 @@ export function VendorDetailPage() {
   return (
     <PageFrame title={vendor.name} subtitle={region || "源头农机配件厂商"}>
       <section className="vendor-detail-hero">
-        <div className="vendor-detail-cover" style={{ backgroundImage: `url(${vendor.coverImage || "https://dummyimage.com/960x360/eaf3ff/1f2a3d&text=Factory"})` }} />
+        <VendorCover vendor={vendor} variant="detail" />
         <div className="vendor-detail-info">
           <img alt={vendor.name} src={vendor.logo || "https://dummyimage.com/120x80/ffffff/0b5fea&text=DL"} />
           <div>

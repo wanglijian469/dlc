@@ -1,19 +1,18 @@
 import { Link } from "react-router-dom";
 import type { Vendor } from "../../types/api";
 import { getVendorEntryTarget } from "../../utils/navigation";
+import { VendorCover } from "./VendorCover";
 
-const coverFallback = "https://dummyimage.com/600x320/eaf3ff/1f2a3d&text=Factory";
 const logoFallback = "https://dummyimage.com/96x64/fff/0b5fea&text=DL";
 
 export function VendorCard({ vendor, compact = false }: { vendor: Vendor; compact?: boolean }) {
   const target = getVendorEntryTarget(vendor);
-  const image = vendor.coverImage || coverFallback;
   const region = [vendor.province, vendor.city].filter(Boolean).join(" ");
   return (
     <article className={compact ? "vendor-card compact" : "vendor-card"}>
-      <div className="vendor-cover" style={{ backgroundImage: `url(${image})` }}>
+      <VendorCover vendor={vendor}>
         <img alt="" className="vendor-logo" src={vendor.logo || logoFallback} onError={(event) => { event.currentTarget.src = logoFallback; }} />
-      </div>
+      </VendorCover>
       <div className="vendor-body">
         <h3>{vendor.name}</h3>
         <p className="vendor-meta">

@@ -1,6 +1,9 @@
 package database
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestDefaultSeedContainsTransmissionChildren(t *testing.T) {
 	seed := DefaultSeed()
@@ -52,6 +55,15 @@ func TestDefaultSeedContainsExpandedSidebarMenuTree(t *testing.T) {
 		}
 		if actualChildren[key] != want {
 			t.Fatalf("children for %s = %d, want %d", key, actualChildren[key], want)
+		}
+	}
+}
+
+func TestDefaultSeedVendorsDoNotUseFactoryDummyCovers(t *testing.T) {
+	seed := DefaultSeed()
+	for _, vendor := range seed.Vendors {
+		if strings.Contains(vendor.CoverImage, "Factory") {
+			t.Fatalf("vendor %q uses old factory dummy cover %q", vendor.Name, vendor.CoverImage)
 		}
 	}
 }

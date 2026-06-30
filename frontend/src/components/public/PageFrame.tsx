@@ -1,6 +1,7 @@
-import { Link } from "react-router-dom";
 import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { MobileBottomNav } from "./MobileBottomNav";
+import { MobileHeader } from "./MobileHeader";
 import { PublicHeader } from "./PublicHeader";
 import type { Menu } from "../../types/api";
 
@@ -16,6 +17,7 @@ export function PageFrame({ title, subtitle, children }: { title: string; subtit
   return (
     <div className="site-shell">
       <PublicHeader menus={fallbackMenus} />
+      <MobileHeader />
       <main className="plain-page directory-page">
         <Link className="back-link" to="/">
           返回首页

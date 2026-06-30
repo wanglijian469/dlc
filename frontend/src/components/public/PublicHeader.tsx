@@ -1,5 +1,5 @@
 import { UserRound } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import type { Menu } from "../../types/api";
 
 const BRAND_MARK = "\u519c";
@@ -8,6 +8,7 @@ const SUBMIT_VENDOR = "\u63d0\u4ea4\u5382\u5546";
 const ADMIN_LOGIN = "\u540e\u53f0\u767b\u5f55";
 
 export function PublicHeader({ menus }: { menus: Menu[] }) {
+  const location = useLocation();
   return (
     <header className="public-header">
       <Link className="brand" to="/">
@@ -16,7 +17,7 @@ export function PublicHeader({ menus }: { menus: Menu[] }) {
       </Link>
       <nav className="top-nav">
         {menus.map((menu) => (
-          <Link className={menu.path === "/" ? "active" : ""} key={menu.id} to={menu.path || "/"}>
+          <Link className={isActiveMenu(location.pathname, menu.path || "/") ? "active" : ""} key={menu.id} to={menu.path || "/"}>
             {menu.name}
           </Link>
         ))}
@@ -32,4 +33,9 @@ export function PublicHeader({ menus }: { menus: Menu[] }) {
       </div>
     </header>
   );
+}
+
+function isActiveMenu(pathname: string, path: string) {
+  if (path === "/") return pathname === "/";
+  return pathname === path || pathname.startsWith(`${path}/`);
 }
