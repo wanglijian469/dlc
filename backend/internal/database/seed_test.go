@@ -1,6 +1,7 @@
 package database
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -73,6 +74,23 @@ func TestDefaultSeedVendorsDoNotUseFactoryDummyCovers(t *testing.T) {
 	for _, vendor := range seed.Vendors {
 		if strings.Contains(vendor.CoverImage, "Factory") {
 			t.Fatalf("vendor %q uses old factory dummy cover %q", vendor.Name, vendor.CoverImage)
+		}
+	}
+}
+
+func TestDefaultSeedVendorsContainRichProfileFields(t *testing.T) {
+	seed := DefaultSeed()
+	if len(seed.Vendors) == 0 {
+		t.Fatal("seed vendors should not be empty")
+	}
+	vendor := reflect.ValueOf(seed.Vendors[0])
+	for _, field := range []string{"EstablishedYear", "FactoryArea", "EmployeeCount", "AnnualCapacity", "Equipment", "Certifications", "QualityControl", "SupplyRegions", "CooperationTerms", "AfterSalesService"} {
+		value := vendor.FieldByName(field)
+		if !value.IsValid() {
+			t.Fatalf("Vendor missing rich profile field %s", field)
+		}
+		if strings.TrimSpace(value.String()) == "" {
+			t.Fatalf("seed vendor field %s should not be empty", field)
 		}
 	}
 }

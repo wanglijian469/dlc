@@ -40,6 +40,16 @@ export interface Vendor {
   serviceModels?: string;
   serviceAdvantages?: string;
   description?: string;
+  establishedYear?: string;
+  factoryArea?: string;
+  employeeCount?: string;
+  annualCapacity?: string;
+  equipment?: string;
+  certifications?: string;
+  qualityControl?: string;
+  supplyRegions?: string;
+  cooperationTerms?: string;
+  afterSalesService?: string;
   websiteUrl?: string;
   phone?: string;
   wechat?: string;

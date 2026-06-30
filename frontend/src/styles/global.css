@@ -736,6 +736,120 @@ textarea {
   overflow: hidden;
 }
 
+.vendor-profile-hero {
+  align-items: stretch;
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(15, 35, 80, 0.06);
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  padding: 18px;
+}
+
+.vendor-profile-main {
+  display: grid;
+  gap: 16px;
+}
+
+.vendor-profile-heading {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+  min-width: 0;
+}
+
+.vendor-profile-heading img {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  height: 68px;
+  object-fit: contain;
+  padding: 6px;
+  width: 92px;
+}
+
+.vendor-profile-heading h2 {
+  font-size: 22px;
+  margin: 0 0 8px;
+}
+
+.vendor-profile-lines {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.vendor-profile-lines p,
+.vendor-profile-card p,
+.vendor-detail-list p,
+.vendor-website-card p {
+  color: var(--text-sub);
+  font-size: 14px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.vendor-website-card {
+  background: linear-gradient(135deg, #eaf3ff, #ffffff);
+  border: 1px solid #b8cef7;
+  border-radius: 10px;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+}
+
+.vendor-website-card span {
+  color: var(--primary-blue);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.vendor-website-card h3 {
+  font-size: 20px;
+  margin: 0;
+}
+
+.vendor-website-main {
+  align-self: end;
+  min-height: 42px;
+  width: 100%;
+}
+
+.vendor-profile-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-top: 16px;
+}
+
+.vendor-profile-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(15, 35, 80, 0.05);
+  display: grid;
+  gap: 8px;
+  padding: 16px;
+}
+
+.vendor-profile-card h3 {
+  color: var(--text-main);
+  font-size: 17px;
+  margin: 0;
+}
+
+.vendor-detail-list {
+  display: grid;
+  gap: 6px;
+}
+
+.vendor-detail-list strong,
+.vendor-profile-card strong {
+  color: var(--text-main);
+}
+
 .vendor-cover-detail {
   height: 260px;
 }
@@ -1147,6 +1261,12 @@ textarea {
   }
 
   .vendor-detail-info {
+    grid-template-columns: 1fr;
+  }
+
+  .vendor-profile-hero,
+  .vendor-profile-grid,
+  .vendor-profile-lines {
     grid-template-columns: 1fr;
   }
 
