@@ -180,11 +180,16 @@ textarea {
   padding: 0;
 }
 
-.menu-row.selected,
-.sidebar-item.open > .menu-row {
+.menu-row.selected {
   background: var(--light-blue);
   color: var(--primary-blue);
   font-weight: 800;
+}
+
+.sidebar-item.open > .submenu {
+  border-left: 2px solid #d8e7ff;
+  margin-left: 19px;
+  padding-left: 19px;
 }
 
 .menu-icon {

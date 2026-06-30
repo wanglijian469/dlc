@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react";
+import { readFileSync } from "node:fs";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { MobileCategoryGrid } from "./MobileCategoryGrid";
@@ -38,5 +39,11 @@ describe("menu navigation icons", () => {
 
     expect(container.querySelectorAll(".mobile-category-grid svg")).toHaveLength(1);
     expect(screen.queryByText("d")).not.toBeInTheDocument();
+  });
+
+  it("does not style default-open sidebar menus as the selected page", () => {
+    const css = readFileSync("src/styles/global.css", "utf8");
+
+    expect(css).not.toContain(".sidebar-item.open > .menu-row");
   });
 });
