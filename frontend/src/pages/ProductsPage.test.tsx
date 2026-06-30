@@ -30,27 +30,40 @@ describe("ProductsPage", () => {
     });
     mockedGetFilterOptions.mockResolvedValue({
       provinces: ["山东"],
-      categories: [{ id: 2, name: "液压系统" }],
+      categories: [{ id: 2, name: "传动配件" }],
       serviceTags: [],
     });
     mockedListProducts.mockResolvedValue({
-      items: [{ id: 9, name: "液压油泵总成", categoryId: 2, vendorId: 1, vendor: { id: 1, name: "河北金瑞农机制造有限公司" }, isHot: true }],
+      items: [
+        {
+          id: 9,
+          name: "变速箱齿轮总成",
+          categoryId: 2,
+          vendorId: 1,
+          vendor: { id: 1, name: "河北金瑞农机制造有限公司" },
+          isHot: true,
+        },
+      ],
       page: 1,
       pageSize: 12,
       total: 1,
     });
   });
 
-  it("renders product list and linked vendor", async () => {
-    render(
+  it("renders product list and uses industry cover fallback instead of Parts placeholder", async () => {
+    const { container } = render(
       <MemoryRouter>
         <ProductsPage />
       </MemoryRouter>,
     );
 
     expect(await screen.findByRole("heading", { name: "配件产品" })).toBeInTheDocument();
-    expect(await screen.findByText("液压油泵总成")).toBeInTheDocument();
+    expect(await screen.findByText("变速箱齿轮总成")).toBeInTheDocument();
     expect(screen.getByText("河北金瑞农机制造有限公司")).toBeInTheDocument();
+
+    const cover = container.querySelector(".product-image") as HTMLElement;
+    expect(cover.style.backgroundImage).not.toContain("Parts");
+    expect(cover).toHaveClass("industry-cover-transmission");
     await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 12 })));
   });
 });

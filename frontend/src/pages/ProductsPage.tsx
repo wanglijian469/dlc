@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getFilterOptions, listProducts, type ProductListParams } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
+import { ProductCover } from "../components/public/ProductCover";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { FilterOptions, PageResult, Product } from "../types/api";
 
@@ -83,7 +84,7 @@ export function ProductsPage() {
             <div className="product-grid">
               {result.items.map((product) => (
                 <article className="product-card" key={product.id}>
-                  <div className="product-image" style={{ backgroundImage: `url(${product.image || "https://dummyimage.com/480x300/eaf3ff/1f2a3d&text=Parts"})` }} />
+                  <ProductCover product={product} />
                   <div>
                     <h3>{product.name}</h3>
                     <p>{product.compatibleModels || "通用农机配件"}</p>

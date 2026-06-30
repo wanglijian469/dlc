@@ -387,32 +387,46 @@ textarea {
   position: absolute;
 }
 
-.vendor-cover-default {
+.vendor-cover-default,
+.industry-cover-default {
   align-items: center;
   background:
-    radial-gradient(circle at 78% 20%, rgba(11, 95, 234, 0.12), transparent 26%),
+    radial-gradient(circle at 78% 20%, color-mix(in srgb, var(--industry-accent, #0b5fea) 16%, transparent), transparent 26%),
     linear-gradient(135deg, #f8fbff 0%, #eaf3ff 52%, #dcecff 100%);
   color: var(--primary-blue);
   display: flex;
   justify-content: center;
 }
 
+.industry-cover-pattern,
 .vendor-cover-pattern {
   background-image:
-    linear-gradient(rgba(11, 95, 234, 0.08) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(11, 95, 234, 0.08) 1px, transparent 1px);
+    linear-gradient(color-mix(in srgb, var(--industry-accent, #0b5fea) 11%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--industry-accent, #0b5fea) 11%, transparent) 1px, transparent 1px);
   background-size: 18px 18px;
   inset: 0;
   opacity: 0.5;
   position: absolute;
 }
 
+.industry-cover-main-icon,
 .vendor-cover-main-icon {
-  color: #0b5fea;
+  color: var(--industry-accent, #0b5fea);
   opacity: 0.72;
   position: relative;
   z-index: 1;
 }
+
+.industry-cover-wearing { --industry-accent: #0b5fea; }
+.industry-cover-transmission { --industry-accent: #155bd6; }
+.industry-cover-chassis { --industry-accent: #2474b5; }
+.industry-cover-hydraulic { --industry-accent: #0f8aa6; }
+.industry-cover-engine { --industry-accent: #2364aa; }
+.industry-cover-brake { --industry-accent: #4169a8; }
+.industry-cover-electrical { --industry-accent: #2563eb; }
+.industry-cover-harvester { --industry-accent: #1f8a70; }
+.industry-cover-seeding { --industry-accent: #2b8a3e; }
+.industry-cover-general { --industry-accent: #0b5fea; }
 
 .vendor-cover-index,
 .vendor-cover-badge {
@@ -656,6 +670,8 @@ textarea {
   background-position: center;
   background-size: cover;
   min-height: 130px;
+  overflow: hidden;
+  position: relative;
 }
 
 .search-section {

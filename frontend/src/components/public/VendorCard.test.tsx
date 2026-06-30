@@ -22,6 +22,7 @@ describe("VendorCard", () => {
     const cover = container.querySelector(".vendor-cover") as HTMLElement;
     expect(cover.style.backgroundImage).not.toContain("Factory");
     expect(cover.textContent).not.toContain("Factory");
+    expect(cover).toHaveClass("industry-cover-transmission");
   });
 
   it("keeps real uploaded cover images", () => {
