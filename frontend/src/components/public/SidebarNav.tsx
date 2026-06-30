@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Menu } from "../../types/api";
+import { MenuIcon } from "./MenuIcon";
 
 export function SidebarNav({ menus, auxiliaryMenus }: { menus: Menu[]; auxiliaryMenus: Menu[] }) {
   const location = useLocation();
@@ -26,7 +27,7 @@ export function SidebarNav({ menus, auxiliaryMenus }: { menus: Menu[]; auxiliary
             <div className={`sidebar-item ${open ? "open" : ""}`} key={menu.id}>
               <div className={selected ? "selected menu-row" : "menu-row"}>
                 <Link to={menu.path || "/"}>
-                  <span className="menu-icon">{menu.icon?.slice(0, 1) || "类"}</span>
+                  <span className="menu-icon"><MenuIcon icon={menu.icon} /></span>
                   <span>{menu.name}</span>
                 </Link>
                 {menu.children?.length ? (
@@ -39,6 +40,7 @@ export function SidebarNav({ menus, auxiliaryMenus }: { menus: Menu[]; auxiliary
                 <div className="submenu">
                   {menu.children.map((child) => (
                     <Link key={child.id} to={child.path || "/"}>
+                      <MenuIcon className="submenu-icon" icon={child.icon || "dot"} size={12} />
                       {child.name}
                     </Link>
                   ))}

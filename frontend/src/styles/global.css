@@ -188,6 +188,11 @@ textarea {
 }
 
 .menu-icon {
+  align-items: center;
+  color: var(--primary-blue);
+  display: inline-flex;
+  flex: 0 0 18px;
+  justify-content: center;
   width: 18px;
 }
 
@@ -198,9 +203,17 @@ textarea {
 }
 
 .submenu a {
+  align-items: center;
   color: var(--text-main);
+  display: flex;
   font-size: 14px;
+  gap: 8px;
   padding: 6px 0;
+}
+
+.submenu-icon {
+  color: #7b91b1;
+  flex: 0 0 12px;
 }
 
 .sidebar-links {
