@@ -59,6 +59,15 @@ func TestDefaultSeedContainsExpandedSidebarMenuTree(t *testing.T) {
 	}
 }
 
+func TestDefaultSeedDoesNotDefaultOpenSidebarMenus(t *testing.T) {
+	seed := DefaultSeed()
+	for _, menu := range seed.Menus {
+		if menu.MenuType == "sidebar" && menu.IsDefaultOpen {
+			t.Fatalf("sidebar menu %q should not be default open", menu.Key)
+		}
+	}
+}
+
 func TestDefaultSeedVendorsDoNotUseFactoryDummyCovers(t *testing.T) {
 	seed := DefaultSeed()
 	for _, vendor := range seed.Vendors {

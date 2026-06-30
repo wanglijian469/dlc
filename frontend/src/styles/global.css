@@ -164,7 +164,8 @@ textarea {
   justify-content: space-between;
 }
 
-.menu-row a {
+.menu-row a,
+.menu-row-button {
   align-items: center;
   display: flex;
   flex: 1;
@@ -172,12 +173,22 @@ textarea {
   min-width: 0;
 }
 
-.menu-row button {
+.menu-row-button {
   background: transparent;
   border: 0;
   color: inherit;
   cursor: pointer;
+  justify-content: space-between;
   padding: 0;
+  text-align: left;
+  width: 100%;
+}
+
+.menu-row-label {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
 }
 
 .menu-row.selected {
@@ -214,6 +225,15 @@ textarea {
   font-size: 14px;
   gap: 8px;
   padding: 6px 0;
+}
+
+.submenu a.active {
+  color: var(--primary-blue);
+  font-weight: 800;
+}
+
+.submenu a.active .submenu-icon {
+  color: var(--primary-blue);
 }
 
 .submenu-icon {

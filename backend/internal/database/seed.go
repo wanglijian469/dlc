@@ -47,7 +47,7 @@ func DefaultSeed() SeedData {
 			{Key: "wearing-tensioner", ParentKey: "wearing", Name: "皮带张紧轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%BC%A0%E7%B4%A7%E8%BD%AE", SortOrder: 3},
 			{Key: "wearing-seal", ParentKey: "wearing", Name: "密封圈油封", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%B2%B9%E5%B0%81", SortOrder: 4},
 			{Key: "wearing-bolt", ParentKey: "wearing", Name: "螺栓销轴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%94%80%E8%BD%B4", SortOrder: 5},
-			{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3, IsDefaultOpen: true},
+			{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3},
 			{Key: "transmission-gear", ParentKey: "transmission", Name: "变速箱齿轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%BD%BF%E8%BD%AE", SortOrder: 1},
 			{Key: "transmission-differential", ParentKey: "transmission", Name: "后桥差速器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%B7%AE%E9%80%9F%E5%99%A8", SortOrder: 2},
 			{Key: "transmission-shaft", ParentKey: "transmission", Name: "半轴传动轴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E4%BC%A0%E5%8A%A8%E8%BD%B4", SortOrder: 3},

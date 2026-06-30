@@ -1,6 +1,6 @@
-import { render, waitFor, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { HomePayload } from "../../types/api";
 import { getHome } from "../../api/public";
 import { PageFrame } from "./PageFrame";
@@ -42,6 +42,8 @@ describe("PageFrame", () => {
     vi.mocked(getHome).mockResolvedValue(homePayload);
   });
 
+  afterEach(() => cleanup());
+
   it.each([
     ["/products", "配件产品"],
     ["/vendors", "厂商目录"],
@@ -64,7 +66,7 @@ describe("PageFrame", () => {
     expect(topNav).toHaveTextContent("采购信息");
   });
 
-  it("renders the same sidebar categories on desktop subpages", async () => {
+  it("renders the same collapsed sidebar categories on desktop subpages and lets parent rows toggle", async () => {
     const { container } = render(
       <MemoryRouter initialEntries={["/products"]}>
         <PageFrame title="配件产品">
@@ -76,7 +78,10 @@ describe("PageFrame", () => {
     await waitFor(() => expect(getHome).toHaveBeenCalled());
 
     const sidebar = container.querySelector(".sidebar") as HTMLElement;
-    expect(within(sidebar).getByRole("link", { name: /传动配件/ })).toBeInTheDocument();
+    const parent = within(sidebar).getByRole("button", { name: "传动配件" });
+    expect(parent).toBeInTheDocument();
+    expect(within(sidebar).queryByRole("link", { name: /变速箱齿轮/ })).not.toBeInTheDocument();
+    fireEvent.click(parent);
     expect(within(sidebar).getByRole("link", { name: /变速箱齿轮/ })).toBeInTheDocument();
     expect(within(sidebar).getByRole("link", { name: "提交厂商" })).toBeInTheDocument();
   });
