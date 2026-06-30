@@ -225,6 +225,24 @@ textarea {
   padding: 18px 24px 24px;
 }
 
+.subpage-body {
+  grid-template-columns: 250px minmax(0, 1fr);
+}
+
+.subpage-content {
+  min-width: 0;
+}
+
+.subpage-content .plain-page {
+  margin: 0 auto;
+  padding: 22px 0 32px;
+  width: 100%;
+}
+
+.sidebar-placeholder {
+  background: #fff;
+}
+
 .hero-search {
   background: linear-gradient(90deg, #0b5fea 0%, #0a58d6 52%, #6fb3ff 100%);
   border-radius: 0;
@@ -913,6 +931,10 @@ textarea {
     padding: 12px 14px 86px;
   }
 
+  .subpage-content {
+    padding: 0;
+  }
+
   .mobile-header {
     align-items: center;
     background: #fff;
@@ -1075,6 +1097,11 @@ textarea {
   .plain-page,
   .state-page {
     margin: 0 auto;
+    padding: 18px 14px 86px;
+  }
+
+  .subpage-content .plain-page {
+    max-width: none;
     padding: 18px 14px 86px;
   }
 

@@ -27,7 +27,9 @@ export function SidebarNav({ menus, auxiliaryMenus }: { menus: Menu[]; auxiliary
             <div className={`sidebar-item ${open ? "open" : ""}`} key={menu.id}>
               <div className={selected ? "selected menu-row" : "menu-row"}>
                 <Link to={menu.path || "/"}>
-                  <span className="menu-icon"><MenuIcon icon={menu.icon} /></span>
+                  <span className="menu-icon">
+                    <MenuIcon icon={menu.icon} />
+                  </span>
                   <span>{menu.name}</span>
                 </Link>
                 {menu.children?.length ? (

@@ -1,19 +1,33 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getFilterOptions, listVendors } from "../api/public";
+import { getFilterOptions, getHome, listVendors } from "../api/public";
 import { VendorsPage } from "./VendorsPage";
 
 vi.mock("../api/public", () => ({
   getFilterOptions: vi.fn(),
+  getHome: vi.fn(),
   listVendors: vi.fn(),
 }));
 
 const mockedGetFilterOptions = vi.mocked(getFilterOptions);
+const mockedGetHome = vi.mocked(getHome);
 const mockedListVendors = vi.mocked(listVendors);
 
 describe("VendorsPage", () => {
   beforeEach(() => {
+    mockedGetHome.mockResolvedValue({
+      topMenus: [],
+      sidebarMenus: [],
+      auxiliaryMenus: [],
+      mobileMenus: [],
+      banner: { title: "" },
+      recommendedVendors: [],
+      moreVendors: [],
+      stats: [],
+      safeguards: [],
+      join: { text: "", buttonText: "", path: "/" },
+    });
     mockedGetFilterOptions.mockResolvedValue({
       provinces: ["山东", "河北"],
       categories: [{ id: 1, name: "传动配件" }],

@@ -1,9 +1,47 @@
-import { render } from "@testing-library/react";
+import { render, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { HomePayload } from "../../types/api";
+import { getHome } from "../../api/public";
 import { PageFrame } from "./PageFrame";
 
+vi.mock("../../api/public", () => ({
+  getHome: vi.fn(),
+}));
+
+const homePayload: HomePayload = {
+  topMenus: [],
+  sidebarMenus: [
+    {
+      id: 1,
+      name: "首页",
+      icon: "home",
+      path: "/",
+    },
+    {
+      id: 2,
+      name: "传动配件",
+      icon: "cog",
+      path: "/products?keyword=传动配件",
+      isDefaultOpen: true,
+      children: [{ id: 3, name: "变速箱齿轮", icon: "dot", path: "/products?keyword=变速箱齿轮" }],
+    },
+  ],
+  auxiliaryMenus: [{ id: 10, name: "提交厂商", path: "/submit" }],
+  mobileMenus: [],
+  banner: { title: "" },
+  recommendedVendors: [],
+  moreVendors: [],
+  stats: [],
+  safeguards: [],
+  join: { text: "", buttonText: "", path: "/" },
+};
+
 describe("PageFrame", () => {
+  beforeEach(() => {
+    vi.mocked(getHome).mockResolvedValue(homePayload);
+  });
+
   it.each([
     ["/products", "配件产品"],
     ["/vendors", "厂商目录"],
@@ -24,5 +62,22 @@ describe("PageFrame", () => {
     expect(topNav).toHaveTextContent("厂商目录");
     expect(topNav).toHaveTextContent("加工服务");
     expect(topNav).toHaveTextContent("采购信息");
+  });
+
+  it("renders the same sidebar categories on desktop subpages", async () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/products"]}>
+        <PageFrame title="配件产品">
+          <div>产品列表</div>
+        </PageFrame>
+      </MemoryRouter>,
+    );
+
+    await waitFor(() => expect(getHome).toHaveBeenCalled());
+
+    const sidebar = container.querySelector(".sidebar") as HTMLElement;
+    expect(within(sidebar).getByRole("link", { name: /传动配件/ })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("link", { name: /变速箱齿轮/ })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("link", { name: "提交厂商" })).toBeInTheDocument();
   });
 });
