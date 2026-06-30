@@ -96,7 +96,7 @@ export function VendorsPage() {
           {result.items.length ? (
             <div className="vendor-grid directory-grid">
               {result.items.map((vendor) => (
-                <VendorCard key={vendor.id} vendor={vendor} />
+                <VendorCard directory key={vendor.id} vendor={vendor} />
               ))}
             </div>
           ) : (

@@ -1134,3 +1134,225 @@ textarea {
     grid-template-columns: 1fr;
   }
 }
+
+/* Information-first B2B cards */
+.vendor-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.directory-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.vendor-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 238px;
+  padding: 14px;
+}
+
+.vendor-card-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.vendor-card .vendor-logo {
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  bottom: auto;
+  flex: 0 0 46px;
+  height: 46px;
+  left: auto;
+  object-fit: contain;
+  padding: 5px;
+  position: static;
+  width: 46px;
+}
+
+.vendor-title-block {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.vendor-title-block h3,
+.product-card h3,
+.search-card strong {
+  color: var(--text-main);
+  font-weight: 800;
+  line-height: 1.35;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.vendor-title-block h3,
+.product-card h3 {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.vendor-body {
+  display: grid;
+  flex: 1;
+  gap: 7px;
+  padding: 0;
+}
+
+.vendor-line,
+.product-line,
+.search-card p {
+  color: var(--text-sub);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.vendor-line,
+.product-line {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.vendor-card .card-actions,
+.product-card .card-actions {
+  margin-top: auto;
+}
+
+.tag-row .tag-blue,
+.search-card .tag-blue {
+  background: #eaf3ff;
+  color: var(--primary-blue);
+}
+
+.tag-row .tag-green,
+.search-card .tag-green {
+  background: var(--tag-green-bg);
+  color: var(--tag-green-text);
+}
+
+.tag-row .tag-orange,
+.search-card .tag-orange {
+  background: #fff3e3;
+  color: #b75c00;
+}
+
+.service-tags:empty {
+  display: none;
+}
+
+.product-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.product-card {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  min-height: 248px;
+  padding: 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.product-card:hover,
+.search-card:hover {
+  border-color: #b8cef7;
+  box-shadow: 0 10px 26px rgba(15, 35, 80, 0.1);
+  transform: translateY(-2px);
+}
+
+.product-thumb {
+  background: #f6f9fd;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  flex: 0 0 84px;
+  height: 84px;
+  object-fit: cover;
+  width: 84px;
+}
+
+.product-card-main {
+  display: grid;
+  flex: 1;
+  gap: 7px;
+  min-width: 0;
+}
+
+.product-card-title {
+  display: grid;
+  gap: 6px;
+}
+
+.product-card a.primary-btn,
+.product-card a.outline-btn {
+  font-size: 13px;
+}
+
+.search-card-list {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.search-card {
+  background: #fff;
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(15, 35, 80, 0.05);
+  display: grid;
+  gap: 8px;
+  min-height: 118px;
+  padding: 14px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.search-card-head {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+@media (max-width: 1200px) {
+  .vendor-grid,
+  .directory-grid,
+  .product-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .vendor-grid,
+  .vendor-grid.recommended,
+  .directory-grid,
+  .product-grid,
+  .search-card-list {
+    grid-template-columns: 1fr;
+  }
+
+  .vendor-card {
+    display: flex;
+    min-height: 0;
+  }
+
+  .vendor-card .vendor-logo {
+    display: block;
+  }
+
+  .product-card {
+    min-height: 0;
+  }
+
+  .product-thumb {
+    flex-basis: 72px;
+    height: 72px;
+    width: 72px;
+  }
+}

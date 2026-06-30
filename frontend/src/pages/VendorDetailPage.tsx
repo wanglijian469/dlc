@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getVendor, listProducts } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
-import { ProductCover } from "../components/public/ProductCover";
+import { ProductCard } from "../components/public/ProductCard";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
 import { VendorCover } from "../components/public/VendorCover";
 import type { Product, Vendor } from "../types/api";
@@ -73,13 +73,7 @@ export function VendorDetailPage() {
         </div>
         <div className="product-grid">
           {products.map((product) => (
-            <article className="product-card" key={product.id}>
-              <ProductCover product={product} />
-              <div>
-                <h3>{product.name}</h3>
-                <p>{product.compatibleModels || product.description}</p>
-              </div>
-            </article>
+            <ProductCard compact key={product.id} product={{ ...product, vendor }} />
           ))}
         </div>
       </section>

@@ -40,7 +40,9 @@ describe("ProductsPage", () => {
           name: "变速箱齿轮总成",
           categoryId: 2,
           vendorId: 1,
-          vendor: { id: 1, name: "河北金瑞农机制造有限公司" },
+          compatibleModels: "联合收割机、拖拉机",
+          vendor: { id: 1, name: "河北金瑞农机制造有限公司", province: "河北" },
+          category: { id: 2, name: "传动配件" },
           isHot: true,
         },
       ],
@@ -50,7 +52,7 @@ describe("ProductsPage", () => {
     });
   });
 
-  it("renders product list and uses industry cover fallback instead of Parts placeholder", async () => {
+  it("renders product list as information-first product cards", async () => {
     const { container } = render(
       <MemoryRouter>
         <ProductsPage />
@@ -59,11 +61,11 @@ describe("ProductsPage", () => {
 
     expect(await screen.findByRole("heading", { name: "配件产品" })).toBeInTheDocument();
     expect(await screen.findByText("变速箱齿轮总成")).toBeInTheDocument();
-    expect(screen.getByText("河北金瑞农机制造有限公司")).toBeInTheDocument();
-
-    const cover = container.querySelector(".product-image") as HTMLElement;
-    expect(cover.style.backgroundImage).not.toContain("Parts");
-    expect(cover).toHaveClass("industry-cover-transmission");
+    expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
+    expect(screen.getByText(/适配机型：联合收割机、拖拉机/)).toBeInTheDocument();
+    expect(screen.getByText("热销")).toHaveClass("tag-orange");
+    expect(container.querySelector(".product-image")).not.toBeInTheDocument();
+    expect(container.textContent).not.toContain("Parts");
     await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 12 })));
   });
 });

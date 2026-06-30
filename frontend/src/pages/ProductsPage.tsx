@@ -1,8 +1,8 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { getFilterOptions, listProducts, type ProductListParams } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
-import { ProductCover } from "../components/public/ProductCover";
+import { ProductCard } from "../components/public/ProductCard";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { FilterOptions, PageResult, Product } from "../types/api";
 
@@ -22,6 +22,7 @@ export function ProductsPage() {
     () => ({
       keyword: params.get("keyword") || undefined,
       categoryId: params.get("categoryId") || params.get("category") || undefined,
+      vendorId: params.get("vendorId") || undefined,
       hot: params.get("hot") === "true" || undefined,
       page: Number(params.get("page") || 1),
       pageSize,
@@ -83,23 +84,7 @@ export function ProductsPage() {
           {result.items.length ? (
             <div className="product-grid">
               {result.items.map((product) => (
-                <article className="product-card" key={product.id}>
-                  <ProductCover product={product} />
-                  <div>
-                    <h3>{product.name}</h3>
-                    <p>{product.compatibleModels || "通用农机配件"}</p>
-                    {product.vendor?.id && (
-                      <Link to={`/vendors/${product.vendor.id}`}>
-                        {product.vendor.name}
-                      </Link>
-                    )}
-                    <div className="tag-row">
-                      {product.isHot && <span>热门</span>}
-                      {product.isRecommended && <span>推荐</span>}
-                      {product.category?.name && <span>{product.category.name}</span>}
-                    </div>
-                  </div>
-                </article>
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           ) : (
