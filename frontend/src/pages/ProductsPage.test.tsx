@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+﻿import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getFilterOptions, getHome, listProducts } from "../api/public";
@@ -21,6 +21,7 @@ describe("ProductsPage", () => {
       sidebarMenus: [],
       auxiliaryMenus: [],
       mobileMenus: [],
+      mobileBottomMenus: [],
       banner: { title: "" },
       recommendedVendors: [],
       moreVendors: [],

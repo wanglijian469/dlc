@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { ProductCard } from "./ProductCard";
@@ -32,6 +32,7 @@ describe("ProductCard", () => {
     expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/价格：面议 \/ 批量报价/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "联系供应商" })).toHaveAttribute("href", "/vendors/1");
+    expect(screen.getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/products/9");
   });
 
   it("uses only a small thumbnail when a real product image exists", () => {

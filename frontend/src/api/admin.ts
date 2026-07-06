@@ -1,5 +1,5 @@
-import { adminClient, publicClient } from "./client";
-import type { Banner, Category, Menu, Product, SiteConfig, Tag, Vendor } from "../types/api";
+﻿import { adminClient, publicClient } from "./client";
+import type { Banner, Category, ContentPageRecord, FriendLink, Menu, Product, SiteConfig, Tag, Vendor } from "../types/api";
 
 export interface LoginResponse {
   token: string;
@@ -10,8 +10,8 @@ export function login(username: string, password: string) {
   return publicClient.post<never, LoginResponse>("/api/admin/login", { username, password });
 }
 
-export type ResourceName = "menus" | "vendors" | "tags" | "categories" | "products" | "banners";
-export type ResourceRecord = (Menu | Vendor | Tag | Category | Product | Banner) & { id: number };
+export type ResourceName = "menus" | "vendors" | "tags" | "categories" | "products" | "banners" | "pages" | "friend-links";
+export type ResourceRecord = (Menu | Vendor | Tag | Category | Product | Banner | ContentPageRecord | FriendLink) & { id: number };
 
 export function listResource<T extends ResourceRecord>(resource: ResourceName) {
   return adminClient.get<never, T[]>(`/api/admin/${resource}`);
@@ -37,3 +37,8 @@ export function updateConfig(key: string, payload: Partial<SiteConfig>) {
   return adminClient.put<never, SiteConfig>(`/api/admin/configs/${key}`, payload);
 }
 
+export function uploadFile(file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return adminClient.post<never, { url: string }>("/api/admin/uploads", form, { headers: { "Content-Type": "multipart/form-data" } });
+}

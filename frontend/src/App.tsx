@@ -1,6 +1,8 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+﻿import { Navigate, Route, Routes } from "react-router-dom";
+import { ContentPage } from "./pages/ContentPage";
 import { HomePage } from "./pages/HomePage";
-import { PlaceholderPage } from "./pages/PlaceholderPage";
+import { ProductDetailPage } from "./pages/ProductDetailPage";
+import { ProcessingServicesPage } from "./pages/ProcessingServicesPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SearchPage } from "./pages/SearchPage";
 import { VendorDetailPage } from "./pages/VendorDetailPage";
@@ -18,11 +20,12 @@ export function App() {
       <Route path="/vendors" element={<VendorsPage />} />
       <Route path="/vendors/:id" element={<VendorDetailPage />} />
       <Route path="/products" element={<ProductsPage />} />
-      <Route path="/products/:id" element={<PlaceholderPage title="产品详情" />} />
-      <Route path="/join" element={<PlaceholderPage title="提交厂商" description="请联系平台运营人员提交厂商资料，后续版本将开放在线入驻表单。" />} />
-      <Route path="/about" element={<PlaceholderPage title="关于平台" description="大陆农机配件聚合源头厂商、配件产品和加工服务信息，帮助维修与采购用户快速找厂。" />} />
-      <Route path="/service" element={<PlaceholderPage title="加工服务" description="加工服务栏目将聚合定制加工、来图加工和批量配套能力。" />} />
-      <Route path="/purchase" element={<PlaceholderPage title="采购信息" description="采购信息保留入口，首页暂不展示最新求购。" />} />
+      <Route path="/products/:id" element={<ProductDetailPage />} />
+      <Route path="/join" element={<ContentPage slug="join" />} />
+      <Route path="/about" element={<ContentPage slug="about" />} />
+      <Route path="/service" element={<ProcessingServicesPage />} />
+      <Route path="/purchase" element={<ContentPage slug="purchase" />} />
+      <Route path="/links" element={<ContentPage slug="links" />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route
         path="/admin/dashboard"

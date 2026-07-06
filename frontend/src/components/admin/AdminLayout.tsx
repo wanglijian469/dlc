@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+﻿import { NavLink } from "react-router-dom";
 import type { ReactNode } from "react";
 
 const links = [
@@ -9,6 +9,8 @@ const links = [
   ["配件分类", "/admin/categories"],
   ["配件产品", "/admin/products"],
   ["Banner 管理", "/admin/banners"],
+  ["内容页面", "/admin/pages"],
+  ["友情链接", "/admin/friend-links"],
   ["平台配置", "/admin/configs"],
 ];
 
@@ -18,7 +20,7 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
       <aside className="admin-sidebar">
         <strong>大陆农机配件 CMS</strong>
         {links.map(([label, path]) => (
-          <NavLink key={path} to={path}>
+          <NavLink className={({ isActive }) => (isActive ? "active" : "")} key={path} to={path}>
             {label}
           </NavLink>
         ))}

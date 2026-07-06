@@ -1,19 +1,24 @@
-import { UserRound } from "lucide-react";
+﻿import { UserRound } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
-import type { Menu } from "../../types/api";
+import type { Menu, SiteMeta } from "../../types/api";
 
-const BRAND_MARK = "\u519c";
-const BRAND_NAME = "\u5927\u9646\u519c\u673a\u914d\u4ef6";
-const SUBMIT_VENDOR = "\u63d0\u4ea4\u5382\u5546";
-const ADMIN_LOGIN = "\u540e\u53f0\u767b\u5f55";
+const defaultMeta: SiteMeta = {
+  brandMark: "农",
+  siteName: "大陆农机配件",
+  submitVendorText: "提交厂商",
+  adminLoginText: "后台登录",
+  mobileBrandName: "大陆农机配件",
+  mobileBrandMark: "农",
+};
 
-export function PublicHeader({ menus }: { menus: Menu[] }) {
+export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: SiteMeta }) {
   const location = useLocation();
+  const meta = { ...defaultMeta, ...siteMeta };
   return (
     <header className="public-header">
       <Link className="brand" to="/">
-        <span className="brand-mark">{BRAND_MARK}</span>
-        <span>{BRAND_NAME}</span>
+        <span className="brand-mark">{meta.brandMark}</span>
+        <span>{meta.siteName}</span>
       </Link>
       <nav className="top-nav">
         {menus.map((menu) => (
@@ -23,12 +28,10 @@ export function PublicHeader({ menus }: { menus: Menu[] }) {
         ))}
       </nav>
       <div className="header-actions">
-        <Link className="primary-btn" to="/join">
-          {SUBMIT_VENDOR}
-        </Link>
+        <Link className="primary-btn" to="/join">{meta.submitVendorText}</Link>
         <Link className="outline-btn" to="/admin/login">
           <UserRound size={16} />
-          {ADMIN_LOGIN}
+          {meta.adminLoginText}
         </Link>
       </div>
     </header>

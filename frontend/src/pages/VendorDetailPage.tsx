@@ -62,6 +62,8 @@ export function VendorDetailPage() {
               <div className="tag-row">
                 {vendor.isVerified && <span className="tag-blue">平台认证</span>}
                 {vendor.isRecommended && <span className="tag-green">推荐厂商</span>}
+                {vendor.reviewStatus === "pending" && <span className="tag-orange">公开信息待复核</span>}
+                {vendor.reviewStatus === "verified" && <span className="tag-blue">公开信息已复核</span>}
                 {vendor.tags?.map((tag) => (
                   <span className="tag-green" key={tag.id}>
                     {tag.name}
@@ -107,6 +109,36 @@ export function VendorDetailPage() {
         <TextCard title="供货范围" value={vendor.supplyRegions} />
         <TextCard title="合作说明" value={vendor.cooperationTerms} />
         <TextCard label="售后服务" title="售后服务" value={vendor.afterSalesService} />
+        {(vendor.sourceUrl || vendor.sourceNote || vendor.reviewStatus) && (
+          <article className="vendor-profile-card">
+            <h3>公开信息来源</h3>
+            <div className="vendor-detail-list">
+              {vendor.reviewStatus && <p>复核状态：{reviewStatusLabel(vendor.reviewStatus)}</p>}
+              {vendor.sourceUrl && (
+                <p>
+                  来源链接：
+                  <a href={vendor.sourceUrl} rel="noreferrer" target="_blank">
+                    查看公开来源
+                  </a>
+                </p>
+              )}
+              {vendor.sourceNote && <p>{vendor.sourceNote}</p>}
+            </div>
+          </article>
+        )}
+        {vendor.providesProcessing && (
+          <DetailCard
+            title="加工服务能力"
+            items={[
+              { label: "加工能力", value: vendor.processingServices },
+              { label: "材料/类型", value: vendor.processingMaterials },
+              { label: "加工设备", value: vendor.processingEquipment },
+              { label: "产能/交期", value: vendor.processingCapacity },
+              { label: "服务区域", value: vendor.processingRegions },
+              { label: "接单说明", value: vendor.processingNotes },
+            ]}
+          />
+        )}
         <DetailCard
           title="联系方式"
           items={[
@@ -131,6 +163,12 @@ export function VendorDetailPage() {
       </section>
     </PageFrame>
   );
+}
+
+function reviewStatusLabel(status: string) {
+  if (status === "verified") return "已人工复核";
+  if (status === "rejected") return "已驳回";
+  return "待人工复核";
 }
 
 function TextCard({ title, value, label }: { title: string; value?: string; label?: string }) {

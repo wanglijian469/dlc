@@ -1,14 +1,14 @@
-import { Link } from "react-router-dom";
-import type { Vendor } from "../../types/api";
+﻿import { Link } from "react-router-dom";
+import type { HomeSections, Vendor } from "../../types/api";
 import { VendorCard } from "./VendorCard";
 
-export function MoreVendors({ vendors }: { vendors: Vendor[] }) {
+export function MoreVendors({ vendors, homeSections }: { vendors: Vendor[]; homeSections?: HomeSections }) {
   return (
     <section className="section-block">
       <div className="section-title filters">
-        <h2>更多厂商</h2>
+        <h2>{homeSections?.moreTitle || "更多厂商"}</h2>
         <div>
-          <Link to="/vendors">全部地区</Link>
+          <Link to={homeSections?.moreLink || "/vendors"}>全部地区</Link>
           <Link to="/vendors?sort=recommended">推荐优先</Link>
           <Link to="/vendors?sort=latest">最新入驻</Link>
           <Link to="/products">主营品类</Link>

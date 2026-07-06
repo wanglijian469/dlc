@@ -1,6 +1,7 @@
 package api
 
 import (
+	"net/http"
 	"strconv"
 	"strings"
 
@@ -24,6 +25,10 @@ func (h PublicHandler) Home(c *gin.Context) {
 	OK(c, payload)
 }
 
+func (h PublicHandler) SiteMeta(c *gin.Context) {
+	OK(c, h.HomeService.SiteMeta(c.Request.Context()))
+}
+
 func (h PublicHandler) Menus(c *gin.Context) {
 	var menus []model.Menu
 	query := h.DB.Where("is_enabled = ?", true)
@@ -36,6 +41,21 @@ func (h PublicHandler) Menus(c *gin.Context) {
 		return
 	}
 	OK(c, menus)
+}
+
+func (h PublicHandler) Page(c *gin.Context) {
+	var page model.ContentPage
+	if err := h.DB.Where("slug = ? AND is_enabled = ?", c.Param("slug"), true).First(&page).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "页面不存在")
+		return
+	}
+	OK(c, page)
+}
+
+func (h PublicHandler) FriendLinks(c *gin.Context) {
+	var links []model.FriendLink
+	h.DB.Where("is_enabled = ?", true).Order("sort_order asc, id asc").Find(&links)
+	OK(c, links)
 }
 
 func (h PublicHandler) Vendors(c *gin.Context) {
@@ -64,6 +84,37 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 		query = query.Order("is_recommended desc, sort_order asc, id asc")
 	}
 	OK(c, paginate(query, &vendors, page, pageSize))
+}
+
+func (h PublicHandler) ProcessingVendors(c *gin.Context) {
+	var vendors []model.Vendor
+	page, pageSize := pageParams(c, 12)
+	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Where("is_visible = ? AND provides_processing = ?", true, true)
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ? OR processing_services LIKE ? OR processing_materials LIKE ? OR processing_equipment LIKE ? OR processing_capacity LIKE ? OR processing_regions LIKE ? OR processing_notes LIKE ?", like, like, like, like, like, like, like, like, like)
+	}
+	if province := strings.TrimSpace(c.Query("province")); province != "" {
+		query = query.Where("province = ?", province)
+	}
+	if tagID := queryUint(c, "tagId"); tagID > 0 {
+		query = query.Joins("JOIN vendor_tags ON vendor_tags.vendor_id = vendors.id AND vendor_tags.tag_id = ?", tagID).
+			Joins("JOIN tags processing_tags ON processing_tags.id = vendor_tags.tag_id AND processing_tags.tag_type = ?", "processing")
+	}
+	if c.Query("sort") == "latest" {
+		query = query.Order("created_at desc")
+	} else {
+		query = query.Order("is_recommended desc, sort_order asc, id asc")
+	}
+	OK(c, paginate(query, &vendors, page, pageSize))
+}
+
+func (h PublicHandler) ProcessingFilterOptions(c *gin.Context) {
+	var provinces []string
+	var tags []model.Tag
+	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND provides_processing = ? AND province <> ''", true, true).Distinct().Order("province asc").Pluck("province", &provinces)
+	h.DB.Where("tag_type = ?", "processing").Order("sort_order asc, id asc").Find(&tags)
+	OK(c, gin.H{"provinces": provinces, "categories": []model.Category{}, "serviceTags": tags})
 }
 
 func (h PublicHandler) RecommendedVendors(c *gin.Context) {
@@ -112,15 +163,20 @@ func (h PublicHandler) Products(c *gin.Context) {
 	OK(c, paginate(query, &products, page, pageSize))
 }
 
+func (h PublicHandler) ProductDetail(c *gin.Context) {
+	var product model.Product
+	if err := h.DB.Preload("Category").Preload("Vendor").First(&product, "id = ? AND status = ?", c.Param("id"), 1).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "产品不存在")
+		return
+	}
+	OK(c, product)
+}
+
 func (h PublicHandler) Search(c *gin.Context) {
 	keyword := strings.TrimSpace(c.Query("keyword"))
 	page, pageSize := pageParams(c, 10)
 	if keyword == "" {
-		OK(c, gin.H{
-			"vendors":    PageResult{Items: []model.Vendor{}, Page: page, PageSize: pageSize, Total: 0},
-			"products":   PageResult{Items: []model.Product{}, Page: page, PageSize: pageSize, Total: 0},
-			"categories": PageResult{Items: []model.Category{}, Page: page, PageSize: pageSize, Total: 0},
-		})
+		OK(c, gin.H{"vendors": PageResult{Items: []model.Vendor{}, Page: page, PageSize: pageSize, Total: 0}, "products": PageResult{Items: []model.Product{}, Page: page, PageSize: pageSize, Total: 0}, "categories": PageResult{Items: []model.Category{}, Page: page, PageSize: pageSize, Total: 0}})
 		return
 	}
 	like := "%" + keyword + "%"
@@ -130,11 +186,7 @@ func (h PublicHandler) Search(c *gin.Context) {
 	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Where("is_visible = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, like, like, like).Order("is_recommended desc, sort_order asc, id asc")
 	productQuery := h.DB.Model(&model.Product{}).Preload("Category").Preload("Vendor").Where("status = ? AND (name LIKE ? OR compatible_models LIKE ? OR description LIKE ?)", 1, like, like, like).Order("is_recommended desc, sort_order asc, id asc")
 	categoryQuery := h.DB.Model(&model.Category{}).Where("is_enabled = ? AND name LIKE ?", true, like).Order("sort_order asc, id asc")
-	OK(c, gin.H{
-		"vendors":    paginate(vendorQuery, &vendors, page, pageSize),
-		"products":   paginate(productQuery, &products, page, pageSize),
-		"categories": paginate(categoryQuery, &categories, page, pageSize),
-	})
+	OK(c, gin.H{"vendors": paginate(vendorQuery, &vendors, page, pageSize), "products": paginate(productQuery, &products, page, pageSize), "categories": paginate(categoryQuery, &categories, page, pageSize)})
 }
 
 func (h PublicHandler) FilterOptions(c *gin.Context) {

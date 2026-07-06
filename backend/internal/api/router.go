@@ -43,11 +43,17 @@ func RegisterPublicRoutes(router *gin.Engine, db *gorm.DB) {
 	handler := PublicHandler{DB: db, HomeService: service.HomeService{DB: db}}
 	api := router.Group("/api")
 	api.GET("/home", handler.Home)
+	api.GET("/site-meta", handler.SiteMeta)
 	api.GET("/menus", handler.Menus)
+	api.GET("/pages/:slug", handler.Page)
+	api.GET("/friend-links", handler.FriendLinks)
+	api.GET("/processing-vendors", handler.ProcessingVendors)
+	api.GET("/processing-filter-options", handler.ProcessingFilterOptions)
 	api.GET("/vendors", handler.Vendors)
 	api.GET("/vendors/recommended", handler.RecommendedVendors)
 	api.GET("/vendors/:id", handler.VendorDetail)
 	api.GET("/products", handler.Products)
+	api.GET("/products/:id", handler.ProductDetail)
 	api.GET("/search", handler.Search)
 	api.GET("/filter-options", handler.FilterOptions)
 }
@@ -83,8 +89,17 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	protected.POST("/banners", handler.CreateBanner)
 	protected.PUT("/banners/:id", handler.UpdateBanner)
 	protected.DELETE("/banners/:id", handler.DeleteBanner)
+	protected.GET("/pages", handler.ListPages)
+	protected.POST("/pages", handler.CreatePage)
+	protected.PUT("/pages/:id", handler.UpdatePage)
+	protected.DELETE("/pages/:id", handler.DeletePage)
+	protected.GET("/friend-links", handler.ListFriendLinks)
+	protected.POST("/friend-links", handler.CreateFriendLink)
+	protected.PUT("/friend-links/:id", handler.UpdateFriendLink)
+	protected.DELETE("/friend-links/:id", handler.DeleteFriendLink)
 	protected.GET("/configs", handler.ListConfigs)
 	protected.PUT("/configs/:key", handler.UpdateConfig)
+	protected.POST("/uploads", handler.Upload)
 }
 
 func AdminAuth(secret string) gin.HandlerFunc {
@@ -112,6 +127,10 @@ func RegisterStaticRoutes(router *gin.Engine, publicDir string) {
 	}
 	if _, err := os.Stat(publicDir); err != nil {
 		return
+	}
+	uploadsDir := filepath.Join(publicDir, "uploads")
+	if _, err := os.Stat(uploadsDir); err == nil {
+		router.Static("/uploads", uploadsDir)
 	}
 	assetsDir := filepath.Join(publicDir, "assets")
 	if _, err := os.Stat(assetsDir); err == nil {

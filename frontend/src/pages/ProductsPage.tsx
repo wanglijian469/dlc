@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getFilterOptions, listProducts, type ProductListParams } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
@@ -63,18 +63,14 @@ export function ProductsPage() {
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
           <option value="">全部分类</option>
           {filters.categories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
+            <option key={category.id} value={category.id}>{category.name}</option>
           ))}
         </select>
         <label className="inline-check">
           <input checked={onlyHot} type="checkbox" onChange={(event) => setOnlyHot(event.target.checked)} />
           只看热门
         </label>
-        <button className="primary-btn" type="submit">
-          搜索
-        </button>
+        <button className="primary-btn" type="submit">搜索</button>
       </form>
       {loading && <LoadingState />}
       {error && <ErrorState text={error} onRetry={load} />}
@@ -83,9 +79,7 @@ export function ProductsPage() {
           <div className="list-summary">共找到 {total} 个产品</div>
           {result.items.length ? (
             <div className="product-grid">
-              {result.items.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {result.items.map((product) => <ProductCard key={product.id} product={product} />)}
             </div>
           ) : (
             <EmptyState text="暂无符合条件的产品，请调整筛选条件" />

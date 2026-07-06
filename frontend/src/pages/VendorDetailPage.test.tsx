@@ -82,6 +82,13 @@ describe("VendorDetailPage", () => {
       supplyRegions: "华东、华北、东北农机维修市场",
       cooperationTerms: "支持来图定制，常规件 7 天交付",
       afterSalesService: "质保 12 个月，提供技术选型支持",
+      providesProcessing: true,
+      processingServices: "数控车削、焊接加工",
+      processingMaterials: "钢件、轴套、齿轮坯",
+      processingEquipment: "数控车床、焊接工位",
+      processingCapacity: "支持小批量试制和批量代工",
+      processingRegions: "全国发货",
+      processingNotes: "来图来样均可",
       tags: [{ id: 1, name: "源头厂商" }],
     });
 
@@ -97,6 +104,9 @@ describe("VendorDetailPage", () => {
     expect(screen.getByText(/主要设备：数控车床、自动焊接线、液压测试台/)).toBeInTheDocument();
     expect(screen.getByText(/认证资质：ISO9001 质量管理体系/)).toBeInTheDocument();
     expect(screen.getByText(/售后服务：质保 12 个月，提供技术选型支持/)).toBeInTheDocument();
+    expect(screen.getByText("加工服务能力")).toBeInTheDocument();
+    expect(screen.getByText(/数控车削、焊接加工/)).toBeInTheDocument();
+    expect(screen.getByText(/数控车床、焊接工位/)).toBeInTheDocument();
     expect(screen.getByText("液压油缸总成")).toBeInTheDocument();
     await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith({ vendorId: "8", pageSize: 8 }));
   });
@@ -115,5 +125,28 @@ describe("VendorDetailPage", () => {
     expect(await screen.findByRole("heading", { name: "河北力捷机械有限公司" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "申请开通独立官网" })).toHaveAttribute("href", "/join");
     expect(screen.queryByText("生产能力")).not.toBeInTheDocument();
+  });
+
+  it("shows public import source and pending review state", async () => {
+    mockedGetVendor.mockResolvedValue({
+      id: 18,
+      name: "河北冀农农机具有限公司",
+      province: "河北",
+      city: "邢台",
+      county: "宁晋县",
+      address: "河北省邢台市宁晋县大陆村工业园区",
+      mainProducts: "液压翻转犁、旋耕机、驱动耙",
+      websiteUrl: "https://www.hbjinong.com/",
+      sourceUrl: "https://www.hbjinong.com/",
+      sourceNote: "公开官网首页采集，人工复核前不标记平台认证。",
+      reviewStatus: "pending",
+    });
+
+    renderDetail("/vendors/18");
+
+    expect(await screen.findByText("河北冀农农机具有限公司")).toBeInTheDocument();
+    expect(screen.getByText("公开信息待复核")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看公开来源" })).toHaveAttribute("href", "https://www.hbjinong.com/");
+    expect(screen.getByText("公开官网首页采集，人工复核前不标记平台认证。")).toBeInTheDocument();
   });
 });

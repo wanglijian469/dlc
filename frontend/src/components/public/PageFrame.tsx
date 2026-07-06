@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+﻿import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { getHome } from "../../api/public";
 import type { HomePayload, Menu } from "../../types/api";
@@ -36,8 +36,8 @@ export function PageFrame({ title, subtitle, children }: { title: string; subtit
 
   return (
     <div className="site-shell">
-      <PublicHeader menus={topMenus} />
-      <MobileHeader />
+      <PublicHeader menus={topMenus} siteMeta={home?.siteMeta} />
+      <MobileHeader siteMeta={home?.siteMeta} />
       <main className="site-body subpage-body">
         {home?.sidebarMenus?.length ? (
           <SidebarNav auxiliaryMenus={home.auxiliaryMenus || []} menus={home.sidebarMenus} />
@@ -46,9 +46,7 @@ export function PageFrame({ title, subtitle, children }: { title: string; subtit
         )}
         <section className="content subpage-content">
           <div className="plain-page directory-page">
-            <Link className="back-link" to="/">
-              返回首页
-            </Link>
+            <Link className="back-link" to="/">返回首页</Link>
             <header className="page-heading">
               <h1>{title}</h1>
               {subtitle && <p>{subtitle}</p>}
@@ -57,7 +55,7 @@ export function PageFrame({ title, subtitle, children }: { title: string; subtit
           </div>
         </section>
       </main>
-      <MobileBottomNav />
+      <MobileBottomNav menus={home?.mobileBottomMenus} />
     </div>
   );
 }

@@ -23,125 +23,29 @@ type SeedMenu struct {
 }
 
 type SeedData struct {
-	Menus      []SeedMenu
-	Tags       []model.Tag
-	Categories []model.Category
-	Vendors    []model.Vendor
-	Products   []model.Product
-	Banners    []model.Banner
-	Configs    []model.SiteConfig
+	Menus       []SeedMenu
+	Tags        []model.Tag
+	Categories  []model.Category
+	Vendors     []model.Vendor
+	Products    []model.Product
+	Banners     []model.Banner
+	Pages       []model.ContentPage
+	FriendLinks []model.FriendLink
+	Configs     []model.SiteConfig
 }
 
 func DefaultSeed() SeedData {
+	vendors := withHBJinongVendor(defaultVendors())
 	return SeedData{
-		Menus: []SeedMenu{
-			{Key: "top-home", Name: "首页", Icon: "home", MenuType: "top", Path: "/", SortOrder: 1},
-			{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 2},
-			{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 3},
-			{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
-			{Key: "top-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
-			{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
-			{Key: "wearing", Name: "农机易损件（置顶，维修高频）", Icon: "wrench", MenuType: "sidebar", Path: "/products?categoryId=1", SortOrder: 2, IsTop: true},
-			{Key: "wearing-blade", ParentKey: "wearing", Name: "刀片刀架", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%88%80%E7%89%87", SortOrder: 1},
-			{Key: "wearing-filter", ParentKey: "wearing", Name: "滤芯套件", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%BB%A4%E8%8A%AF", SortOrder: 2},
-			{Key: "wearing-tensioner", ParentKey: "wearing", Name: "皮带张紧轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%BC%A0%E7%B4%A7%E8%BD%AE", SortOrder: 3},
-			{Key: "wearing-seal", ParentKey: "wearing", Name: "密封圈油封", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%B2%B9%E5%B0%81", SortOrder: 4},
-			{Key: "wearing-bolt", ParentKey: "wearing", Name: "螺栓销轴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%94%80%E8%BD%B4", SortOrder: 5},
-			{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3},
-			{Key: "transmission-gear", ParentKey: "transmission", Name: "变速箱齿轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%BD%BF%E8%BD%AE", SortOrder: 1},
-			{Key: "transmission-differential", ParentKey: "transmission", Name: "后桥差速器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%B7%AE%E9%80%9F%E5%99%A8", SortOrder: 2},
-			{Key: "transmission-shaft", ParentKey: "transmission", Name: "半轴传动轴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E4%BC%A0%E5%8A%A8%E8%BD%B4", SortOrder: 3},
-			{Key: "transmission-clutch", ParentKey: "transmission", Name: "离合器总成", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E7%A6%BB%E5%90%88%E5%99%A8", SortOrder: 4},
-			{Key: "transmission-chain", ParentKey: "transmission", Name: "链条链轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%93%BE%E6%9D%A1", SortOrder: 5},
-			{Key: "transmission-bearing", ParentKey: "transmission", Name: "轴承轴套", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%BD%B4%E6%89%BF", SortOrder: 6},
-			{Key: "transmission-reducer", ParentKey: "transmission", Name: "减速齿轮箱", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%87%8F%E9%80%9F", SortOrder: 7},
-			{Key: "chassis", Name: "行走底盘配件", Icon: "truck", MenuType: "sidebar", Path: "/products?categoryId=4", SortOrder: 4},
-			{Key: "chassis-track", ParentKey: "chassis", Name: "履带总成", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%B1%A5%E5%B8%A6", SortOrder: 1},
-			{Key: "chassis-roller", ParentKey: "chassis", Name: "支重轮托链轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%94%AF%E9%87%8D%E8%BD%AE", SortOrder: 2},
-			{Key: "chassis-drive", ParentKey: "chassis", Name: "驱动轮引导轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%A9%B1%E5%8A%A8%E8%BD%AE", SortOrder: 3},
-			{Key: "chassis-tire", ParentKey: "chassis", Name: "轮胎轮毂", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%BD%AE%E8%83%8E", SortOrder: 4},
-			{Key: "chassis-bracket", ParentKey: "chassis", Name: "底盘支架", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%BA%95%E7%9B%98%E6%94%AF%E6%9E%B6", SortOrder: 5},
-			{Key: "hydraulic", Name: "液压系统配件", Icon: "droplets", MenuType: "sidebar", Path: "/products?categoryId=5", SortOrder: 5},
-			{Key: "hydraulic-pump", ParentKey: "hydraulic", Name: "液压油泵", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%B6%B2%E5%8E%8B%E6%B2%B9%E6%B3%B5", SortOrder: 1},
-			{Key: "hydraulic-valve", ParentKey: "hydraulic", Name: "多路阀分配阀", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%A4%9A%E8%B7%AF%E9%98%80", SortOrder: 2},
-			{Key: "hydraulic-cylinder", ParentKey: "hydraulic", Name: "液压油缸", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%B2%B9%E7%BC%B8", SortOrder: 3},
-			{Key: "hydraulic-hose", ParentKey: "hydraulic", Name: "高压油管", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%AB%98%E5%8E%8B%E6%B2%B9%E7%AE%A1", SortOrder: 4},
-			{Key: "hydraulic-joint", ParentKey: "hydraulic", Name: "接头密封件", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%8E%A5%E5%A4%B4", SortOrder: 5},
-			{Key: "engine", Name: "动力发动机配件", Icon: "gauge", MenuType: "sidebar", Path: "/products?categoryId=6", SortOrder: 6},
-			{Key: "engine-filter", ParentKey: "engine", Name: "发动机滤芯", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%8F%91%E5%8A%A8%E6%9C%BA%E6%BB%A4%E8%8A%AF", SortOrder: 1},
-			{Key: "engine-injector", ParentKey: "engine", Name: "喷油泵喷油嘴", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%96%B7%E6%B2%B9%E6%B3%B5", SortOrder: 2},
-			{Key: "engine-cooling", ParentKey: "engine", Name: "水泵散热器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%95%A3%E7%83%AD%E5%99%A8", SortOrder: 3},
-			{Key: "engine-starter", ParentKey: "engine", Name: "起动机发电机", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%B5%B7%E5%8A%A8%E6%9C%BA", SortOrder: 4},
-			{Key: "engine-piston", ParentKey: "engine", Name: "活塞缸套", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%B4%BB%E5%A1%9E", SortOrder: 5},
-			{Key: "brake", Name: "制动换挡配件", Icon: "disc", MenuType: "sidebar", Path: "/products?categoryId=7", SortOrder: 7},
-			{Key: "brake-shoe", ParentKey: "brake", Name: "制动蹄片", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%88%B6%E5%8A%A8%E8%B9%84%E7%89%87", SortOrder: 1},
-			{Key: "brake-disc", ParentKey: "brake", Name: "刹车盘制动鼓", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%88%B9%E8%BD%A6%E7%9B%98", SortOrder: 2},
-			{Key: "brake-cable", ParentKey: "brake", Name: "换挡拉线", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%8D%A2%E6%8C%A1%E6%8B%89%E7%BA%BF", SortOrder: 3},
-			{Key: "brake-rod", ParentKey: "brake", Name: "离合拉杆", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E7%A6%BB%E5%90%88%E6%8B%89%E6%9D%86", SortOrder: 4},
-			{Key: "brake-pedal", ParentKey: "brake", Name: "操纵阀踏板件", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%B8%8F%E6%9D%BF", SortOrder: 5},
-			{Key: "electrical", Name: "电气照明配件", Icon: "cable", MenuType: "sidebar", Path: "/products?keyword=电气", SortOrder: 8},
-			{Key: "electrical-harness", ParentKey: "electrical", Name: "线束插头", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E7%BA%BF%E6%9D%9F", SortOrder: 1},
-			{Key: "electrical-sensor", ParentKey: "electrical", Name: "传感器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E4%BC%A0%E6%84%9F%E5%99%A8", SortOrder: 2},
-			{Key: "electrical-light", ParentKey: "electrical", Name: "照明灯具", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E7%85%A7%E6%98%8E", SortOrder: 3},
-			{Key: "electrical-switch", ParentKey: "electrical", Name: "仪表开关", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E4%BB%AA%E8%A1%A8", SortOrder: 4},
-			{Key: "electrical-battery", ParentKey: "electrical", Name: "蓄电池配件", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%93%84%E7%94%B5%E6%B1%A0", SortOrder: 5},
-			{Key: "harvester", Name: "收获割台配件", Icon: "wheat", MenuType: "sidebar", Path: "/products?keyword=割台", SortOrder: 9},
-			{Key: "harvester-blade", ParentKey: "harvester", Name: "割刀刀片", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%89%B2%E5%88%80", SortOrder: 1},
-			{Key: "harvester-guard", ParentKey: "harvester", Name: "护刃器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%8A%A4%E5%88%83%E5%99%A8", SortOrder: 2},
-			{Key: "harvester-reel", ParentKey: "harvester", Name: "拨禾轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%8B%A8%E7%A6%BE%E8%BD%AE", SortOrder: 3},
-			{Key: "harvester-auger", ParentKey: "harvester", Name: "输送搅龙", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%90%85%E9%BE%99", SortOrder: 4},
-			{Key: "harvester-drum", ParentKey: "harvester", Name: "脱粒滚筒", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E8%84%B1%E7%B2%92%E6%BB%9A%E7%AD%92", SortOrder: 5},
-			{Key: "seeding", Name: "播种施肥配件", Icon: "sprout", MenuType: "sidebar", Path: "/products?keyword=播种", SortOrder: 10},
-			{Key: "seeding-meter", ParentKey: "seeding", Name: "排种器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%8E%92%E7%A7%8D%E5%99%A8", SortOrder: 1},
-			{Key: "seeding-opener", ParentKey: "seeding", Name: "开沟器", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E5%BC%80%E6%B2%9F%E5%99%A8", SortOrder: 2},
-			{Key: "seeding-press", ParentKey: "seeding", Name: "镇压轮", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E9%95%87%E5%8E%8B%E8%BD%AE", SortOrder: 3},
-			{Key: "seeding-fertilizer", ParentKey: "seeding", Name: "施肥盒", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%96%BD%E8%82%A5", SortOrder: 4},
-			{Key: "seeding-plate", ParentKey: "seeding", Name: "播种盘", Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=%E6%92%AD%E7%A7%8D%E7%9B%98", SortOrder: 5},
-			{Key: "aux-join", Name: "提交厂商", Icon: "clipboard-plus", MenuType: "auxiliary", Path: "/join", SortOrder: 1},
-			{Key: "aux-links", Name: "友情链接", Icon: "link", MenuType: "auxiliary", Path: "/links", SortOrder: 2},
-			{Key: "aux-about", Name: "关于平台", Icon: "info", MenuType: "auxiliary", Path: "/about", SortOrder: 3},
-			{Key: "mobile-wearing", Name: "农机易损件", Icon: "wrench", MenuType: "mobile", Path: "/products?categoryId=1", SortOrder: 1},
-			{Key: "mobile-transmission", Name: "传动配件", Icon: "cog", MenuType: "mobile", Path: "/products?categoryId=2", SortOrder: 2},
-			{Key: "mobile-chassis", Name: "行走底盘", Icon: "truck", MenuType: "mobile", Path: "/products?categoryId=4", SortOrder: 3},
-			{Key: "mobile-hydraulic", Name: "液压系统", Icon: "droplets", MenuType: "mobile", Path: "/products?categoryId=5", SortOrder: 4},
-			{Key: "mobile-engine", Name: "动力发动机", Icon: "gauge", MenuType: "mobile", Path: "/products?categoryId=6", SortOrder: 5},
-			{Key: "mobile-brake", Name: "制动换挡", Icon: "disc", MenuType: "mobile", Path: "/products?categoryId=7", SortOrder: 6},
-			{Key: "mobile-electrical", Name: "电气照明", Icon: "cable", MenuType: "mobile", Path: "/products?keyword=电气", SortOrder: 7},
-			{Key: "mobile-harvester", Name: "收获割台", Icon: "wheat", MenuType: "mobile", Path: "/products?keyword=割台", SortOrder: 8},
-			{Key: "mobile-seeding", Name: "播种施肥", Icon: "sprout", MenuType: "mobile", Path: "/products?keyword=播种", SortOrder: 9},
-			{Key: "mobile-all", Name: "全部分类", Icon: "grid", MenuType: "mobile", Path: "/products", SortOrder: 10},
-		},
-		Tags: []model.Tag{
-			{Name: "源头厂商", TagType: "vendor", Color: "green", SortOrder: 1},
-			{Name: "支持定制", TagType: "vendor", Color: "green", SortOrder: 2},
-			{Name: "可开发票", TagType: "vendor", Color: "green", SortOrder: 3},
-			{Name: "现货充足", TagType: "vendor", Color: "orange", SortOrder: 4},
-			{Name: "实地认证", TagType: "vendor", Color: "green", SortOrder: 5},
-		},
-		Categories: []model.Category{
-			{Name: "农机易损件", Icon: "wrench", SortOrder: 1, IsEnabled: true},
-			{Name: "传动配件", Icon: "cog", SortOrder: 2, IsEnabled: true},
-			{Name: "变速箱齿轮", ParentID: 2, Icon: "cog", SortOrder: 3, IsEnabled: true},
-			{Name: "行走底盘配件", Icon: "truck", SortOrder: 4, IsEnabled: true},
-			{Name: "液压系统配件", Icon: "droplets", SortOrder: 5, IsEnabled: true},
-			{Name: "动力发动机配件", Icon: "gauge", SortOrder: 6, IsEnabled: true},
-			{Name: "制动换挡配件", Icon: "disc", SortOrder: 7, IsEnabled: true},
-			{Name: "电气照明配件", Icon: "cable", SortOrder: 8, IsEnabled: true},
-			{Name: "收获割台配件", Icon: "wheat", SortOrder: 9, IsEnabled: true},
-			{Name: "播种施肥配件", Icon: "sprout", SortOrder: 10, IsEnabled: true},
-			{Name: "加工服务", Icon: "settings", SortOrder: 11, IsEnabled: true},
-		},
-		Vendors:  defaultVendors(),
-		Products: defaultProducts(),
-		Banners: []model.Banner{{
-			Title:             "找农机配件，查源头厂商",
-			Subtitle:          "原厂品质 / 行业齐全 / 快速找工厂配件，助力维修厂与采购用户高效采购",
-			SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等",
-			HotKeywordsRaw:    "收割机,链条,离合器,齿轮,皮带,液压油泵,传动轴,刀片,滤芯",
-			IsEnabled:         true,
-			SortOrder:         1,
-		}},
-		Configs: defaultConfigs(),
+		Menus:       defaultMenus(),
+		Tags:        append(defaultTags(), defaultProcessingTags()...),
+		Categories:  defaultCategories(),
+		Vendors:     vendors,
+		Products:    append(defaultProducts(), hbJinongProducts(uint(len(vendors)))...),
+		Banners:     defaultBanners(),
+		Pages:       defaultPages(),
+		FriendLinks: defaultFriendLinks(),
+		Configs:     defaultConfigs(),
 	}
 }
 
@@ -153,10 +57,7 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		if item.ParentKey != "" {
 			parentID = menuIDs[item.ParentKey]
 		}
-		menu := model.Menu{
-			Name: item.Name, ParentID: parentID, Icon: item.Icon, MenuType: item.MenuType, Path: item.Path,
-			SortOrder: item.SortOrder, IsEnabled: true, IsTop: item.IsTop, IsDefaultOpen: item.IsDefaultOpen,
-		}
+		menu := model.Menu{Name: item.Name, ParentID: parentID, Icon: item.Icon, MenuType: item.MenuType, Path: item.Path, SortOrder: item.SortOrder, IsEnabled: true, IsTop: item.IsTop, IsDefaultOpen: item.IsDefaultOpen}
 		if err := upsertMenu(db, &menu); err != nil {
 			return err
 		}
@@ -187,6 +88,16 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 	}
 	for i := range seed.Banners {
 		if err := db.Where("sort_order = ?", seed.Banners[i].SortOrder).Assign(seed.Banners[i]).FirstOrCreate(&seed.Banners[i]).Error; err != nil {
+			return err
+		}
+	}
+	for i := range seed.Pages {
+		if err := db.Where("slug = ?", seed.Pages[i].Slug).Assign(seed.Pages[i]).FirstOrCreate(&seed.Pages[i]).Error; err != nil {
+			return err
+		}
+	}
+	for i := range seed.FriendLinks {
+		if err := db.Where("name = ?", seed.FriendLinks[i].Name).Assign(seed.FriendLinks[i]).FirstOrCreate(&seed.FriendLinks[i]).Error; err != nil {
 			return err
 		}
 	}
@@ -230,66 +141,170 @@ func attachDefaultTags(db *gorm.DB, vendor *model.Vendor) error {
 	if err := db.Where("tag_type = ?", "vendor").Order("sort_order asc").Limit(3).Find(&tags).Error; err != nil {
 		return err
 	}
+	if vendor.ProvidesProcessing {
+		var processingTags []model.Tag
+		if err := db.Where("tag_type = ?", "processing").Order("sort_order asc").Limit(3).Find(&processingTags).Error; err != nil {
+			return err
+		}
+		tags = append(tags, processingTags...)
+	}
 	if err := db.Where("vendor_id = ?", vendor.ID).Delete(&model.VendorTag{}).Error; err != nil {
 		return err
 	}
 	return db.Model(vendor).Association("Tags").Append(tags)
 }
 
-func defaultProducts() []model.Product {
-	return []model.Product{
-		{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
-		{Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", IsHot: true, SortOrder: 2, Status: 1},
-		{Name: "液压油泵总成", CategoryID: 5, VendorID: 3, CompatibleModels: "农机液压系统", Description: "压力稳定，适配多种液压回路", IsRecommended: true, SortOrder: 3, Status: 1},
-		{Name: "传动皮带", CategoryID: 2, VendorID: 4, CompatibleModels: "联合收割机", Description: "抗拉伸皮带", SortOrder: 4, Status: 1},
-		{Name: "离合器总成", CategoryID: 2, VendorID: 5, CompatibleModels: "多型号拖拉机", Description: "换挡平顺", SortOrder: 5, Status: 1},
-		{Name: "滤芯套件", CategoryID: 1, VendorID: 6, CompatibleModels: "发动机保养", Description: "过滤性能稳定", IsHot: true, SortOrder: 6, Status: 1},
-		{Name: "制动蹄片", CategoryID: 7, VendorID: 7, CompatibleModels: "制动系统", Description: "耐磨耐热", SortOrder: 7, Status: 1},
-		{Name: "刀片组件", CategoryID: 1, VendorID: 8, CompatibleModels: "收割机割台", Description: "锋利耐用", SortOrder: 8, Status: 1},
-		{Name: "后桥差速器", CategoryID: 2, VendorID: 9, CompatibleModels: "拖拉机后桥", Description: "传动稳定", SortOrder: 9, Status: 1},
-		{Name: "轴承轴套", CategoryID: 2, VendorID: 10, CompatibleModels: "通用传动", Description: "精密加工", SortOrder: 10, Status: 1},
+func defaultMenus() []SeedMenu {
+	menus := []SeedMenu{
+		{Key: "top-home", Name: "首页", Icon: "home", MenuType: "top", Path: "/", SortOrder: 1},
+		{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 2},
+		{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 3},
+		{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
+		{Key: "top-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
+		{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
+		{Key: "wearing", Name: "农机易损件", Icon: "wrench", MenuType: "sidebar", Path: "/products?categoryId=1", SortOrder: 2, IsTop: true},
+		{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3},
+		{Key: "chassis", Name: "行走底盘配件", Icon: "truck", MenuType: "sidebar", Path: "/products?categoryId=4", SortOrder: 4},
+		{Key: "hydraulic", Name: "液压系统配件", Icon: "droplets", MenuType: "sidebar", Path: "/products?categoryId=5", SortOrder: 5},
+		{Key: "engine", Name: "动力发动机配件", Icon: "gauge", MenuType: "sidebar", Path: "/products?categoryId=6", SortOrder: 6},
+		{Key: "brake", Name: "制动换挡配件", Icon: "disc", MenuType: "sidebar", Path: "/products?categoryId=7", SortOrder: 7},
+		{Key: "electrical", Name: "电气照明配件", Icon: "cable", MenuType: "sidebar", Path: "/products?keyword=电气", SortOrder: 8},
+		{Key: "harvester", Name: "收获割台配件", Icon: "wheat", MenuType: "sidebar", Path: "/products?keyword=割台", SortOrder: 9},
+		{Key: "seeding", Name: "播种施肥配件", Icon: "sprout", MenuType: "sidebar", Path: "/products?keyword=播种", SortOrder: 10},
+		{Key: "aux-join", Name: "提交厂商", Icon: "clipboard-plus", MenuType: "auxiliary", Path: "/join", SortOrder: 1},
+		{Key: "aux-links", Name: "友情链接", Icon: "link", MenuType: "auxiliary", Path: "/links", SortOrder: 2},
+		{Key: "aux-about", Name: "关于平台", Icon: "info", MenuType: "auxiliary", Path: "/about", SortOrder: 3},
+		{Key: "bottom-home", Name: "首页", Icon: "home", MenuType: "mobile_bottom", Path: "/", SortOrder: 1},
+		{Key: "bottom-products", Name: "分类", Icon: "grid", MenuType: "mobile_bottom", Path: "/products", SortOrder: 2},
+		{Key: "bottom-vendors", Name: "厂商", Icon: "factory", MenuType: "mobile_bottom", Path: "/vendors", SortOrder: 3},
+		{Key: "bottom-service", Name: "加工服务", Icon: "settings", MenuType: "mobile_bottom", Path: "/service", SortOrder: 4},
+		{Key: "bottom-account", Name: "我的", Icon: "user", MenuType: "mobile_bottom", Path: "/admin/login", SortOrder: 5},
+	}
+	childNames := map[string][]string{
+		"wearing":      {"刀片刀杆", "滤芯套件", "皮带张紧轮", "密封油封", "螺栓销轴"},
+		"transmission": {"变速箱齿轮", "后桥差速器", "半轴传动轴", "离合器总成", "链条链轮", "轴承轴套", "减速齿轮箱"},
+		"chassis":      {"履带总成", "支重轮托链轮", "驱动轮引导轮", "轮胎轮毂", "底盘支架"},
+		"hydraulic":    {"液压油泵", "多路阀", "液压油缸", "高压油管", "接头密封件"},
+		"engine":       {"发动机滤芯", "喷油泵喷嘴", "水泵散热器", "起动机发电机", "活塞缸套"},
+		"brake":        {"制动蹄片", "刹车盘", "换挡拉线", "离合拉杆", "踏板阀件"},
+		"electrical":   {"线束插头", "传感器", "照明灯具", "仪表开关", "蓄电池配件"},
+		"harvester":    {"割刀刀片", "护刃器", "拨禾轮", "输送搅龙", "脱粒滚筒"},
+		"seeding":      {"排种器", "开沟器", "镇压轮", "施肥盘", "播种盘"},
+	}
+	for parent, names := range childNames {
+		for i, name := range names {
+			menus = append(menus, SeedMenu{Key: fmt.Sprintf("%s-%d", parent, i+1), ParentKey: parent, Name: name, Icon: "dot", MenuType: "sidebar", Path: "/products?keyword=" + name, SortOrder: i + 1})
+		}
+	}
+	mobile := []struct{ name, icon, path string }{{"农机易损件", "wrench", "/products?categoryId=1"}, {"传动配件", "cog", "/products?categoryId=2"}, {"行走底盘", "truck", "/products?categoryId=4"}, {"液压系统", "droplets", "/products?categoryId=5"}, {"动力发动机", "gauge", "/products?categoryId=6"}, {"制动换挡", "disc", "/products?categoryId=7"}, {"电气照明", "cable", "/products?keyword=电气"}, {"收获割台", "wheat", "/products?keyword=割台"}, {"播种施肥", "sprout", "/products?keyword=播种"}, {"全部分类", "grid", "/products"}}
+	for i, item := range mobile {
+		menus = append(menus, SeedMenu{Key: fmt.Sprintf("mobile-%d", i+1), Name: item.name, Icon: item.icon, MenuType: "mobile", Path: item.path, SortOrder: i + 1})
+	}
+	return menus
+}
+
+func defaultTags() []model.Tag {
+	return []model.Tag{{Name: "源头厂商", TagType: "vendor", Color: "green", SortOrder: 1}, {Name: "支持定制", TagType: "vendor", Color: "green", SortOrder: 2}, {Name: "可开发票", TagType: "vendor", Color: "green", SortOrder: 3}, {Name: "现货充足", TagType: "vendor", Color: "orange", SortOrder: 4}, {Name: "实地认证", TagType: "vendor", Color: "green", SortOrder: 5}}
+}
+
+func defaultProcessingTags() []model.Tag {
+	return []model.Tag{
+		{Name: "来图来样加工", TagType: "processing", Color: "blue", SortOrder: 101},
+		{Name: "数控车削", TagType: "processing", Color: "blue", SortOrder: 102},
+		{Name: "焊接加工", TagType: "processing", Color: "orange", SortOrder: 103},
+		{Name: "热处理", TagType: "processing", Color: "green", SortOrder: 104},
+		{Name: "批量代工", TagType: "processing", Color: "green", SortOrder: 105},
 	}
 }
 
+func defaultCategories() []model.Category {
+	return []model.Category{{Name: "农机易损件", Icon: "wrench", SortOrder: 1, IsEnabled: true}, {Name: "传动配件", Icon: "cog", SortOrder: 2, IsEnabled: true}, {Name: "变速箱齿轮", ParentID: 2, Icon: "cog", SortOrder: 3, IsEnabled: true}, {Name: "行走底盘配件", Icon: "truck", SortOrder: 4, IsEnabled: true}, {Name: "液压系统配件", Icon: "droplets", SortOrder: 5, IsEnabled: true}, {Name: "动力发动机配件", Icon: "gauge", SortOrder: 6, IsEnabled: true}, {Name: "制动换挡配件", Icon: "disc", SortOrder: 7, IsEnabled: true}, {Name: "电气照明配件", Icon: "cable", SortOrder: 8, IsEnabled: true}, {Name: "收获割台配件", Icon: "wheat", SortOrder: 9, IsEnabled: true}, {Name: "播种施肥配件", Icon: "sprout", SortOrder: 10, IsEnabled: true}, {Name: "加工服务", Icon: "settings", SortOrder: 11, IsEnabled: true}}
+}
+
+func defaultProducts() []model.Product {
+	return []model.Product{{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", DetailContent: "适合高频维修更换，支持批量采购。", SpecsRaw: `[{"name":"质保","value":"12个月"}]`, PriceNote: "面议 / 批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/1", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1}, {Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", DetailContent: "支持来样加工和批量配套。", PriceNote: "面议", InquiryText: "联系供应商", InquiryPath: "/vendors/2", IsHot: true, SortOrder: 2, Status: 1}, {Name: "液压油泵总成", CategoryID: 5, VendorID: 3, CompatibleModels: "农机液压系统", Description: "压力稳定，适配多种液压回路", DetailContent: "可根据设备型号匹配压力和接口。", PriceNote: "批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/3", IsRecommended: true, SortOrder: 3, Status: 1}, {Name: "传动皮带", CategoryID: 2, VendorID: 4, CompatibleModels: "联合收割机", Description: "抗拉伸皮带", SortOrder: 4, Status: 1}, {Name: "离合器总成", CategoryID: 2, VendorID: 5, CompatibleModels: "多型号拖拉机", Description: "换挡平顺", SortOrder: 5, Status: 1}, {Name: "滤芯套件", CategoryID: 1, VendorID: 6, CompatibleModels: "发动机保养", Description: "过滤性能稳定", IsHot: true, SortOrder: 6, Status: 1}, {Name: "制动蹄片", CategoryID: 7, VendorID: 7, CompatibleModels: "制动系统", Description: "耐磨耐热", SortOrder: 7, Status: 1}, {Name: "刀片组件", CategoryID: 1, VendorID: 8, CompatibleModels: "收割机割台", Description: "锋利耐用", SortOrder: 8, Status: 1}, {Name: "后桥差速器", CategoryID: 2, VendorID: 9, CompatibleModels: "拖拉机后桥", Description: "传动稳定", SortOrder: 9, Status: 1}, {Name: "轴承轴套", CategoryID: 2, VendorID: 10, CompatibleModels: "通用传动", Description: "精密加工", SortOrder: 10, Status: 1}}
+}
+
 func defaultVendors() []model.Vendor {
-	names := []string{
-		"山东沃得农机配件有限公司", "河北金瑞农机制造有限公司", "江苏东成农机配件有限公司", "河南中联农机制造有限公司",
-		"安徽豪华农机配件有限公司", "山东万鑫农机配件有限公司", "宁波动力机械有限公司", "浙江汉丰农机有限公司",
-		"河北力捷机械有限公司", "辽宁佳丰农机配件有限公司", "四川川沃农机有限公司", "陕西恒农农机配件有限公司",
-	}
-	vendors := make([]model.Vendor, 0, len(names))
+	names := []string{"山东沃德农机配件有限公司", "河北金瑞农机制造有限公司", "江苏东成农机配件有限公司", "河南中联农机制造有限公司", "安徽豪华农机配件有限公司", "山东万鑫农机配件有限公司", "宁波动力机械有限公司", "浙江汉丰农机有限公司", "河北力捷机械有限公司", "辽宁佳丰农机配件有限公司", "四川川沃农机有限公司", "陕西恒农农机配件有限公司"}
 	provinces := []string{"山东", "河北", "江苏", "河南", "安徽", "山东", "浙江", "浙江", "河北", "辽宁", "四川", "陕西"}
+	vendors := make([]model.Vendor, 0, len(names))
 	for i, name := range names {
-		vendors = append(vendors, model.Vendor{
-			Name:              name,
-			ShortName:         fmt.Sprintf("厂商%d", i+1),
-			Logo:              fmt.Sprintf("https://dummyimage.com/120x80/ffffff/0b5fea&text=%02d", i+1),
-			CoverImage:        "",
-			Province:          provinces[i],
-			City:              "产业基地",
-			Address:           provinces[i] + "农机产业园",
-			MainProducts:      "变速箱、链条、齿轮、轴承、液压件",
-			ServiceModels:     "收割机、拖拉机、播种机",
-			ServiceAdvantages: "质量稳定，服务完善，发货及时",
-			Description:       "专注农机配件生产与供应，支持批量采购和定制加工。",
-			EstablishedYear:   "2012 年",
-			FactoryArea:       "12000 平方米",
-			EmployeeCount:     "80 人",
-			AnnualCapacity:    "年产农机配件 20 万套",
-			Equipment:         "数控车床、自动焊接线、热处理设备、液压测试台",
-			Certifications:    "ISO9001 质量管理体系，平台实地认证",
-			QualityControl:    "来料检验、过程抽检、出厂检测，关键件建立批次追溯",
-			SupplyRegions:     "华北、华东、东北及主要农机维修市场",
-			CooperationTerms:  "支持来图来样定制，常规件 7 天内发货，批量采购可议价",
-			AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持",
-			WebsiteURL:        websiteFor(i),
-			Phone:             "400-800-0000",
-			ContactName:       "销售经理",
-			IsRecommended:     i < 5,
-			IsVerified:        i%2 == 0,
-			IsVisible:         true,
-			SortOrder:         i + 1,
-		})
+		vendors = append(vendors, model.Vendor{Name: name, ShortName: fmt.Sprintf("厂商%d", i+1), Logo: fmt.Sprintf("https://dummyimage.com/120x80/ffffff/0b5fea&text=%02d", i+1), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系，平台实地认证", QualityControl: "来料检验、过程抽检、出厂检测，关键件建立批次追溯", SupplyRegions: "华北、华中、东北及主要农机维修市场", CooperationTerms: "支持来图来样定制，常规件 7 天内发货，批量采购可议价", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", WebsiteURL: websiteFor(i), Phone: "400-800-0000", ContactName: "销售经理", IsRecommended: i < 5, IsVerified: i%2 == 0, IsVisible: true, SortOrder: i + 1})
+	}
+	return withProcessingSeed(vendors)
+}
+
+func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
+	const sourceURL = "https://www.hbjinong.com/"
+	vendors = append(vendors, model.Vendor{
+		Name:              "河北冀农农机具有限公司",
+		ShortName:         "河北冀农",
+		Province:          "河北",
+		City:              "邢台",
+		County:            "宁晋县",
+		Address:           "河北省邢台市宁晋县大陆村工业园区",
+		MainProducts:      "液压翻转犁、旋耕机、驱动耙、机械五金",
+		ServiceModels:     "拖拉机、耕整地机械、农机具配套",
+		ServiceAdvantages: "1985年始建，生产流通一体，具备农机具生产设备与区域销售服务网络",
+		Description:       "河北冀农农机具有限公司始建于1985年，坐落于全国十大农机市场之一的河北宁晋，现已发展为集生产、流通为一体的中型农机企业，专业生产“冀丰”牌翻转犁。",
+		EstablishedYear:   "1985 年",
+		FactoryArea:       "30000 平方米",
+		EmployeeCount:     "职工 200 余人，专业技术人员 40 余人",
+		AnnualCapacity:    "拥有各种生产设备 180 台套，满足农机生产",
+		Equipment:         "官网公开信息显示拥有各种生产设备 180 台套，具体设备清单待人工复核补充。",
+		SupplyRegions:     "河北、北京、天津、内蒙古、山东、青海、辽宁、黑龙江、吉林、河南、湖北、江西、湖南、四川、重庆、云南、广西、广东、贵州、海南、安徽、江苏、上海、浙江、福建、陕西、宁夏、山西、甘肃、西藏及海外出口等区域",
+		CooperationTerms:  "公开官网展示多区域经理联系方式，具体采购、经销和售后条款需人工复核。",
+		AfterSalesService: "官网公开信息提到可靠售后服务信誉，具体质保政策待人工复核。",
+		SourceURL:         sourceURL,
+		SourceNote:        "2026-07-06 从公开官网首页采集，联系方式和产品参数需人工复核后再标记平台认证。",
+		ReviewStatus:      "pending",
+		WebsiteURL:        sourceURL,
+		Phone:             "0319-5666294",
+		ContactName:       "区域经理",
+		IsRecommended:     true,
+		IsVerified:        false,
+		IsVisible:         true,
+		SortOrder:         len(vendors) + 1,
+	})
+	return vendors
+}
+
+func hbJinongProducts(vendorID uint) []model.Product {
+	inquiryPath := fmt.Sprintf("/vendors/%d", vendorID)
+	const hydraulicCategoryID = 5
+	return []model.Product{
+		{Name: "液压翻转犁1LF-360", CategoryID: hydraulicCategoryID, VendorID: vendorID, CompatibleModels: "拖拉机及耕整地作业场景", Description: "河北冀农官网公开展示的冀丰牌液压翻转犁代表产品。", DetailContent: "来源于河北冀农官网公开产品展示，型号和参数需人工复核后补充。", PriceNote: "面议 / 以厂商确认为准", InquiryText: "联系厂商", InquiryPath: inquiryPath, IsRecommended: true, SortOrder: 101, Status: 1},
+		{Name: "液压翻转犁1LF-260", CategoryID: hydraulicCategoryID, VendorID: vendorID, CompatibleModels: "拖拉机及耕整地作业场景", Description: "河北冀农官网公开展示的液压翻转犁产品。", DetailContent: "来源于河北冀农官网公开产品展示，型号和参数需人工复核后补充。", PriceNote: "面议 / 以厂商确认为准", InquiryText: "联系厂商", InquiryPath: inquiryPath, SortOrder: 102, Status: 1},
+		{Name: "3米驱动耙", CategoryID: hydraulicCategoryID, VendorID: vendorID, CompatibleModels: "耕整地机械配套", Description: "河北冀农官网公开展示的驱动耙产品。", DetailContent: "来源于河北冀农官网公开产品展示，型号和参数需人工复核后补充。", PriceNote: "面议 / 以厂商确认为准", InquiryText: "联系厂商", InquiryPath: inquiryPath, SortOrder: 103, Status: 1},
+	}
+}
+
+func withProcessingSeed(vendors []model.Vendor) []model.Vendor {
+	profiles := []struct {
+		services  string
+		materials string
+		equipment string
+		capacity  string
+		regions   string
+		notes     string
+	}{
+		{"来图来样加工、数控车削、批量代工", "齿轮坯、轴套、链轮、结构件", "数控车床、加工中心、自动焊接线", "小批量试制 3-5 天，批量订单按图报价", "华北、华东、东北", "支持图纸、样件和批量代工订单"},
+		{"焊接加工、钣金切割、农机结构件加工", "钢板、支架、护罩、底盘结构件", "激光切割机、折弯机、焊接工位", "常规结构件 7 天内交付", "华北、华中", "可承接维修门店和经销商小批量订单"},
+		{"数控车削、热处理、液压件精加工", "轴类、套类、液压接头、泵阀配件", "数控车床、热处理设备、液压测试台", "精加工件支持批量排产", "华东、华南", "支持来样测绘和批量配套"},
+		{"来图来样加工、焊接加工、表面处理", "割台件、连接件、焊接组件", "焊接线、喷涂线、装配工位", "支持试制打样和批量交付", "全国发货", "图纸确认后安排报价和交期"},
+	}
+	for i := range vendors {
+		if i >= len(profiles) {
+			break
+		}
+		vendors[i].ProvidesProcessing = true
+		vendors[i].ProcessingServices = profiles[i].services
+		vendors[i].ProcessingMaterials = profiles[i].materials
+		vendors[i].ProcessingEquipment = profiles[i].equipment
+		vendors[i].ProcessingCapacity = profiles[i].capacity
+		vendors[i].ProcessingRegions = profiles[i].regions
+		vendors[i].ProcessingNotes = profiles[i].notes
 	}
 	return vendors
 }
@@ -301,22 +316,23 @@ func websiteFor(index int) string {
 	return ""
 }
 
+func defaultBanners() []model.Banner {
+	return []model.Banner{{Title: "找农机配件，查源头厂商", Subtitle: "原厂品质 / 行业齐全 / 快速找工厂配件，助力维修厂与采购用户高效采购", SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等", HotKeywordsRaw: "收割机链条,离合器,齿轮,皮带,液压油泵,传动轴,刀片,滤芯", IsEnabled: true, SortOrder: 1}}
+}
+
+func defaultPages() []model.ContentPage {
+	return []model.ContentPage{{Slug: "join", Title: "提交厂商", Summary: "提交资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "purchase", Title: "采购信息", Summary: "采购信息入口已预留。", Content: "当前版本重点展示厂商和产品信息，采购信息可在后续版本开放发布和审核。", SEOKeywords: "农机配件采购", IsEnabled: true, SortOrder: 4}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
+}
+
+func defaultFriendLinks() []model.FriendLink {
+	return []model.FriendLink{{Name: "农机配件服务", URL: "https://example.com", SortOrder: 1, IsEnabled: true}}
+}
+
 func defaultConfigs() []model.SiteConfig {
-	stats, _ := json.Marshal([]map[string]string{
-		{"label": "入驻厂商", "value": "2000+"},
-		{"label": "配件产品", "value": "10万+"},
-		{"label": "服务农机企业", "value": "5000+"},
-		{"label": "覆盖省份", "value": "30+"},
-	})
+	stats, _ := json.Marshal([]map[string]string{{"label": "入驻厂商", "value": "2000+"}, {"label": "配件产品", "value": "10万+"}, {"label": "服务农机企业", "value": "5000+"}, {"label": "覆盖省份", "value": "30+"}})
 	safeguards, _ := json.Marshal([]string{"平台审核", "安心认证", "品质保障", "交易安全"})
-	join, _ := json.Marshal(map[string]string{
-		"text":       "入驻成为厂商，展示您的产品与实力，获取更多采购商机",
-		"buttonText": "立即入驻",
-		"path":       "/join",
-	})
-	return []model.SiteConfig{
-		{ConfigKey: "home.stats", ConfigValue: string(stats), Description: "首页统计数字"},
-		{ConfigKey: "home.safeguards", ConfigValue: string(safeguards), Description: "底部保障文案"},
-		{ConfigKey: "home.join", ConfigValue: string(join), Description: "入驻引导条"},
-	}
+	join, _ := json.Marshal(map[string]string{"text": "入驻成为厂商，展示您的产品与实力，获取更多采购商机会", "buttonText": "立即入驻", "path": "/join"})
+	siteMeta, _ := json.Marshal(map[string]string{"siteName": "大陆农机配件", "brandMark": "农", "submitVendorText": "提交厂商", "adminLoginText": "后台登录", "mobileBrandName": "大陆农机配件", "mobileBrandMark": "农"})
+	homeSections, _ := json.Marshal(map[string]interface{}{"recommendedTitle": "推荐厂商", "recommendedLink": "/vendors", "moreTitle": "更多厂商", "moreLink": "/vendors", "recommendedLimit": 5, "moreLimit": 10, "showRecommended": true, "showMore": true})
+	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "home.sections", ConfigValue: string(homeSections), Description: "首页模块标题和展示数量"}, {ConfigKey: "home.stats", ConfigValue: string(stats), Description: "首页统计数字"}, {ConfigKey: "home.safeguards", ConfigValue: string(safeguards), Description: "底部保障文案"}, {ConfigKey: "home.join", ConfigValue: string(join), Description: "入驻引导条"}}
 }

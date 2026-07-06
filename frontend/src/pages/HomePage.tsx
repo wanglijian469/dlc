@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import { getHome } from "../api/public";
 import { HeroSearch } from "../components/public/HeroSearch";
 import { JoinBanner } from "../components/public/JoinBanner";
@@ -29,9 +29,7 @@ export function HomePage() {
     return (
       <div className="state-page">
         <p>{error}</p>
-        <button className="primary-btn" onClick={load}>
-          重试
-        </button>
+        <button className="primary-btn" onClick={load}>重试</button>
       </div>
     );
   }
@@ -42,20 +40,20 @@ export function HomePage() {
 export function HomeView({ home }: { home: HomePayload }) {
   return (
     <div className="site-shell">
-      <PublicHeader menus={home.topMenus} />
-      <MobileHeader />
+      <PublicHeader menus={home.topMenus} siteMeta={home.siteMeta} />
+      <MobileHeader siteMeta={home.siteMeta} />
       <main className="site-body">
         <SidebarNav auxiliaryMenus={home.auxiliaryMenus} menus={home.sidebarMenus} />
         <div className="content">
           <HeroSearch banner={home.banner} />
           <MobileCategoryGrid menus={home.mobileMenus} />
-          <RecommendedVendors vendors={home.recommendedVendors} />
-          <MoreVendors vendors={home.moreVendors} />
+          {home.homeSections?.showRecommended !== false && <RecommendedVendors homeSections={home.homeSections} vendors={home.recommendedVendors} />}
+          {home.homeSections?.showMore !== false && <MoreVendors homeSections={home.homeSections} vendors={home.moreVendors} />}
           <JoinBanner join={home.join} />
         </div>
       </main>
       <StatsFooter safeguards={home.safeguards} stats={home.stats} />
-      <MobileBottomNav />
+      <MobileBottomNav menus={home.mobileBottomMenus} />
     </div>
   );
 }

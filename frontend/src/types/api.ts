@@ -50,6 +50,16 @@ export interface Vendor {
   supplyRegions?: string;
   cooperationTerms?: string;
   afterSalesService?: string;
+  sourceUrl?: string;
+  sourceNote?: string;
+  reviewStatus?: "pending" | "verified" | "rejected" | string;
+  providesProcessing?: boolean;
+  processingServices?: string;
+  processingMaterials?: string;
+  processingEquipment?: string;
+  processingCapacity?: string;
+  processingRegions?: string;
+  processingNotes?: string;
   websiteUrl?: string;
   phone?: string;
   wechat?: string;
@@ -71,6 +81,11 @@ export interface Category {
   isEnabled?: boolean;
 }
 
+export interface ProductSpec {
+  name: string;
+  value: string;
+}
+
 export interface Product {
   id: number;
   name: string;
@@ -79,6 +94,14 @@ export interface Product {
   vendorId?: number;
   compatibleModels?: string;
   description?: string;
+  detailContent?: string;
+  galleryRaw?: string;
+  gallery?: string[];
+  specsRaw?: string;
+  specs?: ProductSpec[];
+  priceNote?: string;
+  inquiryText?: string;
+  inquiryPath?: string;
   isHot?: boolean;
   isRecommended?: boolean;
   sortOrder?: number;
@@ -106,6 +129,46 @@ export interface SiteConfig {
   description?: string;
 }
 
+export interface SiteMeta {
+  siteName: string;
+  brandMark: string;
+  submitVendorText: string;
+  adminLoginText: string;
+  mobileBrandName: string;
+  mobileBrandMark: string;
+}
+
+export interface HomeSections {
+  recommendedTitle?: string;
+  recommendedLink?: string;
+  moreTitle?: string;
+  moreLink?: string;
+  recommendedLimit?: number;
+  moreLimit?: number;
+  showRecommended?: boolean;
+  showMore?: boolean;
+}
+
+export interface ContentPageRecord {
+  id: number;
+  slug: string;
+  title: string;
+  summary?: string;
+  content?: string;
+  seoKeywords?: string;
+  isEnabled?: boolean;
+  sortOrder?: number;
+}
+
+export interface FriendLink {
+  id: number;
+  name: string;
+  url: string;
+  logo?: string;
+  sortOrder?: number;
+  isEnabled?: boolean;
+}
+
 export interface StatItem {
   label: string;
   value: string;
@@ -118,10 +181,13 @@ export interface JoinConfig {
 }
 
 export interface HomePayload {
+  siteMeta?: SiteMeta;
   topMenus: Menu[];
   sidebarMenus: Menu[];
   auxiliaryMenus: Menu[];
   mobileMenus: Menu[];
+  mobileBottomMenus?: Menu[];
+  homeSections?: HomeSections;
   banner: Banner;
   recommendedVendors: Vendor[];
   moreVendors: Vendor[];

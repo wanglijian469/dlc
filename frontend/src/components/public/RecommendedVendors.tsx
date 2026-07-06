@@ -1,13 +1,13 @@
-import { Link } from "react-router-dom";
-import type { Vendor } from "../../types/api";
+﻿import { Link } from "react-router-dom";
+import type { HomeSections, Vendor } from "../../types/api";
 import { VendorCard } from "./VendorCard";
 
-export function RecommendedVendors({ vendors }: { vendors: Vendor[] }) {
+export function RecommendedVendors({ vendors, homeSections }: { vendors: Vendor[]; homeSections?: HomeSections }) {
   return (
     <section className="section-block">
       <div className="section-title">
-        <h2>推荐厂商</h2>
-        <Link to="/vendors">更多</Link>
+        <h2>{homeSections?.recommendedTitle || "推荐厂商"}</h2>
+        <Link to={homeSections?.recommendedLink || "/vendors"}>更多</Link>
       </div>
       <div className="vendor-grid recommended">
         {vendors.map((vendor) => (
