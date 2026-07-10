@@ -261,25 +261,27 @@ export function AdminResourcePage() {
           </button>
         )}
       </form>
-      <div className="admin-toolbar">
+      <div className="admin-toolbar admin-panel compact">
         <input value={keyword} placeholder="搜索当前列表" onChange={(event) => setKeyword(event.target.value)} />
       </div>
-      <ResourceTable
-        rows={filteredRows}
-        onDelete={(id) => {
-          if (!window.confirm("确认删除这条记录？")) return;
-          deleteResource(name, id)
-            .then(() => {
-              setMessage("删除成功");
-              void load();
-            })
-            .catch(() => setMessage("删除失败"));
-        }}
-        onEdit={(row) => {
-          setEditingId(row.id);
-          setForm({ ...defaultForm(schema.fields), ...(row as unknown as FormState) });
-        }}
-      />
+      <div className="admin-table-panel">
+        <ResourceTable
+          rows={filteredRows}
+          onDelete={(id) => {
+            if (!window.confirm("确认删除这条记录？")) return;
+            deleteResource(name, id)
+              .then(() => {
+                setMessage("删除成功");
+                void load();
+              })
+              .catch(() => setMessage("删除失败"));
+          }}
+          onEdit={(row) => {
+            setEditingId(row.id);
+            setForm({ ...defaultForm(schema.fields), ...(row as unknown as FormState) });
+          }}
+        />
+      </div>
     </AdminLayout>
   );
 }

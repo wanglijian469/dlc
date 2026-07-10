@@ -10,6 +10,8 @@ describe("AdminLoginPage", () => {
         <AdminLoginPage />
       </MemoryRouter>,
     );
+    expect(screen.getByText("大陆农机配件 CMS")).toBeInTheDocument();
+    expect(screen.getByText("Gin-Vue-Admin 融合后台")).toBeInTheDocument();
     expect(screen.getByLabelText("用户名")).toBeInTheDocument();
     expect(screen.getByLabelText("密码")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "登录" })).toBeInTheDocument();
