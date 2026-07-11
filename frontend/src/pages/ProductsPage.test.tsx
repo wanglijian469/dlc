@@ -65,7 +65,7 @@ describe("ProductsPage", () => {
     expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/适配机型：联合收割机、拖拉机/)).toBeInTheDocument();
     expect(screen.getByText("热销")).toHaveClass("tag-orange");
-    expect(container.querySelector(".product-image")).not.toBeInTheDocument();
+    expect(container.querySelector(".product-image.industry-cover-default")).toBeInTheDocument();
     expect(container.textContent).not.toContain("Parts");
     await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 12 })));
   });

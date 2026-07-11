@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { search } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
+import { Pagination } from "../components/public/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { Category, Product, SearchPayload, Vendor } from "../types/api";
 
@@ -34,6 +35,7 @@ function ProductSearchCard({ product }: { product: Product }) {
       <p>分类：{product.category?.name || "农机配件"}</p>
       <p>供应商：{vendor?.name || "平台供应商"}</p>
       <div className="card-actions">
+		<Link className="outline-btn small" to={`/products/${product.id}`}>查看产品详情</Link>
         {vendor?.id ? (
           <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>
             联系供应商
@@ -61,25 +63,29 @@ function CategorySearchCard({ category }: { category: Category }) {
 }
 
 export function SearchPage() {
-  const [params] = useSearchParams();
+  const [params, setParams] = useSearchParams();
   const keyword = params.get("keyword") || "";
+  const active = (params.get("type") || "vendors") as "vendors" | "products" | "categories";
   const [result, setResult] = useState<SearchPayload | null>(null);
   const [loading, setLoading] = useState(Boolean(keyword));
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
 
   const load = () => {
     if (!keyword) return;
     setLoading(true);
     setError("");
-    search(keyword)
+    search(keyword, page, 10)
       .then(setResult)
       .catch(() => setError("搜索失败，请稍后重试"))
       .finally(() => setLoading(false));
   };
 
-  useEffect(load, [keyword]);
+  useEffect(() => { setPage(1); }, [keyword]);
+  useEffect(load, [keyword, page]);
 
-  const total = (result?.vendors.total || 0) + (result?.products.total || 0) + (result?.categories.total || 0);
+  const total = result?.[active].total || 0;
+  const selectType = (type: typeof active) => { const next = new URLSearchParams(params); next.set("type", type); next.set("page", "1"); setPage(1); setParams(next); };
 
   return (
     <PageFrame title={`搜索：${keyword || "请输入关键词"}`} subtitle="同时检索厂商、配件产品和分类">
@@ -88,31 +94,33 @@ export function SearchPage() {
       {error && <ErrorState text={error} onRetry={load} />}
       {!loading && !error && result && (
         <>
+          <div className="search-tabs" role="tablist"><button aria-selected={active === "vendors"} onClick={() => selectType("vendors")} role="tab" type="button">厂商（{result.vendors.total}）</button><button aria-selected={active === "products"} onClick={() => selectType("products")} role="tab" type="button">产品（{result.products.total}）</button><button aria-selected={active === "categories"} onClick={() => selectType("categories")} role="tab" type="button">分类（{result.categories.total}）</button></div>
           {total === 0 && <EmptyState text="没有找到匹配结果，请换个关键词试试" />}
-          <section className="search-section">
+          {active === "vendors" && <section className="search-section">
             <h2>厂商结果</h2>
             <div className="search-card-list">
               {result.vendors.items.map((vendor) => (
                 <VendorSearchCard key={vendor.id} vendor={vendor} />
               ))}
             </div>
-          </section>
-          <section className="search-section">
+          </section>}
+          {active === "products" && <section className="search-section">
             <h2>产品结果</h2>
             <div className="search-card-list">
               {result.products.items.map((product) => (
                 <ProductSearchCard key={product.id} product={product} />
               ))}
             </div>
-          </section>
-          <section className="search-section">
+          </section>}
+          {active === "categories" && <section className="search-section">
             <h2>分类结果</h2>
             <div className="search-card-list">
               {result.categories.items.map((category) => (
                 <CategorySearchCard category={category} key={category.id} />
               ))}
             </div>
-          </section>
+          </section>}
+          <Pagination onChange={(nextPage) => { setPage(nextPage); const next = new URLSearchParams(params); next.set("page", String(nextPage)); setParams(next); }} page={page} pageSize={10} total={total} />
         </>
       )}
     </PageFrame>

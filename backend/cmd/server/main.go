@@ -10,6 +10,9 @@ import (
 
 func main() {
 	cfg := config.Load()
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid configuration: %v", err)
+	}
 	db, err := database.Connect(cfg)
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
@@ -19,6 +22,9 @@ func main() {
 	}
 	if err := database.SeedDefaults(db, cfg); err != nil {
 		log.Fatalf("seed database: %v", err)
+	}
+	if err := database.CleanupOrphanedMedia(db, cfg.MediaDir); err != nil {
+		log.Printf("cleanup staged media: %v", err)
 	}
 	router := api.NewRouter(api.Deps{DB: db, Config: cfg})
 	log.Printf("starting API on %s", cfg.HTTPAddr)

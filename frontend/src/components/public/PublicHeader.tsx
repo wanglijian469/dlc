@@ -28,6 +28,7 @@ export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: Si
         ))}
       </nav>
       <div className="header-actions">
+        {!menus.some((menu) => menu.path === "/about") && <Link className="header-text-link" to="/about">关于平台</Link>}
         <Link className="primary-btn" to="/join">{meta.submitVendorText}</Link>
         <Link className="outline-btn" to="/admin/login">
           <UserRound size={16} />

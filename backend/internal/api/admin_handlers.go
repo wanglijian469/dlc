@@ -3,7 +3,13 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -41,21 +47,145 @@ func (h AdminHandler) Login(c *gin.Context) {
 		Fail(c, http.StatusInternalServerError, 500, "鐧诲綍澶辫触")
 		return
 	}
-	OK(c, gin.H{"token": token, "username": user.Username})
+	role := strings.TrimSpace(user.Role)
+	if role == "" {
+		role = "admin"
+	}
+	OK(c, gin.H{"token": token, "username": user.Username, "role": role, "vendorId": user.VendorID})
 }
 
 func (h AdminHandler) Profile(c *gin.Context) {
-	OK(c, gin.H{"username": c.GetString("username")})
+	OK(c, gin.H{"username": c.GetString("username"), "role": c.GetString("role"), "vendorId": c.GetUint("vendorId")})
+}
+
+func (h AdminHandler) DashboardStats(c *gin.Context) {
+	var vendors, products, pending, missingImages int64
+	if err := h.DB.Model(&model.Vendor{}).Count(&vendors).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
+	if err := h.DB.Model(&model.Product{}).Count(&products).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
+	if err := h.DB.Model(&model.VendorSubmission{}).Where("status = ?", "pending").Count(&pending).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
+	if err := h.DB.Model(&model.Vendor{}).Where("logo = '' OR cover_image = ''").Count(&missingImages).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
+	var productMissing int64
+	if err := h.DB.Model(&model.Product{}).Where("image = ''").Count(&productMissing).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
+	OK(c, gin.H{"vendors": vendors, "products": products, "pendingReviews": pending, "missingImages": missingImages + productMissing})
+}
+
+func (h AdminHandler) ListOperationLogs(c *gin.Context) {
+	var rows []model.OperationLog
+	query := h.DB.Model(&model.OperationLog{})
+	if search := strings.TrimSpace(c.Query("search")); search != "" {
+		like := "%" + search + "%"
+		query = query.Where("username LIKE ? OR action LIKE ? OR resource LIKE ?", like, like, like)
+	}
+	page, pageSize := pageParams(c, 30)
+	result, err := paginate(query.Order("created_at desc, id desc"), &rows, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "操作日志加载失败")
+		return
+	}
+	OK(c, result)
 }
 
 func (h AdminHandler) ListMenus(c *gin.Context)  { list[model.Menu](c, h.DB, "sort_order asc, id asc") }
-func (h AdminHandler) CreateMenu(c *gin.Context) { create[model.Menu](c, h.DB, "menus") }
-func (h AdminHandler) UpdateMenu(c *gin.Context) { update[model.Menu](c, h.DB, "menus") }
+func (h AdminHandler) CreateMenu(c *gin.Context) { saveMenu(c, h.DB, 0) }
+func (h AdminHandler) UpdateMenu(c *gin.Context) { saveMenu(c, h.DB, idParam(c)) }
 func (h AdminHandler) DeleteMenu(c *gin.Context) { remove[model.Menu](c, h.DB, "menus") }
+
+func saveMenu(c *gin.Context, db *gorm.DB, id uint) {
+	var item model.Menu
+	if id > 0 && db.First(&item, id).Error != nil {
+		Fail(c, http.StatusNotFound, 404, "菜单不存在")
+		return
+	}
+	if c.ShouldBindJSON(&item) != nil {
+		Fail(c, http.StatusBadRequest, 400, "请求参数格式不正确")
+		return
+	}
+	item.ID = id
+	item.Name, item.Path, item.MenuType = strings.TrimSpace(item.Name), strings.TrimSpace(item.Path), strings.TrimSpace(item.MenuType)
+	if item.Name == "" || item.MenuType == "" {
+		Fail(c, http.StatusBadRequest, 400, "菜单名称和类型不能为空")
+		return
+	}
+	if item.ParentID == id && id > 0 {
+		Fail(c, http.StatusBadRequest, 400, "菜单不能将自己设为父级")
+		return
+	}
+	if item.ParentID > 0 {
+		var parent model.Menu
+		if db.First(&parent, item.ParentID).Error != nil {
+			Fail(c, http.StatusBadRequest, 400, "父级菜单不存在")
+			return
+		}
+		if parent.ParentID > 0 || parent.MenuType != item.MenuType {
+			Fail(c, http.StatusBadRequest, 400, "菜单最多支持两级且父子类型必须一致")
+			return
+		}
+	}
+	if item.Path != "" {
+		if !strings.HasPrefix(item.Path, "/") || strings.HasPrefix(item.Path, "//") {
+			Fail(c, http.StatusBadRequest, 400, "菜单路径必须是站内绝对路径")
+			return
+		}
+		var count int64
+		db.Model(&model.Menu{}).Where("menu_type = ? AND path = ? AND id <> ?", item.MenuType, item.Path, id).Count(&count)
+		if count > 0 {
+			Fail(c, http.StatusConflict, 409, "同类型菜单路径已存在")
+			return
+		}
+	}
+	if db.Save(&item).Error != nil {
+		Fail(c, http.StatusInternalServerError, 500, "菜单保存失败")
+		return
+	}
+	logOperation(db, c.GetString("username"), upsertAction(id), "menus", item.ID)
+	OK(c, item)
+}
 
 func (h AdminHandler) ListVendors(c *gin.Context) {
 	var rows []model.Vendor
-	if err := h.DB.Preload("Tags").Order("sort_order asc, id asc").Find(&rows).Error; err != nil {
+	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
+	if search := strings.TrimSpace(c.Query("search")); search != "" {
+		like := "%" + search + "%"
+		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ?", like, like, like)
+	}
+	if province := strings.TrimSpace(c.Query("province")); province != "" {
+		query = query.Where("province = ?", province)
+	}
+	if visible := strings.TrimSpace(c.Query("visible")); visible != "" {
+		query = query.Where("is_visible = ?", visible == "true" || visible == "1")
+	}
+	if publication := strings.TrimSpace(c.Query("publicationStatus")); publication != "" {
+		query = query.Where("publication_status = ?", publication)
+	}
+	if adminPaginationRequested(c) {
+		page, pageSize := pageParams(c, 20)
+		result, err := paginate(query.Order("sort_order asc, id asc"), &rows, page, pageSize)
+		if err != nil {
+			Fail(c, 500, 500, "厂商列表加载失败")
+			return
+		}
+		for i := range rows {
+			rows[i].TagIDs = tagIDsFromTags(rows[i].Tags)
+		}
+		OK(c, result)
+		return
+	}
+	if err := query.Order("sort_order asc, id asc").Find(&rows).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "璇诲彇澶辫触")
 		return
 	}
@@ -81,7 +211,37 @@ func (h AdminHandler) UpdateCategory(c *gin.Context) { update[model.Category](c,
 func (h AdminHandler) DeleteCategory(c *gin.Context) { remove[model.Category](c, h.DB, "categories") }
 
 func (h AdminHandler) ListProducts(c *gin.Context) {
-	listWithPreloads[model.Product](c, h.DB, []string{"Category", "Vendor"}, "sort_order asc, id asc")
+	query := h.DB.Model(&model.Product{}).Preload("Category").Preload("Vendor")
+	if search := strings.TrimSpace(c.Query("search")); search != "" {
+		like := "%" + search + "%"
+		query = query.Where("products.name LIKE ? OR products.description LIKE ? OR products.compatible_models LIKE ?", like, like, like)
+	}
+	if status := strings.TrimSpace(c.Query("status")); status != "" {
+		query = query.Where("products.status = ?", status)
+	}
+	if vendorID := strings.TrimSpace(c.Query("vendorId")); vendorID != "" {
+		query = query.Where("products.vendor_id = ?", vendorID)
+	}
+	if categoryID := strings.TrimSpace(c.Query("categoryId")); categoryID != "" {
+		query = query.Where("products.category_id = ?", categoryID)
+	}
+	if adminPaginationRequested(c) {
+		var rows []model.Product
+		page, pageSize := pageParams(c, 20)
+		result, err := paginate(query.Order("sort_order asc, id asc"), &rows, page, pageSize)
+		if err != nil {
+			Fail(c, 500, 500, "产品列表加载失败")
+			return
+		}
+		OK(c, result)
+		return
+	}
+	var rows []model.Product
+	if err := query.Order("sort_order asc, id asc").Find(&rows).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "读取失败")
+		return
+	}
+	OK(c, rows)
 }
 func (h AdminHandler) CreateProduct(c *gin.Context) { saveProduct(c, h.DB, 0) }
 func (h AdminHandler) UpdateProduct(c *gin.Context) { saveProduct(c, h.DB, idParam(c)) }
@@ -155,21 +315,29 @@ func (h AdminHandler) Upload(c *gin.Context) {
 		return
 	}
 	publicDir := h.Config.PublicDir
-	if publicDir == "" {
-		publicDir = os.TempDir()
+	uploadDir := "uploads"
+	if publicDir != "" {
+		uploadDir = filepath.Join(publicDir, "uploads")
 	}
-	uploadDir := filepath.Join(publicDir, "uploads")
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "鍒涘缓涓婁紶鐩綍澶辫触")
 		return
 	}
 	name := fmt.Sprintf("%d%s", time.Now().UnixNano(), ext)
-	if err := c.SaveUploadedFile(file, filepath.Join(uploadDir, name)); err != nil {
+	path := filepath.Join(uploadDir, name)
+	if err := c.SaveUploadedFile(file, path); err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "涓婁紶澶辫触")
 		return
 	}
+	width, height := 0, 0
+	if uploaded, openErr := os.Open(path); openErr == nil {
+		if cfg, _, decodeErr := image.DecodeConfig(uploaded); decodeErr == nil {
+			width, height = cfg.Width, cfg.Height
+		}
+		_ = uploaded.Close()
+	}
 	logOperation(h.DB, c.GetString("username"), "upload", "uploads", 0)
-	OK(c, gin.H{"url": "/uploads/" + name})
+	OK(c, gin.H{"url": "/uploads/" + name, "width": width, "height": height, "size": file.Size, "mime": mime.TypeByExtension(ext)})
 }
 
 func list[T any](c *gin.Context, db *gorm.DB, order string) {
@@ -192,6 +360,10 @@ func listWithPreloads[T any](c *gin.Context, db *gorm.DB, preloads []string, ord
 		return
 	}
 	OK(c, rows)
+}
+
+func adminPaginationRequested(c *gin.Context) bool {
+	return c.Query("page") != "" || c.Query("pageSize") != ""
 }
 
 func create[T any](c *gin.Context, db *gorm.DB, resource string) {
@@ -242,11 +414,13 @@ func remove[T any](c *gin.Context, db *gorm.DB, resource string) {
 
 func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	var input model.Vendor
+	var previousVersion uint
 	if id > 0 {
-		if err := db.Preload("Tags").First(&input, id).Error; err != nil {
+		if err := db.Preload("Tags").Preload("Media").First(&input, id).Error; err != nil {
 			Fail(c, http.StatusNotFound, 404, "厂商不存在")
 			return
 		}
+		previousVersion = input.ContentVersion
 	}
 	if err := c.ShouldBindJSON(&input); err != nil {
 		Fail(c, http.StatusBadRequest, 400, "璇锋眰鏍煎紡閿欒")
@@ -271,17 +445,52 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return
 	}
+	if input.PublicationStatus == "" {
+		if input.IsVisible {
+			input.PublicationStatus = "published"
+		} else {
+			input.PublicationStatus = "hidden"
+		}
+	}
+	if input.PublicationStatus != "draft" && input.PublicationStatus != "published" && input.PublicationStatus != "hidden" {
+		Fail(c, http.StatusBadRequest, 400, "发布状态只能是 draft、published 或 hidden")
+		return
+	}
+	input.IsVisible = input.PublicationStatus == "published"
+	if input.DataOrigin == "" {
+		input.DataOrigin = "admin"
+	}
+	if id > 0 {
+		input.ContentVersion = previousVersion + 1
+	} else {
+		input.ContentVersion = 1
+	}
 	tagIDs := uniqueUintIDs(input.TagIDs)
+	media := input.Media
 	input.TagIDs = tagIDs
 	input.Tags = nil
-	if err := db.Omit("Tags").Save(&input).Error; err != nil {
+	input.Media = nil
+	tx := db.Begin()
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+	if err := tx.Omit("Tags", "Media").Save(&input).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
+	}
+	if media != nil {
+		if err := replaceVendorMedia(tx, input.ID, media); err != nil {
+			Fail(c, http.StatusBadRequest, 400, err.Error())
+			return
+		}
 	}
 	if tagIDs != nil {
 		var tags []model.Tag
 		if len(tagIDs) > 0 {
-			if err := db.Where("id IN ?", tagIDs).Find(&tags).Error; err != nil {
+			if err := tx.Where("id IN ?", tagIDs).Find(&tags).Error; err != nil {
 				Fail(c, http.StatusInternalServerError, 500, "鏍囩璇诲彇澶辫触")
 				return
 			}
@@ -290,12 +499,17 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 				return
 			}
 		}
-		if err := db.Model(&input).Association("Tags").Replace(tags); err != nil {
+		if err := tx.Model(&input).Association("Tags").Replace(tags); err != nil {
 			Fail(c, http.StatusInternalServerError, 500, "鏍囩淇濆瓨澶辫触")
 			return
 		}
 	}
-	db.Preload("Tags").First(&input, input.ID)
+	if err := tx.Commit().Error; err != nil {
+		Fail(c, 500, 500, "厂商资料保存失败")
+		return
+	}
+	committed = true
+	db.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&input, input.ID)
 	input.TagIDs = tagIDsFromTags(input.Tags)
 	logOperation(db, c.GetString("username"), upsertAction(id), "vendors", input.ID)
 	OK(c, input)
@@ -347,9 +561,33 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
 	}
+	if input.Status == 1 {
+		publishProductMedia(db, input)
+	}
 	db.Preload("Category").Preload("Vendor").First(&input, input.ID)
 	logOperation(db, c.GetString("username"), upsertAction(id), "products", input.ID)
 	OK(c, input)
+}
+
+func publishProductMedia(db *gorm.DB, product model.Product) {
+	urls := []string{product.Image}
+	var gallery []string
+	_ = json.Unmarshal([]byte(product.GalleryRaw), &gallery)
+	urls = append(urls, gallery...)
+	ids := make([]uint, 0, len(urls))
+	for _, value := range urls {
+		if !strings.HasPrefix(value, "/api/media/") {
+			continue
+		}
+		id, err := strconv.ParseUint(strings.TrimPrefix(value, "/api/media/"), 10, 64)
+		if err == nil && id > 0 {
+			ids = append(ids, uint(id))
+		}
+	}
+	if len(ids) > 0 {
+		now := time.Now()
+		db.Model(&model.MediaAsset{}).Where("id IN ?", uniqueUintIDs(ids)).Updates(map[string]interface{}{"status": "published", "published_at": &now})
+	}
 }
 
 func savePage(c *gin.Context, db *gorm.DB, id uint) {
@@ -371,12 +609,33 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, "页面标识和标题不能为空")
 		return
 	}
+	if err := validateContentBlocks(input.BlocksRaw); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
 	if err := db.Save(&input).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
 	}
 	logOperation(db, c.GetString("username"), upsertAction(id), "pages", input.ID)
 	OK(c, input)
+}
+
+func validateContentBlocks(value string) error {
+	if strings.TrimSpace(value) == "" {
+		return nil
+	}
+	var blocks []model.ContentBlock
+	if err := json.Unmarshal([]byte(value), &blocks); err != nil {
+		return fmt.Errorf("结构化内容格式不正确")
+	}
+	allowed := map[string]bool{"hero": true, "text": true, "steps": true, "cta": true, "contact": true, "faq": true}
+	for _, block := range blocks {
+		if !allowed[block.Type] {
+			return fmt.Errorf("不支持的内容区块类型：%s", block.Type)
+		}
+	}
+	return nil
 }
 
 func saveFriendLink(c *gin.Context, db *gorm.DB, id uint) {
@@ -458,7 +717,11 @@ func uniqueUintIDs(ids []uint) []uint {
 }
 
 func validURL(value string) bool {
-	return strings.HasPrefix(value, "http://") || strings.HasPrefix(value, "https://") || strings.HasPrefix(value, "/")
+	if strings.HasPrefix(value, "/") {
+		return !strings.HasPrefix(value, "//")
+	}
+	parsed, err := url.ParseRequestURI(value)
+	return err == nil && (parsed.Scheme == "http" || parsed.Scheme == "https") && parsed.Host != ""
 }
 
 func recordExists[T any](db *gorm.DB, id uint) bool {
@@ -468,7 +731,7 @@ func recordExists[T any](db *gorm.DB, id uint) bool {
 
 func validateConfigValue(key string, value string) error {
 	switch key {
-	case "site.meta", "home.join", "home.sections":
+	case "site.meta", "site.theme", "home.join", "home.sections", "home.modules":
 		return validateJSON(value, "閰嶇疆")
 	case "home.stats":
 		var rows []struct {

@@ -1,11 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import type { Product } from "../../types/api";
-
-const invalidImagePattern = /dummyimage\.com.*(?:Parts|Product)/i;
-
-function isRealImage(url?: string) {
-  return Boolean(url && !invalidImagePattern.test(url));
-}
+import { ProductCover } from "./ProductCover";
 
 function categoryName(product: Product) {
   if (product.category?.name) return product.category.name;
@@ -28,18 +23,15 @@ function categoryName(product: Product) {
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const vendor = product.vendor;
   const region = [vendor?.province, vendor?.city].filter(Boolean).join(" · ");
-  const showImage = isRealImage(product.image);
-
   return (
     <article className={compact ? "product-card compact" : "product-card"}>
-      {showImage && <img alt={product.name} className="product-thumb" src={product.image} />}
+      <ProductCover product={product} />
       <div className="product-card-main">
         <div className="product-card-title">
           <h3>{product.name}</h3>
           <div className="tag-row">
             {product.isHot && <span className="tag-orange">热销</span>}
             {product.isRecommended && <span className="tag-blue">推荐</span>}
-            <span className="tag-green">支持定制</span>
           </div>
         </div>
         <p className="product-line">型号：{product.description || "按需匹配"}</p>
@@ -49,7 +41,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         {region && <p className="product-line">地区：{region}</p>}
         <p className="product-line">价格：{product.priceNote || "面议 / 批量报价"}</p>
         <div className="card-actions">
-          <Link className="outline-btn small" to={`/products/${product.id}`}>查看详情</Link>
+          <Link className="outline-btn small" to={`/products/${product.id}`}>厂商信息</Link>
           {vendor?.id ? (
             <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>联系供应商</Link>
           ) : (

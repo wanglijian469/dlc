@@ -23,7 +23,6 @@ const homePayload: HomePayload = {
       name: "传动配件",
       icon: "cog",
       path: "/products?keyword=传动配件",
-      isDefaultOpen: true,
       children: [{ id: 3, name: "变速箱齿轮", icon: "dot", path: "/products?keyword=变速箱齿轮" }],
     },
   ],
@@ -83,6 +82,6 @@ describe("PageFrame", () => {
     expect(within(sidebar).queryByRole("link", { name: /变速箱齿轮/ })).not.toBeInTheDocument();
     fireEvent.click(parent);
     expect(within(sidebar).getByRole("link", { name: /变速箱齿轮/ })).toBeInTheDocument();
-    expect(within(sidebar).getByRole("link", { name: "提交厂商" })).toBeInTheDocument();
+    expect(within(sidebar).queryByRole("link", { name: "提交厂商" })).not.toBeInTheDocument();
   });
 });

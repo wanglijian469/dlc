@@ -39,6 +39,12 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 		"PUT /api/admin/friend-links/:id",
 		"DELETE /api/admin/friend-links/:id",
 		"POST /api/admin/uploads",
+		"GET /api/admin/vendor-profile",
+		"PUT /api/admin/vendor-profile",
+		"GET /api/admin/vendor-submissions",
+		"PUT /api/admin/vendor-submissions/:id/review",
+		"GET /api/admin/users",
+		"POST /api/admin/users",
 	} {
 		if !routes[want] {
 			t.Fatalf("route %q not registered; routes=%v", want, routes)

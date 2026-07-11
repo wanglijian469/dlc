@@ -25,3 +25,26 @@ func TestBuildMenuTreeSortsAndNestsMenus(t *testing.T) {
 		t.Fatalf("children = %#v, want nested child", tree[1].Children)
 	}
 }
+
+func TestNormalizeHomeModulesFiltersDuplicatesAndSorts(t *testing.T) {
+	modules := []HomeModule{{Type: "join", Visible: true, SortOrder: 30}, {Type: "categories", Visible: true, Limit: -2, SortOrder: 10}, {Type: "categories", Visible: true, SortOrder: 20}, {Type: "unknown", Visible: true}}
+	normalizeHomeModules(&modules)
+	if len(modules) != 2 || modules[0].Type != "categories" || modules[1].Type != "join" {
+		t.Fatalf("normalized modules = %#v", modules)
+	}
+	if modules[0].Limit != 0 {
+		t.Fatalf("negative limit was not normalized: %d", modules[0].Limit)
+	}
+}
+
+func TestDefaultHomeModulesContainsAllSupportedTypes(t *testing.T) {
+	modules := DefaultHomeModules()
+	if len(modules) != 7 {
+		t.Fatalf("default modules = %d, want 7", len(modules))
+	}
+	for index := 1; index < len(modules); index++ {
+		if modules[index-1].SortOrder >= modules[index].SortOrder {
+			t.Fatalf("modules are not sorted: %#v", modules)
+		}
+	}
+}

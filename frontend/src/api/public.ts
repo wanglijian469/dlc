@@ -1,5 +1,5 @@
 ﻿import { publicClient } from "./client";
-import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, PageResult, Product, SearchPayload, SiteMeta, Vendor } from "../types/api";
+import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, SearchPayload, SiteMeta, Vendor } from "../types/api";
 
 export function getHome() {
   return publicClient.get<never, HomePayload>("/api/home");
@@ -7,6 +7,10 @@ export function getHome() {
 
 export function getSiteMeta() {
   return publicClient.get<never, SiteMeta>("/api/site-meta");
+}
+
+export function getLayoutConfig() {
+  return publicClient.get<never, LayoutConfig>("/api/layout-config");
 }
 
 export function getPage(slug: string) {

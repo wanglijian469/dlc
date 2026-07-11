@@ -3,10 +3,12 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/config"
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"gorm.io/gorm"
 )
 
@@ -35,13 +37,24 @@ type SeedData struct {
 }
 
 func DefaultSeed() SeedData {
-	vendors := withHBJinongVendor(defaultVendors())
+	return DefaultSeedWithDemo(false)
+}
+
+func DefaultSeedWithDemo(includeDemo bool) SeedData {
+	vendors := []model.Vendor{}
+	products := []model.Product{}
+	if includeDemo {
+		vendors = defaultVendors()
+		products = defaultProducts()
+	}
+	vendors = withHBJinongVendor(vendors)
+	products = append(products, hbJinongProducts(uint(len(vendors)))...)
 	return SeedData{
 		Menus:       defaultMenus(),
 		Tags:        append(defaultTags(), defaultProcessingTags()...),
 		Categories:  defaultCategories(),
 		Vendors:     vendors,
-		Products:    append(defaultProducts(), hbJinongProducts(uint(len(vendors)))...),
+		Products:    products,
 		Banners:     defaultBanners(),
 		Pages:       defaultPages(),
 		FriendLinks: defaultFriendLinks(),
@@ -50,7 +63,7 @@ func DefaultSeed() SeedData {
 }
 
 func SeedDefaults(db *gorm.DB, cfg config.Config) error {
-	seed := DefaultSeed()
+	seed := DefaultSeedWithDemo(cfg.SeedDemoData)
 	menuIDs := map[string]uint{}
 	for _, item := range seed.Menus {
 		parentID := uint(0)
@@ -73,16 +86,18 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 			return err
 		}
 	}
+	seedVendorIDs := make([]uint, len(seed.Vendors))
 	for i := range seed.Vendors {
-		if err := db.Where("sort_order = ?", seed.Vendors[i].SortOrder).Assign(seed.Vendors[i]).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
+		if err := db.Where("name = ?", seed.Vendors[i].Name).Assign(seed.Vendors[i]).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
 			return err
 		}
-		if err := attachDefaultTags(db, &seed.Vendors[i]); err != nil {
-			return err
-		}
+		seedVendorIDs[i] = seed.Vendors[i].ID
 	}
 	for i := range seed.Products {
-		if err := db.Where("sort_order = ?", seed.Products[i].SortOrder).Assign(seed.Products[i]).FirstOrCreate(&seed.Products[i]).Error; err != nil {
+		if seed.Products[i].VendorID > 0 && int(seed.Products[i].VendorID) <= len(seedVendorIDs) {
+			seed.Products[i].VendorID = seedVendorIDs[seed.Products[i].VendorID-1]
+		}
+		if err := db.Where("name = ? AND vendor_id = ?", seed.Products[i].Name, seed.Products[i].VendorID).Assign(seed.Products[i]).FirstOrCreate(&seed.Products[i]).Error; err != nil {
 			return err
 		}
 	}
@@ -112,7 +127,7 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		if err != nil {
 			return err
 		}
-		return db.Create(&model.AdminUser{Username: cfg.AdminUsername, PasswordHash: hash, IsEnabled: true}).Error
+		return db.Create(&model.AdminUser{Username: cfg.AdminUsername, PasswordHash: hash, Role: "admin", IsEnabled: true}).Error
 	}
 	return nil
 }
@@ -230,7 +245,14 @@ func defaultVendors() []model.Vendor {
 	provinces := []string{"山东", "河北", "江苏", "河南", "安徽", "山东", "浙江", "浙江", "河北", "辽宁", "四川", "陕西"}
 	vendors := make([]model.Vendor, 0, len(names))
 	for i, name := range names {
-		vendors = append(vendors, model.Vendor{Name: name, ShortName: fmt.Sprintf("厂商%d", i+1), Logo: fmt.Sprintf("https://dummyimage.com/120x80/ffffff/0b5fea&text=%02d", i+1), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系，平台实地认证", QualityControl: "来料检验、过程抽检、出厂检测，关键件建立批次追溯", SupplyRegions: "华北、华中、东北及主要农机维修市场", CooperationTerms: "支持来图来样定制，常规件 7 天内发货，批量采购可议价", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", WebsiteURL: websiteFor(i), Phone: "400-800-0000", ContactName: "销售经理", IsRecommended: i < 5, IsVerified: i%2 == 0, IsVisible: true, SortOrder: i + 1})
+		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", QualityControl: "来料检验、过程抽检、出厂检测，关键件建立批次追溯", SupplyRegions: "华北、华中、东北及主要农机维修市场", CooperationTerms: "支持来图来样定制，常规件 7 天内发货，批量采购可议价", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
+	}
+	for i := range vendors {
+		vendors[i].DataOrigin = "demo"
+		vendors[i].PublicationStatus = "hidden"
+		vendors[i].ContentVersion = 1
+		vendors[i].IsVisible = false
+		vendors[i].IsRecommended = false
 	}
 	return withProcessingSeed(vendors)
 }
@@ -265,6 +287,9 @@ func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
 		IsRecommended:     true,
 		IsVerified:        false,
 		IsVisible:         true,
+		DataOrigin:        "verified_source",
+		PublicationStatus: "published",
+		ContentVersion:    1,
 		SortOrder:         len(vendors) + 1,
 	})
 	return vendors
@@ -309,30 +334,23 @@ func withProcessingSeed(vendors []model.Vendor) []model.Vendor {
 	return vendors
 }
 
-func websiteFor(index int) string {
-	if index%3 == 0 {
-		return "https://example.com"
-	}
-	return ""
-}
-
 func defaultBanners() []model.Banner {
-	return []model.Banner{{Title: "找农机配件，查源头厂商", Subtitle: "原厂品质 / 行业齐全 / 快速找工厂配件，助力维修厂与采购用户高效采购", SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等", HotKeywordsRaw: "收割机链条,离合器,齿轮,皮带,液压油泵,传动轴,刀片,滤芯", IsEnabled: true, SortOrder: 1}}
+	return []model.Banner{{Title: "查农机配件，找公开厂商资料", Subtitle: "按产品、机型与地区检索农机行业目录，直接联系资料已公开的供应厂商", SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等", HotKeywordsRaw: "收割机链条,离合器,齿轮,皮带,液压油泵,传动轴,刀片,滤芯", IsEnabled: true, SortOrder: 1}}
 }
 
 func defaultPages() []model.ContentPage {
 	return []model.ContentPage{{Slug: "join", Title: "提交厂商", Summary: "提交资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "purchase", Title: "采购信息", Summary: "采购信息入口已预留。", Content: "当前版本重点展示厂商和产品信息，采购信息可在后续版本开放发布和审核。", SEOKeywords: "农机配件采购", IsEnabled: true, SortOrder: 4}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
 }
 
-func defaultFriendLinks() []model.FriendLink {
-	return []model.FriendLink{{Name: "农机配件服务", URL: "https://example.com", SortOrder: 1, IsEnabled: true}}
-}
+func defaultFriendLinks() []model.FriendLink { return []model.FriendLink{} }
 
 func defaultConfigs() []model.SiteConfig {
-	stats, _ := json.Marshal([]map[string]string{{"label": "入驻厂商", "value": "2000+"}, {"label": "配件产品", "value": "10万+"}, {"label": "服务农机企业", "value": "5000+"}, {"label": "覆盖省份", "value": "30+"}})
-	safeguards, _ := json.Marshal([]string{"平台审核", "安心认证", "品质保障", "交易安全"})
+	stats, _ := json.Marshal([]map[string]string{})
+	safeguards, _ := json.Marshal([]string{"资料审核", "公开来源", "信息留痕", "便捷联系"})
 	join, _ := json.Marshal(map[string]string{"text": "入驻成为厂商，展示您的产品与实力，获取更多采购商机会", "buttonText": "立即入驻", "path": "/join"})
 	siteMeta, _ := json.Marshal(map[string]string{"siteName": "大陆农机配件", "brandMark": "农", "submitVendorText": "提交厂商", "adminLoginText": "后台登录", "mobileBrandName": "大陆农机配件", "mobileBrandMark": "农"})
 	homeSections, _ := json.Marshal(map[string]interface{}{"recommendedTitle": "推荐厂商", "recommendedLink": "/vendors", "moreTitle": "更多厂商", "moreLink": "/vendors", "recommendedLimit": 5, "moreLimit": 10, "showRecommended": true, "showMore": true})
-	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "home.sections", ConfigValue: string(homeSections), Description: "首页模块标题和展示数量"}, {ConfigKey: "home.stats", ConfigValue: string(stats), Description: "首页统计数字"}, {ConfigKey: "home.safeguards", ConfigValue: string(safeguards), Description: "底部保障文案"}, {ConfigKey: "home.join", ConfigValue: string(join), Description: "入驻引导条"}}
+	homeModules, _ := json.Marshal(service.DefaultHomeModules())
+	theme, _ := json.Marshal(map[string]string{"primaryColor": "#1559c7", "accentColor": "#0d8b6f"})
+	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页有序模块配置"}, {ConfigKey: "home.sections", ConfigValue: string(homeSections), Description: "首页模块标题、显示开关和展示数量"}, {ConfigKey: "home.stats", ConfigValue: string(stats), Description: "统计数字由数据库实时聚合，此项仅兼容旧版本"}, {ConfigKey: "home.safeguards", ConfigValue: string(safeguards), Description: "底部信息保障文案"}, {ConfigKey: "home.join", ConfigValue: string(join), Description: "入驻引导条"}}
 }

@@ -1,18 +1,12 @@
+import { Building2, CheckCircle2, Clipboard, ExternalLink, Info, MapPin, Phone, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getVendor, listProducts } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
 import { ProductCard } from "../components/public/ProductCard";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
+import { VendorCover } from "../components/public/VendorCover";
 import type { Product, Vendor } from "../types/api";
-
-const logoFallback = "https://dummyimage.com/120x80/ffffff/0b5fea&text=DL";
-const websiteLead = "平台可为源头厂商搭建独立展示网站，提升询盘转化";
-
-type DetailItem = {
-  label: string;
-  value?: string;
-};
 
 export function VendorDetailPage() {
   const { id = "" } = useParams();
@@ -20,178 +14,78 @@ export function VendorDetailPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [productsError, setProductsError] = useState(false);
+  const [copied, setCopied] = useState("");
 
   const load = () => {
-    setLoading(true);
-    setError("");
-    Promise.all([getVendor(id), listProducts({ vendorId: id, pageSize: 8 })])
-      .then(([vendorData, productData]) => {
-        setVendor(vendorData);
-        setProducts(productData.items);
-      })
-      .catch(() => setError("厂商详情加载失败，请稍后重试"))
-      .finally(() => setLoading(false));
+    setLoading(true); setError("");
+    setProductsError(false);
+    getVendor(id).then(setVendor).catch(() => setError("厂商详情加载失败或资料暂未公开")).finally(() => setLoading(false));
+    listProducts({ vendorId: id, pageSize: 6 }).then((result) => setProducts(result.items)).catch(() => { setProducts([]); setProductsError(true); });
   };
-
   useEffect(load, [id]);
 
   if (loading) return <PageFrame title="厂商详情"><LoadingState /></PageFrame>;
   if (error || !vendor) return <PageFrame title="厂商详情"><ErrorState text={error || "厂商不存在"} onRetry={load} /></PageFrame>;
 
   const region = [vendor.province, vendor.city, vendor.county].filter(Boolean).join(" · ");
-  const overviewItems: DetailItem[] = [
-    { label: "成立年份", value: vendor.establishedYear },
-    { label: "厂房面积", value: vendor.factoryArea },
-    { label: "员工规模", value: vendor.employeeCount },
-  ];
+  const phoneMasked = Boolean(vendor.phone?.includes("*"));
+  const copy = (label: string, value: string) => navigator.clipboard.writeText(value).then(() => { setCopied(label); window.setTimeout(() => setCopied(""), 1600); }).catch(() => { setCopied("复制失败"); window.setTimeout(() => setCopied(""), 2000); });
+  const capabilityRows = [
+    ["年产能", vendor.annualCapacity], ["主要设备", vendor.equipment], ["质检能力", vendor.qualityControl], ["供货范围", vendor.supplyRegions], ["合作方式", vendor.cooperationTerms], ["售后服务", vendor.afterSalesService],
+  ].filter((row) => row[1]);
+  const processingRows = [
+    ["加工能力", vendor.processingServices], ["材料 / 类型", vendor.processingMaterials], ["加工设备", vendor.processingEquipment], ["产能 / 交期", vendor.processingCapacity], ["服务区域", vendor.processingRegions], ["接单说明", vendor.processingNotes],
+  ].filter((row) => row[1]);
 
   return (
     <PageFrame title={vendor.name} subtitle={region || "源头农机配件厂商"}>
-      <section className="vendor-profile-hero">
-        <div className="vendor-profile-main">
-          <div className="vendor-profile-heading">
-            <img
-              alt={vendor.name}
-              src={vendor.logo || logoFallback}
-              onError={(event) => {
-                event.currentTarget.src = logoFallback;
-              }}
-            />
-            <div>
-              <h2>{vendor.shortName || "企业档案"}</h2>
-              <div className="tag-row">
-                {vendor.isVerified && <span className="tag-blue">平台认证</span>}
-                {vendor.isRecommended && <span className="tag-green">推荐厂商</span>}
-                {vendor.reviewStatus === "pending" && <span className="tag-orange">公开信息待复核</span>}
-                {vendor.reviewStatus === "verified" && <span className="tag-blue">公开信息已复核</span>}
-                {vendor.tags?.map((tag) => (
-                  <span className="tag-green" key={tag.id}>
-                    {tag.name}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <div className="vendor-profile-lines">
-            <p>地区：{region || "全国供应"}</p>
-            <p>主营：{vendor.mainProducts || "农机配件"}</p>
-            {vendor.serviceModels && <p>适配机型：{vendor.serviceModels}</p>}
-            {vendor.contactName && <p>联系人：{vendor.contactName}</p>}
-            {vendor.phone && <p>联系电话：{vendor.phone}</p>}
-            {vendor.address && <p>地址：{vendor.address}</p>}
+      <section className="vendor-showcase-hero">
+        <VendorCover variant="detail" vendor={vendor} />
+        <div className="vendor-showcase-copy">
+          <div className="vendor-detail-title"><div className="vendor-logo-fallback">{vendor.shortName?.slice(0, 2) || "农机"}{vendor.logo && <img alt={`${vendor.name} Logo`} src={vendor.logo} onError={(event) => { event.currentTarget.style.display = "none"; }} />}</div><div><h2>{vendor.shortName || vendor.name}</h2><div className="tag-row">{vendor.isVerified && <span className="tag-blue">平台认证</span>}{vendor.isRecommended && <span className="tag-green">推荐厂商</span>}{vendor.tags?.slice(0, 4).map((tag) => <span key={tag.id}>{tag.name}</span>)}</div></div></div>
+          <p className="vendor-lead">{vendor.serviceAdvantages || vendor.description || "专注农机配件生产与供应"}</p>
+          <div className="vendor-key-lines"><span><MapPin size={16} />{region || "全国供应"}</span><span><Wrench size={16} />{vendor.mainProducts || "农机配件"}</span></div>
+          <div className="contact-actions">
+            {vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`}><Phone size={16} />电话联系</a>}
+            {vendor.phone && !phoneMasked && <button className="outline-btn" type="button" onClick={() => copy("电话", vendor.phone!)}><Clipboard size={16} />{copied === "电话" ? "已复制" : "复制电话"}</button>}
+            {vendor.phone && phoneMasked && <Link className="primary-btn" to="/admin/login"><Phone size={16} />登录查看完整电话</Link>}
+            {vendor.wechat && <button className="outline-btn" type="button" onClick={() => copy("微信", vendor.wechat!)}><Clipboard size={16} />{copied === "微信" ? "已复制" : "复制微信"}</button>}
+            {copied === "复制失败" && <span className="form-error" role="status">复制失败，请手动选择内容</span>}
+            {vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank"><ExternalLink size={16} />访问官网</a>}
           </div>
         </div>
-        <aside className="vendor-website-card">
-          <span>厂商独立官网</span>
-          <h3>{vendor.websiteUrl ? "已有官网展示入口" : "开通独立官网获取更多询盘"}</h3>
-          <p>{websiteLead}</p>
-          {vendor.websiteUrl ? (
-            <a className="primary-btn vendor-website-main" href={vendor.websiteUrl} rel="noreferrer" target="_blank">
-              进入厂商官网
-            </a>
-          ) : (
-            <Link className="primary-btn vendor-website-main" to="/join">
-              申请开通独立官网
-            </Link>
-          )}
-        </aside>
       </section>
 
-      <section className="vendor-profile-grid">
-        <DetailCard items={overviewItems} title="公司实力" />
-        <TextCard title="公司简介" value={vendor.description} />
-        <TextCard title="主营产品" value={vendor.mainProducts} />
-        <TextCard label="年产能" title="生产能力" value={vendor.annualCapacity} />
-        <TextCard label="主要设备" title="设备能力" value={vendor.equipment} />
-        <TextCard label="认证资质" title="质量认证" value={vendor.certifications} />
-        <TextCard label="质检能力" title="质检能力" value={vendor.qualityControl} />
-        <TextCard title="服务优势" value={vendor.serviceAdvantages} />
-        <TextCard title="供货范围" value={vendor.supplyRegions} />
-        <TextCard title="合作说明" value={vendor.cooperationTerms} />
-        <TextCard label="售后服务" title="售后服务" value={vendor.afterSalesService} />
-        {(vendor.sourceUrl || vendor.sourceNote || vendor.reviewStatus) && (
-          <article className="vendor-profile-card">
-            <h3>公开信息来源</h3>
-            <div className="vendor-detail-list">
-              {vendor.reviewStatus && <p>复核状态：{reviewStatusLabel(vendor.reviewStatus)}</p>}
-              {vendor.sourceUrl && (
-                <p>
-                  来源链接：
-                  <a href={vendor.sourceUrl} rel="noreferrer" target="_blank">
-                    查看公开来源
-                  </a>
-                </p>
-              )}
-              {vendor.sourceNote && <p>{vendor.sourceNote}</p>}
-            </div>
-          </article>
-        )}
-        {vendor.providesProcessing && (
-          <DetailCard
-            title="加工服务能力"
-            items={[
-              { label: "加工能力", value: vendor.processingServices },
-              { label: "材料/类型", value: vendor.processingMaterials },
-              { label: "加工设备", value: vendor.processingEquipment },
-              { label: "产能/交期", value: vendor.processingCapacity },
-              { label: "服务区域", value: vendor.processingRegions },
-              { label: "接单说明", value: vendor.processingNotes },
-            ]}
-          />
-        )}
-        <DetailCard
-          title="联系方式"
-          items={[
-            { label: "联系人", value: vendor.contactName },
-            { label: "电话", value: vendor.phone },
-            { label: "微信", value: vendor.wechat },
-            { label: "地址", value: vendor.address || region },
-          ]}
-        />
+      <section className="vendor-overview-grid">
+        <article className="vendor-section-card vendor-about"><header><Building2 size={20} /><h2>企业概况</h2></header><p>{vendor.description || "厂商正在完善企业介绍。"}</p><div className="company-stats">{[["成立年份", vendor.establishedYear], ["厂房面积", vendor.factoryArea], ["员工规模", vendor.employeeCount]].filter((item) => item[1]).map(([label, value]) => <div key={label}><strong>{value}</strong><span>{label}</span></div>)}</div></article>
+        <article className="vendor-section-card"><header><Wrench size={20} /><h2>主营与适配</h2></header><dl><div><dt>主营产品</dt><dd>{vendor.mainProducts || "农机配件"}</dd></div>{vendor.serviceModels && <div><dt>适配机型</dt><dd>{vendor.serviceModels}</dd></div>}</dl></article>
       </section>
 
-      <section className="section-block">
-        <div className="section-title">
-          <h2>关联产品</h2>
-          <Link to={`/products?vendorId=${vendor.id}`}>查看全部产品</Link>
-        </div>
-        <div className="product-grid">
-          {products.map((product) => (
-            <ProductCard compact key={product.id} product={{ ...product, vendor }} />
-          ))}
-        </div>
-      </section>
+      {capabilityRows.length > 0 && <section className="vendor-section-card"><header><CheckCircle2 size={20} /><h2>生产能力与服务保障</h2></header><div className="capability-grid">{capabilityRows.map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div></section>}
+      {vendor.providesProcessing && processingRows.length > 0 && <section className="vendor-section-card processing-section"><header><Wrench size={20} /><h2>加工服务能力</h2></header><div className="capability-grid">{processingRows.map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div></section>}
+
+      {vendor.media?.length ? <section className="vendor-section-card"><header><Building2 size={20} /><h2>企业图集</h2></header><div className="vendor-media-grid">{vendor.media.map((media) => <figure key={media.id || media.url}><img alt={media.caption || vendor.name} loading="lazy" src={media.url} /><figcaption><span>{mediaKindLabel(media.kind)}</span>{media.caption}</figcaption></figure>)}</div></section> : null}
+
+      {(vendor.sourceUrl || vendor.sourceNote || vendor.reviewStatus === "pending") && (
+        <section className="vendor-section-card vendor-source-note">
+          <header><Info size={20} /><h2>资料说明</h2></header>
+          <div className="source-note-row">
+            {vendor.reviewStatus === "pending" && <span className="tag-orange">公开信息待复核</span>}
+            {vendor.sourceUrl && <a className="text-link" href={vendor.sourceUrl} rel="noreferrer" target="_blank">查看公开来源 <ExternalLink size={14} /></a>}
+          </div>
+          {vendor.sourceNote && <p>{vendor.sourceNote}</p>}
+        </section>
+      )}
+
+      {(vendor.certifications || vendor.address || vendor.phone || vendor.wechat) && <section className="vendor-contact-grid"><article className="vendor-section-card"><header><CheckCircle2 size={20} /><h2>资质与认证</h2></header><p>{vendor.certifications || "厂商资质资料正在完善。"}</p></article><article className="vendor-section-card"><header><Phone size={20} /><h2>联系方式</h2></header><dl>{vendor.contactName && <div><dt>联系人</dt><dd>{vendor.contactName}</dd></div>}{vendor.phone && <div><dt>电话</dt><dd>{vendor.phone}</dd></div>}{vendor.wechat && <div><dt>微信</dt><dd>{vendor.wechat}</dd></div>}{vendor.address && <div><dt>地址</dt><dd>{vendor.address}</dd></div>}</dl></article></section>}
+
+      {productsError && <section className="inline-notice" role="status">关联产品暂时加载失败，企业主体资料不受影响。</section>}
+      {products.length > 0 && <section className="section-block"><div className="section-title"><h2>关联产品</h2><Link to={`/products?vendorId=${vendor.id}`}>查看全部</Link></div><div className="product-grid related-products">{products.map((product) => <ProductCard compact key={product.id} product={{ ...product, vendor }} />)}</div></section>}
+
+      {(vendor.phone || vendor.wechat || vendor.websiteUrl) && <div className="mobile-contact-bar">{vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`}><Phone size={16} />电话联系</a>}{vendor.phone && phoneMasked && <Link className="primary-btn" to="/admin/login">登录查看电话</Link>}{vendor.wechat && <button className="outline-btn" type="button" onClick={() => copy("微信", vendor.wechat!)}>复制微信</button>}{vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank">访问官网</a>}</div>}
     </PageFrame>
   );
 }
 
-function reviewStatusLabel(status: string) {
-  if (status === "verified") return "已人工复核";
-  if (status === "rejected") return "已驳回";
-  return "待人工复核";
-}
-
-function TextCard({ title, value, label }: { title: string; value?: string; label?: string }) {
-  if (!value) return null;
-  return (
-    <article className="vendor-profile-card">
-      <h3>{title}</h3>
-      <p>{label ? `${label}：` : ""}{value}</p>
-    </article>
-  );
-}
-
-function DetailCard({ title, items }: { title: string; items: DetailItem[] }) {
-  const visible = items.filter((item) => item.value);
-  if (!visible.length) return null;
-  return (
-    <article className="vendor-profile-card">
-      <h3>{title}</h3>
-      <div className="vendor-detail-list">
-        {visible.map((item) => (
-          <p key={item.label}>{item.label}：{item.value}</p>
-        ))}
-      </div>
-    </article>
-  );
-}
+function mediaKindLabel(kind: string) { return ({ factory: "厂房", equipment: "设备", certificate: "证书" } as Record<string, string>)[kind] || "企业图片"; }

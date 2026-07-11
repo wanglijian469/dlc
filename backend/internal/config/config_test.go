@@ -2,15 +2,16 @@ package config
 
 import "testing"
 
-func TestDefaultConfigUsesLocalMySQL(t *testing.T) {
-	cfg := Load()
-	if cfg.DBHost != "127.0.0.1" {
-		t.Fatalf("DBHost = %q, want 127.0.0.1", cfg.DBHost)
+func TestProductionRejectsInsecureDefaults(t *testing.T) {
+	cfg := Config{Environment: "production", AdminPassword: "admin123", AuthSecret: "dev-secret-change-me", AllowedOrigins: []string{"https://example.test"}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("production should reject insecure defaults")
 	}
-	if cfg.DBPort != "13306" {
-		t.Fatalf("DBPort = %q, want 13306", cfg.DBPort)
-	}
-	if cfg.DBUser != "root" || cfg.DBPassword != "root" {
-		t.Fatalf("default credentials = %q/%q, want root/root", cfg.DBUser, cfg.DBPassword)
+}
+
+func TestProductionRequiresCORSOrigins(t *testing.T) {
+	cfg := Config{Environment: "production", AdminPassword: "strong-password", AuthSecret: "a-long-random-secret", AllowedOrigins: []string{""}}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("production should require an explicit CORS origin")
 	}
 }

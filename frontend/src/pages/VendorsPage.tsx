@@ -5,6 +5,8 @@ import { EmptyState, ErrorState, LoadingState } from "../components/public/State
 import { PageFrame } from "../components/public/PageFrame";
 import { VendorCard } from "../components/public/VendorCard";
 import type { FilterOptions, PageResult, Vendor } from "../types/api";
+import { SlidersHorizontal, X } from "lucide-react";
+import { Pagination } from "../components/public/Pagination";
 
 const pageSize = 12;
 
@@ -18,6 +20,7 @@ export function VendorsPage() {
   const [result, setResult] = useState<PageResult<Vendor> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const query = useMemo<VendorListParams>(
     () => ({
@@ -58,11 +61,13 @@ export function VendorsPage() {
 
   const total = result?.total || 0;
   const currentPage = result?.page || 1;
-  const canLoadMore = result ? currentPage * result.pageSize < result.total : false;
+  const activeFilters = [keyword.trim(), province, tagId ? filters.serviceTags.find((tag) => String(tag.id) === tagId)?.name : ""].filter(Boolean) as string[];
+  const clearFilters = () => { setKeyword(""); setProvince(""); setTagId(""); setSort("recommended"); setParams(new URLSearchParams()); };
 
   return (
     <PageFrame title="厂商目录" subtitle="按地区、服务标签和关键词筛选源头农机配件厂商">
-      <form className="filter-bar" onSubmit={submit}>
+      <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选与排序{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
+      <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
         <input value={keyword} placeholder="搜索厂商名称、主营产品" onChange={(event) => setKeyword(event.target.value)} />
         <select value={province} onChange={(event) => setProvince(event.target.value)}>
           <option value="">全部地区</option>
@@ -88,6 +93,7 @@ export function VendorsPage() {
           搜索
         </button>
       </form>
+      {activeFilters.length > 0 && <div className="active-filter-row">{activeFilters.map((item) => <span key={item}>{item}</span>)}<button type="button" onClick={clearFilters}><X size={14} />清除筛选</button></div>}
       {loading && <LoadingState />}
       {error && <ErrorState text={error} onRetry={load} />}
       {!loading && !error && result && (
@@ -102,19 +108,7 @@ export function VendorsPage() {
           ) : (
             <EmptyState text="暂无符合条件的厂商，请调整筛选条件" />
           )}
-          {canLoadMore && (
-            <button
-              className="outline-btn load-more"
-              type="button"
-              onClick={() => {
-                const next = new URLSearchParams(params);
-                next.set("page", String(currentPage + 1));
-                setParams(next);
-              }}
-            >
-              加载更多
-            </button>
-          )}
+          <Pagination page={currentPage} pageSize={result.pageSize} total={result.total} onChange={(page) => { const next = new URLSearchParams(params); next.set("page", String(page)); setParams(next); window.scrollTo({ top: 0, behavior: "smooth" }); }} />
         </>
       )}
     </PageFrame>

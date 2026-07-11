@@ -1,16 +1,18 @@
 ﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { getHome, getProduct } from "../api/public";
+import { getHome, getProduct, listProducts } from "../api/public";
 import { ProductDetailPage } from "./ProductDetailPage";
 
 vi.mock("../api/public", () => ({
   getHome: vi.fn(),
   getProduct: vi.fn(),
+  listProducts: vi.fn(),
 }));
 
 const mockedGetHome = vi.mocked(getHome);
 const mockedGetProduct = vi.mocked(getProduct);
+const mockedListProducts = vi.mocked(listProducts);
 
 describe("ProductDetailPage", () => {
   beforeEach(() => {
@@ -43,6 +45,7 @@ describe("ProductDetailPage", () => {
       category: { id: 5, name: "液压系统配件" },
       vendor: { id: 3, name: "江苏东成农机配件有限公司", province: "江苏" },
     });
+    mockedListProducts.mockResolvedValue({ items: [], page: 1, pageSize: 4, total: 0 });
   });
 
   it("renders CMS-managed product detail content", async () => {
@@ -52,7 +55,7 @@ describe("ProductDetailPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: "液压油泵总成" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "液压油泵总成", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("适配多种农机液压系统，可按样品定制。")).toBeInTheDocument();
     expect(screen.getByText(/质保/)).toBeInTheDocument();
     expect(screen.getByText(/12个月/)).toBeInTheDocument();

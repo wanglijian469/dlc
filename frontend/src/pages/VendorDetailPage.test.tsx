@@ -55,7 +55,7 @@ describe("VendorDetailPage", () => {
 
   afterEach(() => cleanup());
 
-  it("renders a rich B2B vendor profile with a prominent website entry", async () => {
+  it("renders a rich B2B vendor profile with lightweight contact actions", async () => {
     mockedGetVendor.mockResolvedValue({
       id: 8,
       name: "浙江汉丰农机有限公司",
@@ -94,24 +94,23 @@ describe("VendorDetailPage", () => {
 
     renderDetail();
 
-    expect(await screen.findByText("浙江汉丰农机有限公司")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "进入厂商官网" })).toHaveAttribute("href", "https://vendor.example.com");
-    expect(screen.getByRole("link", { name: "进入厂商官网" })).toHaveAttribute("target", "_blank");
-    expect(screen.getByText("平台可为源头厂商搭建独立展示网站，提升询盘转化")).toBeInTheDocument();
-    expect(screen.getByText(/成立年份：2012 年/)).toBeInTheDocument();
-    expect(screen.getByText(/厂房面积：12000 平方米/)).toBeInTheDocument();
-    expect(screen.getByText(/年产能：年产液压件 20 万套/)).toBeInTheDocument();
-    expect(screen.getByText(/主要设备：数控车床、自动焊接线、液压测试台/)).toBeInTheDocument();
-    expect(screen.getByText(/认证资质：ISO9001 质量管理体系/)).toBeInTheDocument();
-    expect(screen.getByText(/售后服务：质保 12 个月，提供技术选型支持/)).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "浙江汉丰农机有限公司", level: 1 })).toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "访问官网" })[0]).toHaveAttribute("href", "https://vendor.example.com");
+    expect(screen.getAllByRole("link", { name: "访问官网" })[0]).toHaveAttribute("target", "_blank");
+    expect(screen.getByText("2012 年")).toBeInTheDocument();
+    expect(screen.getByText("12000 平方米")).toBeInTheDocument();
+    expect(screen.getByText("年产液压件 20 万套")).toBeInTheDocument();
+    expect(screen.getByText("数控车床、自动焊接线、液压测试台")).toBeInTheDocument();
+    expect(screen.getByText("ISO9001 质量管理体系")).toBeInTheDocument();
+    expect(screen.getByText("质保 12 个月，提供技术选型支持")).toBeInTheDocument();
     expect(screen.getByText("加工服务能力")).toBeInTheDocument();
     expect(screen.getByText(/数控车削、焊接加工/)).toBeInTheDocument();
     expect(screen.getByText(/数控车床、焊接工位/)).toBeInTheDocument();
     expect(screen.getByText("液压油缸总成")).toBeInTheDocument();
-    await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith({ vendorId: "8", pageSize: 8 }));
+    await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith({ vendorId: "8", pageSize: 6 }));
   });
 
-  it("shows an independent website application entry when the vendor has no website", async () => {
+  it("does not invent a website or inquiry entry when contact details are missing", async () => {
     mockedGetVendor.mockResolvedValue({
       id: 9,
       name: "河北力捷机械有限公司",
@@ -122,8 +121,9 @@ describe("VendorDetailPage", () => {
 
     renderDetail("/vendors/9");
 
-    expect(await screen.findByRole("heading", { name: "河北力捷机械有限公司" })).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "申请开通独立官网" })).toHaveAttribute("href", "/join");
+    expect(await screen.findByRole("heading", { name: "河北力捷机械有限公司", level: 1 })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "访问官网" })).not.toBeInTheDocument();
+    expect(screen.queryByText("在线询价")).not.toBeInTheDocument();
     expect(screen.queryByText("生产能力")).not.toBeInTheDocument();
   });
 
@@ -144,7 +144,7 @@ describe("VendorDetailPage", () => {
 
     renderDetail("/vendors/18");
 
-    expect(await screen.findByText("河北冀农农机具有限公司")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "河北冀农农机具有限公司", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("公开信息待复核")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "查看公开来源" })).toHaveAttribute("href", "https://www.hbjinong.com/");
     expect(screen.getByText("公开官网首页采集，人工复核前不标记平台认证。")).toBeInTheDocument();

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getHome, search } from "../api/public";
@@ -56,8 +56,11 @@ describe("SearchPage", () => {
     );
 
     expect(await screen.findByText("山东测试农机配件有限公司")).toBeInTheDocument();
+	fireEvent.click(screen.getByRole("tab", { name: /产品/ }));
     expect(await screen.findByText("齿轮箱总成")).toBeInTheDocument();
-    expect(container.querySelectorAll(".search-card").length).toBeGreaterThanOrEqual(3);
+	fireEvent.click(screen.getByRole("tab", { name: /分类/ }));
+	expect(await screen.findByText("传动配件")).toBeInTheDocument();
+    expect(container.querySelectorAll(".search-card").length).toBe(1);
     expect(container.querySelector(".vendor-cover")).not.toBeInTheDocument();
     expect(container.textContent).not.toContain("Factory");
     expect(container.textContent).not.toContain("Parts");

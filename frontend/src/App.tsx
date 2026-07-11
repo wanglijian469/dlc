@@ -5,12 +5,18 @@ import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { ProcessingServicesPage } from "./pages/ProcessingServicesPage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { SearchPage } from "./pages/SearchPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
+import { PlaceholderPage } from "./pages/PlaceholderPage";
 import { VendorDetailPage } from "./pages/VendorDetailPage";
 import { VendorsPage } from "./pages/VendorsPage";
 import { AdminDashboardPage } from "./pages/admin/AdminDashboardPage";
 import { AdminLoginPage } from "./pages/admin/AdminLoginPage";
 import { AdminResourcePage } from "./pages/admin/AdminResourcePage";
 import { ProtectedAdminRoute } from "./pages/admin/ProtectedAdminRoute";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
+import { VendorProfilePage } from "./pages/admin/VendorProfilePage";
+import { VendorReviewsPage } from "./pages/admin/VendorReviewsPage";
+import { AdminLogsPage } from "./pages/admin/AdminLogsPage";
 
 export function App() {
   return (
@@ -26,24 +32,31 @@ export function App() {
       <Route path="/service" element={<ProcessingServicesPage />} />
       <Route path="/purchase" element={<ContentPage slug="purchase" />} />
       <Route path="/links" element={<ContentPage slug="links" />} />
+      <Route path="/contact" element={<PlaceholderPage title="联系我们" description="如需平台合作、资料更正或厂商认证，请通过平台运营方公布的联系方式与我们联系。" />} />
+      <Route path="/feedback" element={<PlaceholderPage title="反馈建议" description="欢迎反馈错误资料、使用问题和功能建议。反馈入口将在运营联系方式配置后开放。" />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
       <Route
         path="/admin/dashboard"
         element={
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute roles={["admin"]}>
             <AdminDashboardPage />
           </ProtectedAdminRoute>
         }
       />
+      <Route path="/admin/vendor-profile" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProfilePage /></ProtectedAdminRoute>} />
+      <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
       <Route
         path="/admin/:resource"
         element={
-          <ProtectedAdminRoute>
+          <ProtectedAdminRoute roles={["admin"]}>
             <AdminResourcePage />
           </ProtectedAdminRoute>
         }
       />
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

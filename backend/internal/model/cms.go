@@ -1,10 +1,22 @@
 package model
 
 import (
+	"encoding/json"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+type ContentBlock struct {
+	Type       string   `json:"type"`
+	Title      string   `json:"title,omitempty"`
+	Text       string   `json:"text,omitempty"`
+	Items      []string `json:"items,omitempty"`
+	ButtonText string   `json:"buttonText,omitempty"`
+	ButtonPath string   `json:"buttonPath,omitempty"`
+	Phone      string   `json:"phone,omitempty"`
+	Wechat     string   `json:"wechat,omitempty"`
+}
 
 type ContentPage struct {
 	ID          uint           `gorm:"primaryKey" json:"id"`
@@ -12,12 +24,32 @@ type ContentPage struct {
 	Title       string         `gorm:"size:150;not null" json:"title"`
 	Summary     string         `gorm:"size:500" json:"summary"`
 	Content     string         `gorm:"type:text" json:"content"`
+	BlocksRaw   string         `gorm:"column:blocks;type:longtext" json:"blocksRaw,omitempty"`
 	SEOKeywords string         `gorm:"size:255" json:"seoKeywords"`
 	IsEnabled   bool           `gorm:"default:true;index" json:"isEnabled"`
 	SortOrder   int            `gorm:"default:0" json:"sortOrder"`
 	CreatedAt   time.Time      `json:"createdAt"`
 	UpdatedAt   time.Time      `json:"updatedAt"`
 	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+func (p ContentPage) Blocks() []ContentBlock {
+	if p.BlocksRaw == "" {
+		return nil
+	}
+	var blocks []ContentBlock
+	if err := json.Unmarshal([]byte(p.BlocksRaw), &blocks); err != nil {
+		return nil
+	}
+	return blocks
+}
+
+func (p ContentPage) MarshalJSON() ([]byte, error) {
+	type Alias ContentPage
+	return json.Marshal(struct {
+		Alias
+		Blocks []ContentBlock `json:"blocks,omitempty"`
+	}{Alias: Alias(p), Blocks: p.Blocks()})
 }
 
 type FriendLink struct {

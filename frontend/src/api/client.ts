@@ -11,6 +11,12 @@ export const adminClient = axios.create({
   baseURL: API_BASE_URL,
 });
 
+publicClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem("admin_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
 publicClient.interceptors.response.use((response) => unwrap(response.data));
 
 adminClient.interceptors.request.use((config) => {

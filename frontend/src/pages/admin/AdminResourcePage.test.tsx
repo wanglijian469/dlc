@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createResource, deleteResource, listResource, updateResource } from "../../api/admin";
+import { createResource, deleteResource, listResource, listResourcePage, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
 
 vi.mock("../../api/admin", () => ({
@@ -9,6 +9,7 @@ vi.mock("../../api/admin", () => ({
   deleteResource: vi.fn(),
   listConfigs: vi.fn(),
   listResource: vi.fn(),
+  listResourcePage: vi.fn(),
   updateConfig: vi.fn(),
   updateResource: vi.fn(),
   uploadFile: vi.fn(),
@@ -16,6 +17,7 @@ vi.mock("../../api/admin", () => ({
 
 const mockedCreateResource = vi.mocked(createResource);
 const mockedListResource = vi.mocked(listResource);
+const mockedListResourcePage = vi.mocked(listResourcePage);
 const mockedUpdateResource = vi.mocked(updateResource);
 
 function renderAdmin(path: string) {
@@ -26,6 +28,10 @@ function renderAdmin(path: string) {
       </Routes>
     </MemoryRouter>,
   );
+}
+
+async function openCreateEditor(name: string) {
+  fireEvent.click(await screen.findByRole("button", { name }));
 }
 
 describe("AdminResourcePage CMS forms", () => {
@@ -41,6 +47,10 @@ describe("AdminResourcePage CMS forms", () => {
         ] as never);
       }
       return Promise.resolve([] as never);
+    });
+    mockedListResourcePage.mockImplementation(async (resource) => {
+      const items = await mockedListResource(resource) as never[];
+      return { items, page: 1, pageSize: 20, total: items.length };
     });
     mockedCreateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedUpdateResource.mockResolvedValue({ id: 1, name: "测试记录" });
@@ -62,6 +72,7 @@ describe("AdminResourcePage CMS forms", () => {
 
   it("submits rich vendor fields with selected tag ids", async () => {
     renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "浙江汉丰农机有限公司" } });
     fireEvent.change(screen.getByLabelText("厂商官网 URL"), { target: { value: "https://vendor.example.com" } });
@@ -70,7 +81,7 @@ describe("AdminResourcePage CMS forms", () => {
     tagOption.selected = true;
     fireEvent.change(tagSelect);
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
-    fireEvent.click(within(vendorForm).getByRole("button", { name: "新增" }));
+    fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith(
@@ -82,13 +93,14 @@ describe("AdminResourcePage CMS forms", () => {
 
   it("submits processing service fields for vendors", async () => {
     renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "山东精工加工有限公司" } });
     fireEvent.click(screen.getByLabelText("是否提供加工服务"));
     fireEvent.change(screen.getByLabelText("加工服务能力"), { target: { value: "数控车削、焊接加工" } });
     fireEvent.change(screen.getByLabelText("加工设备"), { target: { value: "数控车床、焊接工位" } });
     const form = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
-    fireEvent.click(within(form).getByRole("button", { name: "新增" }));
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith(
@@ -104,13 +116,14 @@ describe("AdminResourcePage CMS forms", () => {
 
   it("submits public source and review fields for vendors", async () => {
     renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "河北冀农农机具有限公司" } });
     fireEvent.change(screen.getByLabelText("公开信息来源 URL"), { target: { value: "https://www.hbjinong.com/" } });
     fireEvent.change(screen.getByLabelText("采集备注"), { target: { value: "公开官网首页采集，人工复核前不标记平台认证。" } });
     fireEvent.change(screen.getByLabelText("复核状态"), { target: { value: "pending" } });
     const form = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
-    fireEvent.click(within(form).getByRole("button", { name: "新增" }));
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith(
@@ -127,6 +140,7 @@ describe("AdminResourcePage CMS forms", () => {
 
   it("supports processing tag type in tag forms", async () => {
     renderAdmin("/admin/tags");
+    await openCreateEditor("新增厂商标签");
 
     const tagTypeSelect = await screen.findByLabelText("标签类型");
     expect(within(tagTypeSelect).getByRole("option", { name: "加工服务" })).toHaveValue("processing");
@@ -134,6 +148,7 @@ describe("AdminResourcePage CMS forms", () => {
 
   it("uses category and vendor selects for products", async () => {
     renderAdmin("/admin/products");
+    await openCreateEditor("新增配件产品");
 
     fireEvent.change(await screen.findByLabelText("产品名称"), { target: { value: "液压油泵总成" } });
     fireEvent.change(screen.getByLabelText("所属分类"), { target: { value: "5" } });
@@ -141,7 +156,7 @@ describe("AdminResourcePage CMS forms", () => {
     const form = screen.getByLabelText("产品名称").closest("form") as HTMLFormElement;
     expect(within(form).getByRole("option", { name: "液压系统配件" })).toBeInTheDocument();
     expect(within(form).getByRole("option", { name: "江苏东成农机配件有限公司" })).toBeInTheDocument();
-    fireEvent.click(within(form).getByRole("button", { name: "新增" }));
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, vendorId: 3 })),

@@ -8,6 +8,7 @@ import (
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/config"
+	"dalu-nongji-parts/backend/internal/model"
 	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -23,15 +24,17 @@ func NewRouter(deps Deps) *gin.Engine {
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://127.0.0.1:5173", "http://localhost:5173"},
+		AllowOrigins:     deps.Config.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
 		AllowCredentials: true,
 	}))
 	RegisterHealthRoute(router)
-	RegisterPublicRoutes(router, deps.DB)
+	RegisterPublicRoutesWithAuth(router, deps.DB, deps.Config.AuthSecret)
 	RegisterAdminRoutes(router, deps.DB, deps.Config)
-	RegisterStaticRoutes(router, deps.Config.PublicDir)
+	mediaHandler := AdminHandler{DB: deps.DB, Config: deps.Config}
+	router.GET("/api/media/:id", mediaHandler.PublicMedia)
+	RegisterStaticRoutes(router, deps.DB, deps.Config.PublicDir)
 	return router
 }
 
@@ -40,10 +43,16 @@ func RegisterHealthRoute(router *gin.Engine) {
 }
 
 func RegisterPublicRoutes(router *gin.Engine, db *gorm.DB) {
+	RegisterPublicRoutesWithAuth(router, db, "")
+}
+
+func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string) {
 	handler := PublicHandler{DB: db, HomeService: service.HomeService{DB: db}}
 	api := router.Group("/api")
+	api.Use(OptionalCMSAuth(db, secret))
 	api.GET("/home", handler.Home)
 	api.GET("/site-meta", handler.SiteMeta)
+	api.GET("/layout-config", handler.LayoutConfig)
 	api.GET("/menus", handler.Menus)
 	api.GET("/pages/:slug", handler.Page)
 	api.GET("/friend-links", handler.FriendLinks)
@@ -58,48 +67,89 @@ func RegisterPublicRoutes(router *gin.Engine, db *gorm.DB) {
 	api.GET("/filter-options", handler.FilterOptions)
 }
 
+// OptionalCMSAuth enriches public requests when a valid CMS account token is
+// present. Invalid or missing tokens remain anonymous and never block browsing.
+func OptionalCMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		header := c.GetHeader("Authorization")
+		if db == nil || secret == "" || !strings.HasPrefix(header, "Bearer ") {
+			c.Next()
+			return
+		}
+		username, err := auth.ParseToken(strings.TrimPrefix(header, "Bearer "), secret)
+		if err == nil {
+			var user model.AdminUser
+			if db.Where("username = ? AND is_enabled = ?", username, true).First(&user).Error == nil {
+				c.Set("authenticated", true)
+				c.Set("username", username)
+				c.Set("role", user.Role)
+			}
+		}
+		c.Next()
+	}
+}
+
 func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	handler := AdminHandler{DB: db, Config: cfg}
 	admin := router.Group("/api/admin")
 	admin.POST("/login", handler.Login)
 	protected := admin.Group("")
-	protected.Use(AdminAuth(cfg.AuthSecret))
+	protected.Use(CMSAuth(db, cfg.AuthSecret))
 	protected.GET("/profile", handler.Profile)
-	protected.GET("/menus", handler.ListMenus)
-	protected.POST("/menus", handler.CreateMenu)
-	protected.PUT("/menus/:id", handler.UpdateMenu)
-	protected.DELETE("/menus/:id", handler.DeleteMenu)
-	protected.GET("/vendors", handler.ListVendors)
-	protected.POST("/vendors", handler.CreateVendor)
-	protected.PUT("/vendors/:id", handler.UpdateVendor)
-	protected.DELETE("/vendors/:id", handler.DeleteVendor)
-	protected.GET("/tags", handler.ListTags)
-	protected.POST("/tags", handler.CreateTag)
-	protected.PUT("/tags/:id", handler.UpdateTag)
-	protected.DELETE("/tags/:id", handler.DeleteTag)
-	protected.GET("/categories", handler.ListCategories)
-	protected.POST("/categories", handler.CreateCategory)
-	protected.PUT("/categories/:id", handler.UpdateCategory)
-	protected.DELETE("/categories/:id", handler.DeleteCategory)
-	protected.GET("/products", handler.ListProducts)
-	protected.POST("/products", handler.CreateProduct)
-	protected.PUT("/products/:id", handler.UpdateProduct)
-	protected.DELETE("/products/:id", handler.DeleteProduct)
-	protected.GET("/banners", handler.ListBanners)
-	protected.POST("/banners", handler.CreateBanner)
-	protected.PUT("/banners/:id", handler.UpdateBanner)
-	protected.DELETE("/banners/:id", handler.DeleteBanner)
-	protected.GET("/pages", handler.ListPages)
-	protected.POST("/pages", handler.CreatePage)
-	protected.PUT("/pages/:id", handler.UpdatePage)
-	protected.DELETE("/pages/:id", handler.DeletePage)
-	protected.GET("/friend-links", handler.ListFriendLinks)
-	protected.POST("/friend-links", handler.CreateFriendLink)
-	protected.PUT("/friend-links/:id", handler.UpdateFriendLink)
-	protected.DELETE("/friend-links/:id", handler.DeleteFriendLink)
-	protected.GET("/configs", handler.ListConfigs)
-	protected.PUT("/configs/:key", handler.UpdateConfig)
-	protected.POST("/uploads", handler.Upload)
+	protected.POST("/uploads", handler.SecureUpload)
+	protected.GET("/media/:id", handler.PreviewMedia)
+	protected.DELETE("/media/:id", handler.DeleteMedia)
+	protected.GET("/vendor-profile", handler.GetVendorProfile)
+	protected.PUT("/vendor-profile", handler.SubmitVendorProfile)
+	protected.GET("/vendor-products", handler.ListOwnProducts)
+	protected.POST("/vendor-products", handler.CreateOwnProduct)
+	protected.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
+	protected.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
+
+	adminOnly := protected.Group("")
+	adminOnly.Use(RequireRole("admin"))
+	adminOnly.GET("/dashboard", handler.DashboardStats)
+	adminOnly.GET("/operation-logs", handler.ListOperationLogs)
+	adminOnly.GET("/menus", handler.ListMenus)
+	adminOnly.POST("/menus", handler.CreateMenu)
+	adminOnly.PUT("/menus/:id", handler.UpdateMenu)
+	adminOnly.DELETE("/menus/:id", handler.DeleteMenu)
+	adminOnly.GET("/vendors", handler.ListVendors)
+	adminOnly.POST("/vendors", handler.CreateVendor)
+	adminOnly.PUT("/vendors/:id", handler.UpdateVendor)
+	adminOnly.DELETE("/vendors/:id", handler.DeleteVendor)
+	adminOnly.GET("/vendor-submissions", handler.ListVendorSubmissions)
+	adminOnly.PUT("/vendor-submissions/:id/review", handler.ReviewVendorSubmission)
+	adminOnly.GET("/users", handler.ListCMSUsers)
+	adminOnly.POST("/users", handler.CreateCMSUser)
+	adminOnly.PUT("/users/:id", handler.UpdateCMSUser)
+	adminOnly.DELETE("/users/:id", handler.DeleteCMSUser)
+	adminOnly.GET("/tags", handler.ListTags)
+	adminOnly.POST("/tags", handler.CreateTag)
+	adminOnly.PUT("/tags/:id", handler.UpdateTag)
+	adminOnly.DELETE("/tags/:id", handler.DeleteTag)
+	adminOnly.GET("/categories", handler.ListCategories)
+	adminOnly.POST("/categories", handler.CreateCategory)
+	adminOnly.PUT("/categories/:id", handler.UpdateCategory)
+	adminOnly.DELETE("/categories/:id", handler.DeleteCategory)
+	adminOnly.GET("/products", handler.ListProducts)
+	adminOnly.POST("/products", handler.CreateProduct)
+	adminOnly.PUT("/products/:id", handler.UpdateProduct)
+	adminOnly.DELETE("/products/:id", handler.DeleteProduct)
+	adminOnly.GET("/banners", handler.ListBanners)
+	adminOnly.POST("/banners", handler.CreateBanner)
+	adminOnly.PUT("/banners/:id", handler.UpdateBanner)
+	adminOnly.DELETE("/banners/:id", handler.DeleteBanner)
+	adminOnly.GET("/pages", handler.ListPages)
+	adminOnly.POST("/pages", handler.CreatePage)
+	adminOnly.PUT("/pages/:id", handler.UpdatePage)
+	adminOnly.DELETE("/pages/:id", handler.DeletePage)
+	adminOnly.GET("/friend-links", handler.ListFriendLinks)
+	adminOnly.POST("/friend-links", handler.CreateFriendLink)
+	adminOnly.PUT("/friend-links/:id", handler.UpdateFriendLink)
+	adminOnly.DELETE("/friend-links/:id", handler.DeleteFriendLink)
+	adminOnly.GET("/configs", handler.ListConfigs)
+	adminOnly.PUT("/configs/:key", handler.UpdateConfig)
 }
 
 func AdminAuth(secret string) gin.HandlerFunc {
@@ -121,20 +171,101 @@ func AdminAuth(secret string) gin.HandlerFunc {
 	}
 }
 
-func RegisterStaticRoutes(router *gin.Engine, publicDir string) {
+// CMSAuth enriches a valid token with the current user's role and vendor scope.
+// Keeping AdminAuth separate preserves the small stateless middleware used by tests.
+func CMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		header := c.GetHeader("Authorization")
+		if !strings.HasPrefix(header, "Bearer ") {
+			Fail(c, http.StatusUnauthorized, 401, "未登录或登录已过期")
+			c.Abort()
+			return
+		}
+		username, err := auth.ParseToken(strings.TrimPrefix(header, "Bearer "), secret)
+		if err != nil {
+			Fail(c, http.StatusUnauthorized, 401, "登录已过期，请重新登录")
+			c.Abort()
+			return
+		}
+		c.Set("username", username)
+		if db == nil {
+			c.Set("role", "admin")
+			c.Next()
+			return
+		}
+		var user model.AdminUser
+		if err := db.Where("username = ? AND is_enabled = ?", c.GetString("username"), true).First(&user).Error; err != nil {
+			Fail(c, http.StatusUnauthorized, 401, "账号不存在或已停用")
+			c.Abort()
+			return
+		}
+		role := strings.TrimSpace(user.Role)
+		if role == "" {
+			role = "admin"
+		}
+		c.Set("role", role)
+		if user.VendorID != nil {
+			c.Set("vendorId", *user.VendorID)
+		}
+		c.Next()
+	}
+}
+
+func RequireRole(role string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetString("role") != role {
+			Fail(c, http.StatusForbidden, 403, "没有权限执行此操作")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
+	uploadsDir := "uploads"
+	if publicDir != "" {
+		uploadsDir = filepath.Join(publicDir, "uploads")
+	}
+	if _, err := os.Stat(uploadsDir); err == nil {
+		router.GET("/uploads/:name", func(c *gin.Context) {
+			name := filepath.Base(c.Param("name"))
+			if name == "." || name == "" || name != c.Param("name") {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			url := "/uploads/" + name
+			var count int64
+			db.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND (logo = ? OR cover_image = ?)", true, "published", url, url).Count(&count)
+			if count == 0 {
+				db.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.url = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", url, true, "published").Count(&count)
+			}
+			if count == 0 {
+				db.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id").Where("products.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?)", 1, true, "published", url, "%"+url+"%").Count(&count)
+			}
+			if count == 0 {
+				db.Model(&model.Banner{}).Where("is_enabled = ? AND background_image = ?", true, url).Count(&count)
+			}
+			if count == 0 {
+				c.Status(http.StatusNotFound)
+				return
+			}
+			c.File(filepath.Join(uploadsDir, name))
+		})
+	}
 	if publicDir == "" {
 		return
 	}
 	if _, err := os.Stat(publicDir); err != nil {
 		return
 	}
-	uploadsDir := filepath.Join(publicDir, "uploads")
-	if _, err := os.Stat(uploadsDir); err == nil {
-		router.Static("/uploads", uploadsDir)
-	}
 	assetsDir := filepath.Join(publicDir, "assets")
 	if _, err := os.Stat(assetsDir); err == nil {
 		router.Static("/assets", assetsDir)
+	}
+	imagesDir := filepath.Join(publicDir, "images")
+	if _, err := os.Stat(imagesDir); err == nil {
+		router.Static("/images", imagesDir)
 	}
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {

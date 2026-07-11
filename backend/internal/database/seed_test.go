@@ -1,10 +1,24 @@
 package database
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 	"testing"
 )
+
+func TestDefaultSeedDoesNotContainDemoHostsOrFakeStats(t *testing.T) {
+	payload, err := json.Marshal(DefaultSeed())
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := strings.ToLower(string(payload))
+	for _, forbidden := range []string{"dummyimage.com", "example.com", "2000+", "10万+", "5000+", "30+"} {
+		if strings.Contains(content, strings.ToLower(forbidden)) {
+			t.Fatalf("default seed contains forbidden demo value %q", forbidden)
+		}
+	}
+}
 
 func TestDefaultSeedContainsTransmissionChildren(t *testing.T) {
 	seed := DefaultSeed()
@@ -17,13 +31,13 @@ func TestDefaultSeedContainsTransmissionChildren(t *testing.T) {
 	if children != 7 {
 		t.Fatalf("transmission children = %d, want 7", children)
 	}
-	if len(seed.Vendors) < 12 {
-		t.Fatalf("vendors = %d, want at least 12", len(seed.Vendors))
+	if len(seed.Vendors) != 1 {
+		t.Fatalf("default vendors = %d, want only the verified-source vendor", len(seed.Vendors))
 	}
 }
 
 func TestDefaultSeedContainsExpandedSidebarMenuTree(t *testing.T) {
-	seed := DefaultSeed()
+	seed := DefaultSeedWithDemo(true)
 	wantChildren := map[string]int{
 		"wearing":      5,
 		"transmission": 7,
@@ -61,11 +75,28 @@ func TestDefaultSeedContainsExpandedSidebarMenuTree(t *testing.T) {
 }
 
 func TestDefaultSeedDoesNotDefaultOpenSidebarMenus(t *testing.T) {
-	seed := DefaultSeed()
+	seed := DefaultSeedWithDemo(true)
 	for _, menu := range seed.Menus {
 		if menu.MenuType == "sidebar" && menu.IsDefaultOpen {
 			t.Fatalf("sidebar menu %q should not be default open", menu.Key)
 		}
+	}
+}
+
+func TestDemoSeedVendorsAreQuarantined(t *testing.T) {
+	seed := DefaultSeedWithDemo(true)
+	demos := 0
+	for _, vendor := range seed.Vendors {
+		if vendor.DataOrigin != "demo" {
+			continue
+		}
+		demos++
+		if vendor.PublicationStatus != "hidden" || vendor.IsVisible || vendor.IsRecommended || vendor.IsVerified {
+			t.Fatalf("demo vendor %q is not quarantined", vendor.Name)
+		}
+	}
+	if demos != 12 {
+		t.Fatalf("demo vendors = %d, want 12", demos)
 	}
 }
 
@@ -79,7 +110,7 @@ func TestDefaultSeedVendorsDoNotUseFactoryDummyCovers(t *testing.T) {
 }
 
 func TestDefaultSeedVendorsContainRichProfileFields(t *testing.T) {
-	seed := DefaultSeed()
+	seed := DefaultSeedWithDemo(true)
 	if len(seed.Vendors) == 0 {
 		t.Fatal("seed vendors should not be empty")
 	}
@@ -96,7 +127,7 @@ func TestDefaultSeedVendorsContainRichProfileFields(t *testing.T) {
 }
 
 func TestDefaultSeedContainsProcessingTagsAndVendors(t *testing.T) {
-	seed := DefaultSeed()
+	seed := DefaultSeedWithDemo(true)
 	processingTags := 0
 	for _, tag := range seed.Tags {
 		if tag.TagType == "processing" {

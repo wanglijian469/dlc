@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ProductCard } from "./ProductCard";
 
 describe("ProductCard", () => {
-  it("renders product information without a large top image when image is missing", () => {
+  it("renders the industrial fallback when a product image is missing", () => {
     const { container } = render(
       <MemoryRouter>
         <ProductCard
@@ -21,8 +21,7 @@ describe("ProductCard", () => {
       </MemoryRouter>,
     );
 
-    expect(container.querySelector(".industry-cover-default")).not.toBeInTheDocument();
-    expect(container.querySelector(".product-image")).not.toBeInTheDocument();
+    expect(container.querySelector(".industry-cover-default.product-image")).toBeInTheDocument();
     expect(container.textContent).not.toContain("Parts");
     expect(screen.queryByRole("img")).not.toBeInTheDocument();
     expect(screen.getByText("变速箱齿轮总成")).toBeInTheDocument();
@@ -32,19 +31,19 @@ describe("ProductCard", () => {
     expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/价格：面议 \/ 批量报价/)).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "联系供应商" })).toHaveAttribute("href", "/vendors/1");
-    expect(screen.getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/products/9");
+    expect(screen.getByRole("link", { name: "厂商信息" })).toHaveAttribute("href", "/products/9");
   });
 
-  it("uses only a small thumbnail when a real product image exists", () => {
+  it("uses the real product image as the card cover", () => {
     const { container } = render(
       <MemoryRouter>
         <ProductCard product={{ id: 10, name: "液压油缸", image: "https://img.example.com/cylinder.jpg" }} />
       </MemoryRouter>,
     );
 
-    const image = screen.getByRole("img", { name: "液压油缸" });
-    expect(image).toHaveClass("product-thumb");
+    const cover = container.querySelector(".product-image.industry-cover-image");
+    const image = container.querySelector(".industry-cover-photo");
+    expect(cover).toBeInTheDocument();
     expect(image).toHaveAttribute("src", "https://img.example.com/cylinder.jpg");
-    expect(container.querySelector(".product-image")).not.toBeInTheDocument();
   });
 });

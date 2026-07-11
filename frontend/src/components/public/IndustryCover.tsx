@@ -56,19 +56,12 @@ export function IndustryCover({
   children?: ReactNode;
 }) {
   const validImage = getValidCoverImage(image);
-  if (validImage) {
-    return (
-      <div className={`${className} industry-cover-image`} style={{ backgroundImage: `url(${validImage})` }}>
-        {children}
-      </div>
-    );
-  }
-
   const Icon = industryIcons[kind] || Package;
   return (
-    <div className={`${className} ${fallbackClassName} industry-cover-default industry-cover-${kind}`}>
+    <div className={`${className} ${fallbackClassName} industry-cover-default industry-cover-${kind} ${validImage ? "industry-cover-image" : ""}`}>
       <div className="industry-cover-pattern" />
       <Icon className="industry-cover-main-icon" aria-hidden="true" size={iconSize} strokeWidth={1.7} />
+      {validImage && <img alt="" aria-hidden="true" className="industry-cover-photo" loading="lazy" src={validImage} onError={(event) => { event.currentTarget.style.display = "none"; }} />}
       {children}
     </div>
   );
@@ -78,7 +71,7 @@ export function getValidCoverImage(src?: string) {
   if (!src) return "";
   const value = src.trim();
   const normalized = value.toLowerCase();
-  if (normalized.includes("dummyimage.com") && (normalized.includes("factory") || normalized.includes("parts"))) return "";
+  if (normalized.includes("dummyimage.com")) return "";
   return value;
 }
 

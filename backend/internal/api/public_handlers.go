@@ -22,11 +22,21 @@ func (h PublicHandler) Home(c *gin.Context) {
 		Fail(c, 500, 500, "首页数据加载失败")
 		return
 	}
+	if !c.GetBool("authenticated") {
+		redactVendorSlice(payload.RecommendedVendors)
+		redactVendorSlice(payload.MoreVendors)
+		redactVendorSlice(payload.ProcessingVendors)
+	}
 	OK(c, payload)
 }
 
 func (h PublicHandler) SiteMeta(c *gin.Context) {
 	OK(c, h.HomeService.SiteMeta(c.Request.Context()))
+}
+
+func (h PublicHandler) LayoutConfig(c *gin.Context) {
+	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	OK(c, h.HomeService.Layout(c.Request.Context()))
 }
 
 func (h PublicHandler) Menus(c *gin.Context) {
@@ -61,7 +71,7 @@ func (h PublicHandler) FriendLinks(c *gin.Context) {
 func (h PublicHandler) Vendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Where("is_visible = ?", true)
+	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ?", true, "published")
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ?", like, like, like)
@@ -83,13 +93,21 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 	} else {
 		query = query.Order("is_recommended desc, sort_order asc, id asc")
 	}
-	OK(c, paginate(query, &vendors, page, pageSize))
+	result, err := paginate(query, &vendors, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "厂商列表加载失败")
+		return
+	}
+	if !c.GetBool("authenticated") {
+		redactVendorSlice(vendors)
+	}
+	OK(c, result)
 }
 
 func (h PublicHandler) ProcessingVendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Where("is_visible = ? AND provides_processing = ?", true, true)
+	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true)
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ? OR processing_services LIKE ? OR processing_materials LIKE ? OR processing_equipment LIKE ? OR processing_capacity LIKE ? OR processing_regions LIKE ? OR processing_notes LIKE ?", like, like, like, like, like, like, like, like, like)
@@ -106,31 +124,45 @@ func (h PublicHandler) ProcessingVendors(c *gin.Context) {
 	} else {
 		query = query.Order("is_recommended desc, sort_order asc, id asc")
 	}
-	OK(c, paginate(query, &vendors, page, pageSize))
+	result, err := paginate(query, &vendors, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "加工厂商列表加载失败")
+		return
+	}
+	if !c.GetBool("authenticated") {
+		redactVendorSlice(vendors)
+	}
+	OK(c, result)
 }
 
 func (h PublicHandler) ProcessingFilterOptions(c *gin.Context) {
 	var provinces []string
 	var tags []model.Tag
-	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND provides_processing = ? AND province <> ''", true, true).Distinct().Order("province asc").Pluck("province", &provinces)
+	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND provides_processing = ? AND province <> ''", true, "published", true).Distinct().Order("province asc").Pluck("province", &provinces)
 	h.DB.Where("tag_type = ?", "processing").Order("sort_order asc, id asc").Find(&tags)
 	OK(c, gin.H{"provinces": provinces, "categories": []model.Category{}, "serviceTags": tags})
 }
 
 func (h PublicHandler) RecommendedVendors(c *gin.Context) {
 	var vendors []model.Vendor
-	h.DB.Preload("Tags").Where("is_visible = ? AND is_recommended = ?", true, true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
+	h.DB.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND is_recommended = ?", true, "published", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
+	if !c.GetBool("authenticated") {
+		redactVendorSlice(vendors)
+	}
 	OK(c, vendors)
 }
 
 func (h PublicHandler) VendorDetail(c *gin.Context) {
 	var vendor model.Vendor
-	if err := h.DB.Preload("Tags").First(&vendor, c.Param("id")).Error; err != nil {
+	if err := h.DB.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "id = ? AND is_visible = ? AND publication_status = ?", c.Param("id"), true, "published").Error; err != nil {
 		Fail(c, 404, 404, "厂商不存在")
 		return
 	}
 	for _, tag := range vendor.Tags {
 		vendor.TagIDs = append(vendor.TagIDs, tag.ID)
+	}
+	if !c.GetBool("authenticated") {
+		redactVendor(&vendor)
 	}
 	OK(c, vendor)
 }
@@ -138,36 +170,47 @@ func (h PublicHandler) VendorDetail(c *gin.Context) {
 func (h PublicHandler) Products(c *gin.Context) {
 	var products []model.Product
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Product{}).Preload("Category").Preload("Vendor").Where("status = ?", 1)
+	query := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").Where("products.status = ?", 1)
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
-		query = query.Where("name LIKE ? OR compatible_models LIKE ? OR description LIKE ?", like, like, like)
+		query = query.Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like)
 	}
 	if categoryID := queryUint(c, "categoryId"); categoryID > 0 {
-		query = query.Where("category_id = ?", categoryID)
+		query = query.Where("products.category_id = ?", categoryID)
 	}
 	if vendorID := queryUint(c, "vendorId"); vendorID > 0 {
-		query = query.Where("vendor_id = ?", vendorID)
+		query = query.Where("products.vendor_id = ?", vendorID)
 	}
 	if c.Query("hot") == "true" {
-		query = query.Where("is_hot = ?", true)
+		query = query.Where("products.is_hot = ?", true)
 	}
 	if c.Query("recommended") == "true" {
-		query = query.Where("is_recommended = ?", true)
+		query = query.Where("products.is_recommended = ?", true)
 	}
 	if c.Query("sort") == "latest" {
-		query = query.Order("created_at desc")
+		query = query.Order("products.created_at desc")
 	} else {
-		query = query.Order("is_recommended desc, sort_order asc, id asc")
+		query = query.Order("products.is_recommended desc, products.sort_order asc, products.id asc")
 	}
-	OK(c, paginate(query, &products, page, pageSize))
+	result, err := paginate(query, &products, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "产品列表加载失败")
+		return
+	}
+	if !c.GetBool("authenticated") {
+		redactProductVendors(products)
+	}
+	OK(c, result)
 }
 
 func (h PublicHandler) ProductDetail(c *gin.Context) {
 	var product model.Product
-	if err := h.DB.Preload("Category").Preload("Vendor").First(&product, "id = ? AND status = ?", c.Param("id"), 1).Error; err != nil {
+	if err := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").First(&product, "products.id = ? AND products.status = ?", c.Param("id"), 1).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "产品不存在")
 		return
+	}
+	if !c.GetBool("authenticated") {
+		redactVendor(&product.Vendor)
 	}
 	OK(c, product)
 }
@@ -183,27 +226,87 @@ func (h PublicHandler) Search(c *gin.Context) {
 	var vendors []model.Vendor
 	var products []model.Product
 	var categories []model.Category
-	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Where("is_visible = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, like, like, like).Order("is_recommended desc, sort_order asc, id asc")
-	productQuery := h.DB.Model(&model.Product{}).Preload("Category").Preload("Vendor").Where("status = ? AND (name LIKE ? OR compatible_models LIKE ? OR description LIKE ?)", 1, like, like, like).Order("is_recommended desc, sort_order asc, id asc")
+	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, "published", like, like, like).Order("is_recommended desc, sort_order asc, id asc")
+	productQuery := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").Where("products.status = ? AND (products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?)", 1, like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
 	categoryQuery := h.DB.Model(&model.Category{}).Where("is_enabled = ? AND name LIKE ?", true, like).Order("sort_order asc, id asc")
-	OK(c, gin.H{"vendors": paginate(vendorQuery, &vendors, page, pageSize), "products": paginate(productQuery, &products, page, pageSize), "categories": paginate(categoryQuery, &categories, page, pageSize)})
+	vendorResult, err := paginate(vendorQuery, &vendors, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "搜索失败")
+		return
+	}
+	productResult, err := paginate(productQuery, &products, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "搜索失败")
+		return
+	}
+	categoryResult, err := paginate(categoryQuery, &categories, page, pageSize)
+	if err != nil {
+		Fail(c, 500, 500, "搜索失败")
+		return
+	}
+	if !c.GetBool("authenticated") {
+		redactVendorSlice(vendors)
+		redactProductVendors(products)
+	}
+	OK(c, gin.H{"vendors": vendorResult, "products": productResult, "categories": categoryResult})
+}
+
+func redactVendorSlice(vendors []model.Vendor) {
+	for i := range vendors {
+		redactVendor(&vendors[i])
+	}
+}
+
+func redactProductVendors(products []model.Product) {
+	for i := range products {
+		redactVendor(&products[i].Vendor)
+	}
+}
+
+func redactVendor(vendor *model.Vendor) {
+	if vendor.Phone != "" {
+		vendor.Phone = maskPhone(vendor.Phone)
+	}
+	vendor.Wechat = ""
+	vendor.ContactName = ""
+}
+
+func maskPhone(value string) string {
+	runes := []rune(value)
+	digitPositions := make([]int, 0, len(runes))
+	for index, char := range runes {
+		if char >= '0' && char <= '9' {
+			digitPositions = append(digitPositions, index)
+		}
+	}
+	if len(digitPositions) <= 5 {
+		return "****"
+	}
+	for _, position := range digitPositions[3 : len(digitPositions)-2] {
+		runes[position] = '*'
+	}
+	return string(runes)
 }
 
 func (h PublicHandler) FilterOptions(c *gin.Context) {
 	var provinces []string
 	var categories []model.Category
 	var tags []model.Tag
-	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND province <> ''", true).Distinct().Order("province asc").Pluck("province", &provinces)
+	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND province <> ''", true, "published").Distinct().Order("province asc").Pluck("province", &provinces)
 	h.DB.Where("is_enabled = ?", true).Order("sort_order asc, id asc").Find(&categories)
 	h.DB.Where("tag_type = ?", "vendor").Order("sort_order asc, id asc").Find(&tags)
 	OK(c, gin.H{"provinces": provinces, "categories": categories, "serviceTags": tags})
 }
 
-func paginate(query *gorm.DB, dest interface{}, page int, pageSize int) PageResult {
+func paginate(query *gorm.DB, dest interface{}, page int, pageSize int) (PageResult, error) {
 	var total int64
-	query.Count(&total)
-	query.Offset((page - 1) * pageSize).Limit(pageSize).Find(dest)
-	return PageResult{Items: dest, Page: page, PageSize: pageSize, Total: total}
+	if err := query.Count(&total).Error; err != nil {
+		return PageResult{}, err
+	}
+	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Find(dest).Error; err != nil {
+		return PageResult{}, err
+	}
+	return PageResult{Items: dest, Page: page, PageSize: pageSize, Total: total}, nil
 }
 
 func pageParams(c *gin.Context, defaultSize int) (int, int) {

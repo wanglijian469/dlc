@@ -293,9 +293,7 @@ textarea {
 }
 
 .hero-machine {
-  background:
-    linear-gradient(90deg, rgba(11, 95, 234, 0.05), rgba(11, 95, 234, 0.35)),
-    url("https://images.unsplash.com/photo-1625246333195-78d9c38ad449?auto=format&fit=crop&w=900&q=80") center/cover;
+  background: linear-gradient(135deg, #0b326f, #0b5fea 62%, #168a72);
 }
 
 .search-box {
@@ -2164,4 +2162,52 @@ textarea {
 
 .admin-login .admin-input-icon input:focus {
   box-shadow: none;
+}
+
+.vendor-workflow-status {
+  align-items: flex-start;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 10px;
+  color: #065f46;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 14px 16px;
+}
+
+.vendor-workflow-status.pending { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.vendor-workflow-status.rejected { background: #fff1f2; border-color: #fecdd3; color: #9f1239; }
+.vendor-workflow-status p { margin: 3px 0 0; }
+.vendor-profile-form .wide-field { grid-column: 1 / -1; }
+.form-submit-row { align-items: center; display: flex; gap: 12px; }
+.form-submit-row > span { color: #64748b; font-size: 13px; }
+.upload-button { cursor: pointer; display: inline-flex; width: fit-content; }
+.upload-button input { display: none; }
+.vendor-form-image { border: 1px solid #e2e8f0; border-radius: 8px; height: 72px; object-fit: contain; width: 110px; }
+.review-toolbar { align-items: center; display: flex; justify-content: space-between; }
+.review-toolbar label { align-items: center; display: flex; gap: 10px; }
+.vendor-review-list { display: grid; gap: 16px; }
+.vendor-review-card > header { align-items: flex-start; display: flex; justify-content: space-between; }
+.vendor-review-card h2 { margin: 8px 0 4px; }
+.vendor-review-card header p { color: #64748b; margin: 0; }
+.review-status { border-radius: 999px; display: inline-block; font-size: 12px; padding: 3px 9px; }
+.review-status.pending { background: #fef3c7; color: #92400e; }
+.review-status.approved { background: #d1fae5; color: #065f46; }
+.review-status.rejected { background: #ffe4e6; color: #9f1239; }
+.review-diff-table { display: grid; grid-template-columns: minmax(100px, .5fr) 1fr 1fr; margin: 18px 0; }
+.review-diff-table > .diff-row { display: contents; }
+.review-diff-table strong, .review-diff-table span, .diff-head { border-bottom: 1px solid #e2e8f0; padding: 10px; white-space: pre-wrap; }
+.diff-head { background: #f8fafc; font-weight: 700; }
+.review-actions { align-items: center; display: grid; gap: 10px; grid-template-columns: 1fr auto auto; }
+.review-actions textarea { min-height: 42px; }
+.outline-btn.danger { border-color: #fda4af; color: #be123c; }
+.review-note { background: #f8fafc; border-radius: 6px; padding: 10px; }
+.checkbox-field { align-items: center; display: flex !important; flex-direction: row !important; gap: 8px; }
+.checkbox-field input { width: auto !important; }
+
+@media (max-width: 700px) {
+  .review-diff-table { grid-template-columns: 86px 1fr 1fr; overflow-x: auto; }
+  .review-actions { grid-template-columns: 1fr; }
+  .vendor-review-card > header { gap: 12px; }
 }

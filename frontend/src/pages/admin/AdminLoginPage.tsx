@@ -15,7 +15,9 @@ export function AdminLoginPage() {
     login(username, password)
       .then((result) => {
         localStorage.setItem("admin_token", result.token);
-        navigate("/admin/dashboard");
+        localStorage.setItem("cms_role", result.role);
+        localStorage.setItem("cms_username", result.username);
+        navigate(result.role === "vendor" ? "/admin/vendor-profile" : "/admin/dashboard");
       })
       .catch(() => setError("登录失败，请检查账号密码"));
   };
@@ -31,7 +33,7 @@ export function AdminLoginPage() {
       <form className="admin-login-card" onSubmit={submit}>
         <div className="admin-login-heading">
           <span>Welcome back</span>
-          <h2>后台登录</h2>
+          <h2>CMS 登录</h2>
         </div>
         {error && <p className="form-error">{error}</p>}
         <label>

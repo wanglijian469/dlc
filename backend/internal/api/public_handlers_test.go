@@ -147,6 +147,15 @@ func TestPageResultSerializesPaginationShape(t *testing.T) {
 	}
 }
 
+func TestMaskPhoneKeepsOnlyEnoughDigitsForRecognition(t *testing.T) {
+	if got, want := maskPhone("0319-5666294"), "031*-*****94"; got != want {
+		t.Fatalf("maskPhone() = %q, want %q", got, want)
+	}
+	if got, want := maskPhone("13812345678"), "138******78"; got != want {
+		t.Fatalf("maskPhone() = %q, want %q", got, want)
+	}
+}
+
 func routeExists(routes gin.RoutesInfo, method string, path string) bool {
 	for _, route := range routes {
 		if route.Method == method && route.Path == path {

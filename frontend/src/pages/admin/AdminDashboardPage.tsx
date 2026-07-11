@@ -1,6 +1,8 @@
-import { FileImage, FileText, LayoutDashboard, Link as LinkIcon, ListTree, Package, Settings, Tags, Users } from "lucide-react";
+import { AlertTriangle, ClipboardCheck, FileImage, FileText, LayoutDashboard, Link as LinkIcon, ListTree, Package, Settings, Tags, Users } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
+import { getDashboardStats } from "../../api/admin";
 
 const quickEntries = [
   { label: "厂商信息", path: "/admin/vendors", icon: Users, meta: "维护供应商资料、认证和加工能力" },
@@ -17,6 +19,10 @@ const modules = [
 ];
 
 export function AdminDashboardPage() {
+  const [stats, setStats] = useState({ vendors: 0, products: 0, pendingReviews: 0, missingImages: 0 });
+	const [statsError, setStatsError] = useState("");
+	const loadStats = () => { setStatsError(""); return getDashboardStats().then(setStats).catch(() => setStatsError("控制台统计加载失败，请重试")); };
+  useEffect(() => { void loadStats(); }, []);
   return (
     <AdminLayout title="控制台">
       <section className="admin-dashboard-hero">
@@ -31,6 +37,14 @@ export function AdminDashboardPage() {
           <span>管理端</span>
         </div>
       </section>
+
+      <section className="admin-metric-grid">
+        <Link to="/admin/vendors"><Users size={20} /><span>厂商总数<strong>{stats.vendors}</strong></span></Link>
+        <Link to="/admin/products"><Package size={20} /><span>产品总数<strong>{stats.products}</strong></span></Link>
+        <Link to="/admin/vendor-reviews"><ClipboardCheck size={20} /><span>待审核<strong>{stats.pendingReviews}</strong></span></Link>
+        <Link to="/admin/vendors"><AlertTriangle size={20} /><span>缺少图片<strong>{stats.missingImages}</strong></span></Link>
+      </section>
+	  {statsError && <p className="admin-message" role="alert">{statsError} <button onClick={() => void loadStats()} type="button">重试</button></p>}
 
       <section className="admin-panel">
         <div className="admin-section-title">

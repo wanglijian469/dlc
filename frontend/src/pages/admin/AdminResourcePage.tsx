@@ -1,10 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
+import { Plus, X } from "lucide-react";
 import {
   createResource,
   deleteResource,
   listConfigs,
   listResource,
+  listResourcePage,
   ResourceName,
   ResourceRecord,
   updateConfig,
@@ -13,14 +15,19 @@ import {
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import type { SiteConfig } from "../../types/api";
+import type { VendorMedia } from "../../types/api";
+import { AdminModal } from "../../components/admin/AdminModal";
+import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
+import { BlocksEditor, GalleryEditor, SpecsEditor, VendorMediaEditor } from "../../components/admin/StructuredEditors";
+import { Pagination } from "../../components/public/Pagination";
 
-type FormValue = string | number | boolean | number[];
+type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
 
 type Field = {
   key: string;
   label: string;
-  type?: "text" | "number" | "checkbox" | "textarea" | "select" | "multiselect" | "image";
+  type?: "text" | "number" | "checkbox" | "textarea" | "select" | "multiselect" | "image" | "gallery" | "specs" | "blocks";
   options?: { label: string; value: string | number | boolean }[];
   refResource?: ResourceName;
   placeholder?: string;
@@ -117,14 +124,14 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
     title: "配件产品",
     fields: [
       { key: "name", label: "产品名称" },
-      { key: "image", label: "图片 URL", type: "image" },
+      { key: "image", label: "产品主图", type: "image" },
       { key: "categoryId", label: "所属分类", type: "select", refResource: "categories" },
       { key: "vendorId", label: "所属厂商", type: "select", refResource: "vendors" },
       { key: "compatibleModels", label: "适配机型" },
       { key: "description", label: "列表描述", type: "textarea" },
       { key: "detailContent", label: "详情正文", type: "textarea" },
-      { key: "galleryRaw", label: "图库 JSON", type: "textarea", placeholder: '["/uploads/a.jpg"]' },
-      { key: "specsRaw", label: "规格参数 JSON", type: "textarea", placeholder: '[{"name":"质保","value":"12个月"}]' },
+      { key: "galleryRaw", label: "产品图库", type: "gallery" },
+      { key: "specsRaw", label: "规格参数", type: "specs" },
       { key: "priceNote", label: "价格说明" },
       { key: "inquiryText", label: "询价按钮文案" },
       { key: "inquiryPath", label: "询价跳转路径" },
@@ -153,6 +160,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "title", label: "页面标题" },
       { key: "summary", label: "摘要", type: "textarea" },
       { key: "content", label: "正文", type: "textarea" },
+      { key: "blocksRaw", label: "结构化内容", type: "blocks" },
       { key: "seoKeywords", label: "SEO 关键词" },
       { key: "isEnabled", label: "启用", type: "checkbox" },
       { key: "sortOrder", label: "排序", type: "number" },
@@ -204,13 +212,28 @@ export function AdminResourcePage() {
   const [form, setForm] = useState<FormState>({});
   const [editingId, setEditingId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
+	const [statusFilter, setStatusFilter] = useState("");
+	const [provinceFilter, setProvinceFilter] = useState("");
   const [message, setMessage] = useState("");
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const serverPaged = name === "vendors" || name === "products";
+	const debouncedKeyword = useDebouncedValue(keyword, 300);
 
-  const load = () => listResource<ResourceRecord>(name).then(setRows);
+  const load = () => {
+    if (serverPaged) {
+	  const filters = name === "vendors" ? { publicationStatus: statusFilter || undefined, province: provinceFilter || undefined } : { status: statusFilter || undefined };
+      return listResourcePage<ResourceRecord>(name, { page, pageSize: 20, search: debouncedKeyword.trim() || undefined, ...filters }).then((result) => { setRows(result.items); setTotal(result.total); });
+    }
+    return listResource<ResourceRecord>(name).then((items) => { setRows(items); setTotal(items.length); });
+  };
   useEffect(() => {
     setMessage("");
     setForm(defaultForm(schema.fields));
     setEditingId(null);
+    setEditorOpen(false);
+    setPage(1);
     void load();
     const resources = Array.from(new Set(schema.fields.map((field) => field.refResource).filter(Boolean))) as ResourceName[];
     if (resources.length) {
@@ -220,15 +243,21 @@ export function AdminResourcePage() {
     }
   }, [name]);
 
+  useEffect(() => {
+    if (serverPaged) void load();
+  }, [page, debouncedKeyword, statusFilter, provinceFilter]);
+
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setMessage("");
-    const payload = payloadFromForm(schema.fields, form) as Partial<ResourceRecord>;
+    const payload = payloadFromForm(schema.fields, form) as Partial<ResourceRecord> & { media?: VendorMedia[] };
+    if (name === "vendors") payload.media = (form.media as VendorMedia[] | undefined) || [];
     const action = editingId ? updateResource<ResourceRecord>(name, editingId, payload) : createResource<ResourceRecord>(name, payload);
     action
       .then(() => {
         setForm(defaultForm(schema.fields));
         setEditingId(null);
+        setEditorOpen(false);
         setMessage("保存成功");
         void load();
       })
@@ -244,25 +273,11 @@ export function AdminResourcePage() {
   return (
     <AdminLayout title={schema.title}>
       {message && <p className="admin-message">{message}</p>}
-      <form className="admin-form" onSubmit={submit}>
-        {schema.fields.map((field) => (
-          <label key={field.key}>
-            {field.label}
-            <FieldInput field={field} form={form} refs={refs} setForm={setForm} />
-          </label>
-        ))}
-        {(name === "vendors" || name === "products" || name === "banners" || name === "friend-links") && <ImagePreview form={form} />}
-        <button className="primary-btn" type="submit">
-          {editingId ? "保存修改" : "新增"}
-        </button>
-        {editingId && (
-          <button className="outline-btn" type="button" onClick={() => { setEditingId(null); setForm(defaultForm(schema.fields)); }}>
-            取消编辑
-          </button>
-        )}
-      </form>
       <div className="admin-toolbar admin-panel compact">
         <input value={keyword} placeholder="搜索当前列表" onChange={(event) => setKeyword(event.target.value)} />
+		{name === "vendors" && <><select aria-label="发布状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部发布状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="hidden">已隐藏</option></select><input aria-label="地区筛选" placeholder="输入省份" value={provinceFilter} onChange={(event) => { setProvinceFilter(event.target.value); setPage(1); }} /></>}
+		{name === "products" && <select aria-label="产品状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部产品状态</option><option value="1">已上架</option><option value="2">已下架</option></select>}
+        <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>
       </div>
       <div className="admin-table-panel">
         <ResourceTable
@@ -279,14 +294,31 @@ export function AdminResourcePage() {
           onEdit={(row) => {
             setEditingId(row.id);
             setForm({ ...defaultForm(schema.fields), ...(row as unknown as FormState) });
+            setEditorOpen(true);
           }}
         />
+        {serverPaged && <Pagination onChange={setPage} page={page} pageSize={20} total={total} />}
       </div>
+      {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header><form className="admin-form admin-grouped-form" onSubmit={submit}>
+        {groupFields(name, schema.fields).map((group) => <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => <label className={["textarea", "gallery", "specs", "blocks"].includes(field.type || "") ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>)}</div></fieldset>)}
+        {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
+        {(name === "vendors" || name === "products" || name === "banners" || name === "friend-links") && <ImagePreview form={form} />}
+        <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
+      </form></AdminModal>}
     </AdminLayout>
   );
 }
 
+function useDebouncedValue<T>(value: T, delay: number) {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => { const timer = window.setTimeout(() => setDebounced(value), delay); return () => window.clearTimeout(timer); }, [value, delay]);
+  return debounced;
+}
+
 function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormState; refs: Partial<Record<ResourceName, ResourceRecord[]>>; setForm: (form: FormState) => void }) {
+  if (field.type === "gallery") return <GalleryEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
+  if (field.type === "specs") return <SpecsEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
+  if (field.type === "blocks") return <BlocksEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
   if (field.type === "textarea") {
     return <textarea placeholder={field.placeholder} value={String(form[field.key] ?? "")} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />;
   }
@@ -371,9 +403,9 @@ function ResourceTable({ rows, onEdit, onDelete }: { rows: ResourceRecord[]; onE
         {rows.map((row) => (
           <tr key={row.id}>
             {keys.map((key) => (
-              <td key={key}>{formatCell((row as unknown as Record<string, unknown>)[key])}</td>
+              <td data-label={columnLabel(key)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key])}</td>
             ))}
-            <td>
+            <td data-label="操作">
               <button type="button" onClick={() => onEdit(row)}>编辑</button>
               <button type="button" onClick={() => onDelete(row.id)}>删除</button>
             </td>
@@ -394,38 +426,83 @@ function ConfigPage() {
     <AdminLayout title="平台配置">
       {message && <p className="admin-message">{message}</p>}
       <div className="config-list">
-        {rows.map((row) => (
-          <label key={row.configKey}>
-            <strong>{configLabel(row.configKey)}</strong>
-            <small>{row.description}</small>
-            <textarea
-              defaultValue={row.configValue}
-              onBlur={(event) =>
-                updateConfig(row.configKey, { ...row, configValue: event.target.value })
-                  .then(() => setMessage("配置已保存"))
-                  .catch(() => setMessage("配置保存失败，请检查 JSON 格式"))
-              }
-            />
-          </label>
-        ))}
+        {rows.map((row) => row.configKey === "home.modules" || row.configKey === "site.theme" ? <AdvancedConfigEditor key={row.configKey} row={row} onMessage={setMessage} /> : <ReadableConfigEditor key={row.configKey} row={row} onMessage={setMessage} />)}
       </div>
     </AdminLayout>
   );
 }
 
+function AdvancedConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: (message: string) => void }) {
+  const initial = () => { try { return JSON.parse(row.configValue) as unknown; } catch { return row.configKey === "home.modules" ? [] : {}; } };
+  const [value, setValue] = useState<unknown>(initial);
+  const save = () => updateConfig(row.configKey, { ...row, configValue: JSON.stringify(value) }).then(() => onMessage("配置已保存")).catch(() => onMessage("配置保存失败，请检查字段"));
+  if (row.configKey === "site.theme") {
+    const theme = value as Record<string, unknown>;
+    return <section className="config-card"><header><div><strong>站点主题</strong><small>统一控制前台产业主色与可信强调色。</small></div><button className="primary-btn small" type="button" onClick={save}>保存主题</button></header><div className="config-field-grid"><ConfigInput label="产业主色" value={theme.primaryColor} onChange={(next) => setValue({ ...theme, primaryColor: next })} /><ConfigInput label="可信强调色" value={theme.accentColor} onChange={(next) => setValue({ ...theme, accentColor: next })} /></div></section>;
+  }
+  const rows = Array.isArray(value) ? value as Array<Record<string, unknown>> : [];
+  const update = (index: number, key: string, next: unknown) => setValue(rows.map((item, current) => current === index ? { ...item, [key]: next } : item));
+  const names: Record<string, string> = { categories: "热门品类", recommendedVendors: "优质厂商", featuredProducts: "热门产品", processingServices: "加工服务", moreVendors: "更多厂商", safeguards: "平台保障", join: "厂商入驻" };
+  return <section className="config-card home-modules-editor"><header><div><strong>首页模块编排</strong><small>按排序值控制展示顺序，支持标题、图片、数量与开关。</small></div><button className="primary-btn small" type="button" onClick={save}>保存模块</button></header><div className="module-editor-list">{rows.map((item, index) => <article key={String(item.type)}><div className="module-editor-head"><strong>{names[String(item.type)] || String(item.type)}</strong><label className="checkbox-field"><input checked={Boolean(item.visible)} type="checkbox" onChange={(event) => update(index, "visible", event.target.checked)} />显示</label></div><div className="config-field-grid"><ConfigInput label="标题" value={item.title} onChange={(next) => update(index, "title", next)} /><ConfigInput label="副标题" value={item.subtitle} onChange={(next) => update(index, "subtitle", next)} /><ConfigInput label="跳转路径" value={item.path} onChange={(next) => update(index, "path", next)} /><ConfigInput label="背景图片" value={item.image} onChange={(next) => update(index, "image", next)} /><ConfigInput label="展示数量" type="number" value={item.limit} onChange={(next) => update(index, "limit", Number(next))} /><ConfigInput label="排序" type="number" value={item.sortOrder} onChange={(next) => update(index, "sortOrder", Number(next))} /></div></article>)}</div></section>;
+}
+
+function ReadableConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: (message: string) => void }) {
+  const parse = () => { try { return JSON.parse(row.configValue) as Record<string, unknown> | unknown[]; } catch { return {}; } };
+  const [value, setValue] = useState<Record<string, unknown> | unknown[]>(parse);
+  const objectValue = Array.isArray(value) ? {} : value;
+  const update = (key: string, next: unknown) => setValue({ ...objectValue, [key]: next });
+  const save = () => updateConfig(row.configKey, { ...row, configValue: JSON.stringify(value) }).then(() => onMessage("配置已保存")).catch(() => onMessage("配置保存失败，请检查字段"));
+  if (row.configKey === "home.stats") return <section className="config-card"><header><div><strong>首页真实统计</strong><small>{row.description}</small></div></header><p>厂商、产品、加工服务厂商和覆盖省份均从当前数据库实时聚合，无需手工填写。</p></section>;
+  return <section className="config-card"><header><div><strong>{configLabel(row.configKey)}</strong><small>{row.description}</small></div><button className="primary-btn small" type="button" onClick={save}>保存配置</button></header><div className="config-field-grid">
+    {row.configKey === "site.meta" && <><ConfigInput label="站点名称" value={objectValue.siteName} onChange={(next) => update("siteName", next)} /><ConfigInput label="品牌标识" value={objectValue.brandMark} onChange={(next) => update("brandMark", next)} /><ConfigInput label="提交厂商入口" value={objectValue.submitVendorText} onChange={(next) => update("submitVendorText", next)} /><ConfigInput label="后台入口" value={objectValue.adminLoginText} onChange={(next) => update("adminLoginText", next)} /></>}
+    {row.configKey === "home.sections" && <><ConfigInput label="推荐区标题" value={objectValue.recommendedTitle} onChange={(next) => update("recommendedTitle", next)} /><ConfigInput label="更多区标题" value={objectValue.moreTitle} onChange={(next) => update("moreTitle", next)} /><ConfigInput label="推荐数量" type="number" value={objectValue.recommendedLimit} onChange={(next) => update("recommendedLimit", Number(next))} /><ConfigInput label="更多数量" type="number" value={objectValue.moreLimit} onChange={(next) => update("moreLimit", Number(next))} /><label className="checkbox-field"><input checked={Boolean(objectValue.showRecommended)} type="checkbox" onChange={(event) => update("showRecommended", event.target.checked)} />显示推荐厂商</label><label className="checkbox-field"><input checked={Boolean(objectValue.showMore)} type="checkbox" onChange={(event) => update("showMore", event.target.checked)} />显示更多厂商</label></>}
+    {row.configKey === "home.join" && <><ConfigInput label="引导文案" value={objectValue.text} onChange={(next) => update("text", next)} /><ConfigInput label="按钮文案" value={objectValue.buttonText} onChange={(next) => update("buttonText", next)} /><ConfigInput label="跳转路径" value={objectValue.path} onChange={(next) => update("path", next)} /></>}
+    {row.configKey === "home.safeguards" && <label className="field-wide">保障文案（每行一条）<textarea value={(Array.isArray(value) ? value : []).join("\n")} onChange={(event) => setValue(event.target.value.split("\n").map((item) => item.trim()).filter(Boolean))} /></label>}
+  </div></section>;
+}
+
+function ConfigInput({ label, value, type = "text", onChange }: { label: string; value: unknown; type?: string; onChange: (value: string) => void }) {
+  return <label>{label}<input type={type} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
 function ImagePreview({ form }: { form: FormState }) {
   const src = String(form.logo || form.coverImage || form.image || form.backgroundImage || "");
   if (!src) return null;
+  const match = src.match(/^\/api\/media\/(\d+)$/);
   return (
     <div className="image-preview">
       <span>图片预览</span>
-      <img alt="" src={src} />
+      <ProtectedMediaImage alt="图片预览" assetId={match ? Number(match[1]) : undefined} src={src} />
     </div>
   );
 }
 
 function defaultForm(fields: Field[]) {
   return Object.fromEntries(fields.map((field) => [field.key, field.type === "checkbox" ? false : field.type === "number" ? 0 : field.type === "multiselect" ? [] : ""]));
+}
+
+function groupFields(resource: ResourceName, fields: Field[]) {
+  const groupTitle = (key: string) => {
+    if (resource === "vendors") {
+      if (["name", "shortName", "province", "city", "county", "address", "description"].includes(key)) return "基础资料";
+      if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds"].includes(key)) return "展示信息";
+      if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "qualityControl", "supplyRegions", "cooperationTerms", "afterSalesService"].includes(key)) return "生产与服务";
+      if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
+      if (["websiteUrl", "phone", "wechat", "contactName"].includes(key)) return "联系方式";
+      return "平台状态";
+    }
+    if (resource === "products") {
+      if (["name", "categoryId", "vendorId", "compatibleModels", "description", "priceNote"].includes(key)) return "基础信息";
+      if (["image", "galleryRaw"].includes(key)) return "展示图片";
+      if (["detailContent", "specsRaw"].includes(key)) return "详情与规格";
+      return "发布设置";
+    }
+    if (resource === "pages") return key === "blocksRaw" ? "内容区块" : "页面信息";
+    return "记录信息";
+  };
+  const groups: Array<{ title: string; fields: Field[] }> = [];
+  fields.forEach((field) => { const title = groupTitle(field.key); let group = groups.find((item) => item.title === title); if (!group) { group = { title, fields: [] }; groups.push(group); } group.fields.push(field); });
+  return groups;
 }
 
 function payloadFromForm(fields: Field[], form: FormState) {
