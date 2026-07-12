@@ -12,7 +12,7 @@ export function VendorMediaEditor({ value, onChange }: { value: VendorMedia[]; o
 
 export function GalleryEditor({ value, onChange }: { value: string; onChange: (raw: string) => void }) {
   const rows = parseJSON<string[]>(value, []);
-  return <div className="structured-editor"><div className="structured-editor-title"><strong>产品图库</strong><label className="outline-btn small upload-button"><ImagePlus size={15} />上传图片<input accept="image/*" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadFile(file).then((result) => onChange(JSON.stringify([...rows, result.url]))); event.target.value = ""; }} /></label></div><div className="gallery-editor-grid">{rows.map((url, index) => <article key={`${url}-${index}`}><img alt="" src={url} /><button aria-label="删除图片" type="button" onClick={() => onChange(JSON.stringify(rows.filter((_, rowIndex) => rowIndex !== index)))}><Trash2 size={15} /></button></article>)}</div>{!rows.length && <p className="structured-empty">暂无产品图库。</p>}</div>;
+  return <div className="structured-editor"><div className="structured-editor-title"><strong>产品图库</strong><label className="outline-btn small upload-button"><ImagePlus size={15} />上传图片<input accept="image/*" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadFile(file).then((result) => onChange(JSON.stringify([...rows, result.url]))); event.target.value = ""; }} /></label></div><div className="gallery-editor-grid">{rows.map((url, index) => <article key={`${url}-${index}`}><ProtectedMediaImage alt="产品图库图片" assetId={mediaAssetID(url)} src={url} /><button aria-label="删除图片" type="button" onClick={() => onChange(JSON.stringify(rows.filter((_, rowIndex) => rowIndex !== index)))}><Trash2 size={15} /></button></article>)}</div>{!rows.length && <p className="structured-empty">暂无产品图库。</p>}</div>;
 }
 
 export function SpecsEditor({ value, onChange }: { value: string; onChange: (raw: string) => void }) {
@@ -30,3 +30,4 @@ export function BlocksEditor({ value, onChange }: { value: string; onChange: (ra
 }
 
 function parseJSON<T>(value: string, fallback: T): T { try { return value ? JSON.parse(value) as T : fallback; } catch { return fallback; } }
+function mediaAssetID(url: string) { const match = url.match(/\/api\/media\/(\d+)/); return match ? Number(match[1]) : undefined; }
