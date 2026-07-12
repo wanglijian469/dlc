@@ -245,7 +245,7 @@ func defaultVendors() []model.Vendor {
 	provinces := []string{"山东", "河北", "江苏", "河南", "安徽", "山东", "浙江", "浙江", "河北", "辽宁", "四川", "陕西"}
 	vendors := make([]model.Vendor, 0, len(names))
 	for i, name := range names {
-		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", QualityControl: "来料检验、过程抽检、出厂检测，关键件建立批次追溯", SupplyRegions: "华北、华中、东北及主要农机维修市场", CooperationTerms: "支持来图来样定制，常规件 7 天内发货，批量采购可议价", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
+		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
 	}
 	for i := range vendors {
 		vendors[i].DataOrigin = "demo"
@@ -275,11 +275,7 @@ func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
 		EmployeeCount:     "职工 200 余人，专业技术人员 40 余人",
 		AnnualCapacity:    "拥有各种生产设备 180 台套，满足农机生产",
 		Equipment:         "官网公开信息显示拥有各种生产设备 180 台套，具体设备清单待人工复核补充。",
-		SupplyRegions:     "河北、北京、天津、内蒙古、山东、青海、辽宁、黑龙江、吉林、河南、湖北、江西、湖南、四川、重庆、云南、广西、广东、贵州、海南、安徽、江苏、上海、浙江、福建、陕西、宁夏、山西、甘肃、西藏及海外出口等区域",
-		CooperationTerms:  "公开官网展示多区域经理联系方式，具体采购、经销和售后条款需人工复核。",
 		AfterSalesService: "官网公开信息提到可靠售后服务信誉，具体质保政策待人工复核。",
-		SourceURL:         sourceURL,
-		SourceNote:        "2026-07-06 从公开官网首页采集，联系方式和产品参数需人工复核后再标记平台认证。",
 		ReviewStatus:      "pending",
 		WebsiteURL:        sourceURL,
 		Phone:             "0319-5666294",

@@ -91,10 +91,24 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := migrateVendorPublicationState(db); err != nil {
 		return err
 	}
+	if err := dropRetiredVendorColumns(db); err != nil {
+		return err
+	}
 	if err := migrateProductCatalog(db); err != nil {
 		return err
 	}
 	return ensureStructuredContent(db)
+}
+
+func dropRetiredVendorColumns(db *gorm.DB) error {
+	for _, column := range []string{"quality_control", "supply_regions", "cooperation_terms", "source_url", "source_note"} {
+		if db.Migrator().HasColumn(&model.Vendor{}, column) {
+			if err := db.Migrator().DropColumn(&model.Vendor{}, column); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func migrateProductCatalog(db *gorm.DB) error {
@@ -164,7 +178,7 @@ func migrateVendorPublicationState(db *gorm.DB) error {
 		Updates(map[string]interface{}{"data_origin": "demo", "publication_status": "hidden", "is_visible": false, "is_verified": false, "is_recommended": false}).Error; err != nil {
 		return err
 	}
-	return db.Exec(`DELETE vt FROM vendor_tags vt JOIN vendors v ON v.id = vt.vendor_id JOIN tags t ON t.id = vt.tag_id WHERE (v.data_origin = 'demo' OR (v.source_url = 'https://www.hbjinong.com/' AND v.review_status <> 'verified')) AND t.name IN ('源头厂商','支持定制','现货充足','实地认证')`).Error
+	return db.Exec(`DELETE vt FROM vendor_tags vt JOIN vendors v ON v.id = vt.vendor_id JOIN tags t ON t.id = vt.tag_id WHERE v.data_origin = 'demo' AND t.name IN ('源头厂商','支持定制','现货充足','实地认证')`).Error
 }
 
 func cleanupLegacyDemoContent(db *gorm.DB) error {

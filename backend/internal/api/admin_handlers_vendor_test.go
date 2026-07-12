@@ -17,29 +17,6 @@ func TestUniqueUintIDsKeepsFirstOccurrence(t *testing.T) {
 	}
 }
 
-func TestVendorPublicImportFieldsBindToAdminPayload(t *testing.T) {
-	payload := `{
-		"name":"河北冀农农机具有限公司",
-		"sourceUrl":"https://www.hbjinong.com/",
-		"sourceNote":"公开官网首页采集，人工复核前不标记平台认证。",
-		"reviewStatus":"pending"
-	}`
-
-	var vendor model.Vendor
-	if err := json.NewDecoder(strings.NewReader(payload)).Decode(&vendor); err != nil {
-		t.Fatal(err)
-	}
-	if vendor.SourceURL != "https://www.hbjinong.com/" {
-		t.Fatalf("SourceURL = %q", vendor.SourceURL)
-	}
-	if vendor.SourceNote != "公开官网首页采集，人工复核前不标记平台认证。" {
-		t.Fatalf("SourceNote = %q", vendor.SourceNote)
-	}
-	if vendor.ReviewStatus != "pending" {
-		t.Fatalf("ReviewStatus = %q", vendor.ReviewStatus)
-	}
-}
-
 func TestNormalizeVendorReviewStatusDefaultsBlankToPending(t *testing.T) {
 	vendor := model.Vendor{Name: "河北冀农农机具有限公司"}
 	if err := normalizeVendorReviewStatus(&vendor); err != nil {

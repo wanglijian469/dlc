@@ -58,12 +58,7 @@ export interface Vendor {
   annualCapacity?: string;
   equipment?: string;
   certifications?: string;
-  qualityControl?: string;
-  supplyRegions?: string;
-  cooperationTerms?: string;
   afterSalesService?: string;
-  sourceUrl?: string;
-  sourceNote?: string;
   reviewStatus?: "pending" | "verified" | "rejected" | string;
   providesProcessing?: boolean;
   processingServices?: string;

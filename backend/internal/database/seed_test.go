@@ -115,7 +115,7 @@ func TestDefaultSeedVendorsContainRichProfileFields(t *testing.T) {
 		t.Fatal("seed vendors should not be empty")
 	}
 	vendor := reflect.ValueOf(seed.Vendors[0])
-	for _, field := range []string{"EstablishedYear", "FactoryArea", "EmployeeCount", "AnnualCapacity", "Equipment", "Certifications", "QualityControl", "SupplyRegions", "CooperationTerms", "AfterSalesService"} {
+	for _, field := range []string{"EstablishedYear", "FactoryArea", "EmployeeCount", "AnnualCapacity", "Equipment", "Certifications", "AfterSalesService"} {
 		value := vendor.FieldByName(field)
 		if !value.IsValid() {
 			t.Fatalf("Vendor missing rich profile field %s", field)
@@ -160,22 +160,16 @@ func TestDefaultSeedContainsHBJinongPublicImport(t *testing.T) {
 	seed := DefaultSeed()
 	var vendorIndex int
 	var vendorName string
-	var sourceURL string
-	var sourceNote string
 	var reviewStatus string
 	var mainProducts string
-	var websiteURL string
 	for i, vendor := range seed.Vendors {
 		if vendor.WebsiteURL != "https://www.hbjinong.com/" {
 			continue
 		}
 		vendorIndex = i + 1
 		vendorName = vendor.Name
-		sourceURL = vendor.SourceURL
-		sourceNote = vendor.SourceNote
 		reviewStatus = vendor.ReviewStatus
 		mainProducts = vendor.MainProducts
-		websiteURL = vendor.WebsiteURL
 	}
 	if vendorIndex == 0 {
 		t.Fatal("missing 河北冀农 vendor imported from public website")
@@ -183,16 +177,8 @@ func TestDefaultSeedContainsHBJinongPublicImport(t *testing.T) {
 	if vendorName != "河北冀农农机具有限公司" {
 		t.Fatalf("vendor name = %q", vendorName)
 	}
-	if sourceURL != websiteURL {
-		t.Fatalf("sourceURL = %q, want websiteURL %q", sourceURL, websiteURL)
-	}
 	if reviewStatus != "pending" {
 		t.Fatalf("reviewStatus = %q, want pending", reviewStatus)
-	}
-	for _, want := range []string{"公开官网首页", "2026-07-06", "人工复核"} {
-		if !strings.Contains(sourceNote, want) {
-			t.Fatalf("sourceNote = %q, want to contain %q", sourceNote, want)
-		}
 	}
 	for _, want := range []string{"液压翻转犁", "旋耕机", "驱动耙"} {
 		if !strings.Contains(mainProducts, want) {

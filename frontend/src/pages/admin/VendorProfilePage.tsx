@@ -19,8 +19,7 @@ const fields: Field[] = [
   { key: "description", label: "公司简介", type: "textarea" }, { key: "establishedYear", label: "成立年份" },
   { key: "factoryArea", label: "厂房面积" }, { key: "employeeCount", label: "员工规模" },
   { key: "annualCapacity", label: "年产能", type: "textarea" }, { key: "equipment", label: "主要设备", type: "textarea" },
-  { key: "certifications", label: "认证资质", type: "textarea" }, { key: "qualityControl", label: "质检能力", type: "textarea" },
-  { key: "supplyRegions", label: "供货区域", type: "textarea" }, { key: "cooperationTerms", label: "合作方式", type: "textarea" },
+  { key: "certifications", label: "认证资质", type: "textarea" },
   { key: "afterSalesService", label: "售后服务", type: "textarea" }, { key: "websiteUrl", label: "厂商官网" },
   { key: "contactName", label: "联系人" }, { key: "phone", label: "联系电话" }, { key: "wechat", label: "微信" },
   { key: "providesProcessing", label: "提供来图来样加工", type: "checkbox" },
@@ -32,8 +31,8 @@ const fields: Field[] = [
 const groups: Array<{ title: string; keys: Array<keyof Vendor> }> = [
   { title: "基础资料", keys: ["name", "shortName", "province", "city", "county", "address", "mainProducts", "serviceModels", "description"] },
   { title: "展示素材", keys: ["logo", "coverImage", "serviceAdvantages"] },
-  { title: "生产能力", keys: ["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "qualityControl", "supplyRegions"] },
-  { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes", "cooperationTerms", "afterSalesService"] },
+  { title: "生产能力", keys: ["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications"] },
+  { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes", "afterSalesService"] },
   { title: "联系方式", keys: ["websiteUrl", "contactName", "phone", "wechat"] },
 ];
 

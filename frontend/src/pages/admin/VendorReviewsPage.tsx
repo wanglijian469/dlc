@@ -11,8 +11,7 @@ const comparedFields: Array<{ key: keyof Vendor; label: string }> = [
   { key: "province", label: "省份" }, { key: "city", label: "城市" }, { key: "county", label: "区县" }, { key: "address", label: "地址" },
   { key: "mainProducts", label: "主营产品" }, { key: "serviceModels", label: "适配机型" }, { key: "serviceAdvantages", label: "服务优势" }, { key: "description", label: "公司简介" },
   { key: "establishedYear", label: "成立年份" }, { key: "factoryArea", label: "厂房面积" }, { key: "employeeCount", label: "员工规模" }, { key: "annualCapacity", label: "年产能" },
-  { key: "equipment", label: "主要设备" }, { key: "certifications", label: "认证资质" }, { key: "qualityControl", label: "质检能力" }, { key: "supplyRegions", label: "供货区域" },
-  { key: "cooperationTerms", label: "合作方式" }, { key: "afterSalesService", label: "售后服务" }, { key: "websiteUrl", label: "官网" }, { key: "contactName", label: "联系人" }, { key: "phone", label: "电话" }, { key: "wechat", label: "微信" },
+  { key: "equipment", label: "主要设备" }, { key: "certifications", label: "认证资质" }, { key: "afterSalesService", label: "售后服务" }, { key: "websiteUrl", label: "官网" }, { key: "contactName", label: "联系人" }, { key: "phone", label: "电话" }, { key: "wechat", label: "微信" },
   { key: "providesProcessing", label: "提供加工服务" }, { key: "processingServices", label: "加工能力" }, { key: "processingMaterials", label: "加工材料" }, { key: "processingEquipment", label: "加工设备" }, { key: "processingCapacity", label: "加工产能" }, { key: "processingRegions", label: "加工区域" }, { key: "processingNotes", label: "接单说明" },
 ];
 

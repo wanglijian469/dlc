@@ -1,4 +1,4 @@
-import { Building2, CheckCircle2, Clipboard, ExternalLink, Info, MapPin, Phone, Wrench } from "lucide-react";
+import { Building2, CheckCircle2, Clipboard, ExternalLink, MapPin, Phone, Wrench } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getVendor, listProducts } from "../api/public";
@@ -32,7 +32,7 @@ export function VendorDetailPage() {
   const phoneMasked = Boolean(vendor.phone?.includes("*"));
   const copy = (label: string, value: string) => navigator.clipboard.writeText(value).then(() => { setCopied(label); window.setTimeout(() => setCopied(""), 1600); }).catch(() => { setCopied("复制失败"); window.setTimeout(() => setCopied(""), 2000); });
   const capabilityRows = [
-    ["年产能", vendor.annualCapacity], ["主要设备", vendor.equipment], ["质检能力", vendor.qualityControl], ["供货范围", vendor.supplyRegions], ["合作方式", vendor.cooperationTerms], ["售后服务", vendor.afterSalesService],
+    ["年产能", vendor.annualCapacity], ["主要设备", vendor.equipment], ["售后服务", vendor.afterSalesService],
   ].filter((row) => row[1]);
   const processingRows = [
     ["加工能力", vendor.processingServices], ["材料 / 类型", vendor.processingMaterials], ["加工设备", vendor.processingEquipment], ["产能 / 交期", vendor.processingCapacity], ["服务区域", vendor.processingRegions], ["接单说明", vendor.processingNotes],
@@ -66,17 +66,6 @@ export function VendorDetailPage() {
       {vendor.providesProcessing && processingRows.length > 0 && <section className="vendor-section-card processing-section"><header><Wrench size={20} /><h2>加工服务能力</h2></header><div className="capability-grid">{processingRows.map(([label, value]) => <div key={label}><strong>{label}</strong><p>{value}</p></div>)}</div></section>}
 
       {vendor.media?.length ? <section className="vendor-section-card"><header><Building2 size={20} /><h2>企业图集</h2></header><div className="vendor-media-grid">{vendor.media.map((media) => <figure key={media.id || media.url}><img alt={media.caption || vendor.name} loading="lazy" src={media.url} /><figcaption><span>{mediaKindLabel(media.kind)}</span>{media.caption}</figcaption></figure>)}</div></section> : null}
-
-      {(vendor.sourceUrl || vendor.sourceNote || vendor.reviewStatus === "pending") && (
-        <section className="vendor-section-card vendor-source-note">
-          <header><Info size={20} /><h2>资料说明</h2></header>
-          <div className="source-note-row">
-            {vendor.reviewStatus === "pending" && <span className="tag-orange">公开信息待复核</span>}
-            {vendor.sourceUrl && <a className="text-link" href={vendor.sourceUrl} rel="noreferrer" target="_blank">查看公开来源 <ExternalLink size={14} /></a>}
-          </div>
-          {vendor.sourceNote && <p>{vendor.sourceNote}</p>}
-        </section>
-      )}
 
       {(vendor.certifications || vendor.address || vendor.phone || vendor.wechat) && <section className="vendor-contact-grid"><article className="vendor-section-card"><header><CheckCircle2 size={20} /><h2>资质与认证</h2></header><p>{vendor.certifications || "厂商资质资料正在完善。"}</p></article><article className="vendor-section-card"><header><Phone size={20} /><h2>联系方式</h2></header><dl>{vendor.contactName && <div><dt>联系人</dt><dd>{vendor.contactName}</dd></div>}{vendor.phone && <div><dt>电话</dt><dd>{vendor.phone}</dd></div>}{vendor.wechat && <div><dt>微信</dt><dd>{vendor.wechat}</dd></div>}{vendor.address && <div><dt>地址</dt><dd>{vendor.address}</dd></div>}</dl></article></section>}
 

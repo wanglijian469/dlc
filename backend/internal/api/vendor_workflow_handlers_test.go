@@ -15,7 +15,6 @@ func TestApplyVendorEditableFieldsPreservesAdministratorFields(t *testing.T) {
 		IsVerified:    true,
 		IsRecommended: true,
 		SortOrder:     12,
-		SourceURL:     "https://source.example.com",
 	}
 	source := model.Vendor{
 		Name:          " 新名称 ",
@@ -34,7 +33,7 @@ func TestApplyVendorEditableFieldsPreservesAdministratorFields(t *testing.T) {
 	if destination.Name != "新名称" || destination.WebsiteURL != "https://vendor.example.com" || destination.MainProducts != "齿轮、轴承" {
 		t.Fatalf("editable fields were not copied: %#v", destination)
 	}
-	if !destination.IsVisible || !destination.IsVerified || !destination.IsRecommended || destination.SortOrder != 12 || destination.ReviewStatus != "verified" || destination.SourceURL == "" {
+	if !destination.IsVisible || !destination.IsVerified || !destination.IsRecommended || destination.SortOrder != 12 || destination.ReviewStatus != "verified" {
 		t.Fatalf("administrator fields were overwritten: %#v", destination)
 	}
 }

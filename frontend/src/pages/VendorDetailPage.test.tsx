@@ -78,9 +78,6 @@ describe("VendorDetailPage", () => {
       annualCapacity: "年产液压件 20 万套",
       equipment: "数控车床、自动焊接线、液压测试台",
       certifications: "ISO9001 质量管理体系",
-      qualityControl: "来料检验、压力测试、出厂抽检",
-      supplyRegions: "华东、华北、东北农机维修市场",
-      cooperationTerms: "支持来图定制，常规件 7 天交付",
       afterSalesService: "质保 12 个月，提供技术选型支持",
       providesProcessing: true,
       processingServices: "数控车削、焊接加工",
@@ -127,26 +124,4 @@ describe("VendorDetailPage", () => {
     expect(screen.queryByText("生产能力")).not.toBeInTheDocument();
   });
 
-  it("shows public import source and pending review state", async () => {
-    mockedGetVendor.mockResolvedValue({
-      id: 18,
-      name: "河北冀农农机具有限公司",
-      province: "河北",
-      city: "邢台",
-      county: "宁晋县",
-      address: "河北省邢台市宁晋县大陆村工业园区",
-      mainProducts: "液压翻转犁、旋耕机、驱动耙",
-      websiteUrl: "https://www.hbjinong.com/",
-      sourceUrl: "https://www.hbjinong.com/",
-      sourceNote: "公开官网首页采集，人工复核前不标记平台认证。",
-      reviewStatus: "pending",
-    });
-
-    renderDetail("/vendors/18");
-
-    expect(await screen.findByRole("heading", { name: "河北冀农农机具有限公司", level: 1 })).toBeInTheDocument();
-    expect(screen.getByText("公开信息待复核")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "查看公开来源" })).toHaveAttribute("href", "https://www.hbjinong.com/");
-    expect(screen.getByText("公开官网首页采集，人工复核前不标记平台认证。")).toBeInTheDocument();
-  });
 });

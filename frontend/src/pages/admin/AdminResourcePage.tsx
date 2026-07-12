@@ -85,12 +85,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "annualCapacity", label: "年产能", type: "textarea" },
       { key: "equipment", label: "主要设备", type: "textarea" },
       { key: "certifications", label: "认证资质", type: "textarea" },
-      { key: "qualityControl", label: "质检能力", type: "textarea" },
-      { key: "supplyRegions", label: "供货区域", type: "textarea" },
-      { key: "cooperationTerms", label: "合作方式", type: "textarea" },
       { key: "afterSalesService", label: "售后服务", type: "textarea" },
-      { key: "sourceUrl", label: "公开信息来源 URL" },
-      { key: "sourceNote", label: "采集备注", type: "textarea" },
       { key: "reviewStatus", label: "复核状态", type: "select", options: reviewStatusOptions },
       { key: "websiteUrl", label: "厂商官网 URL" },
       { key: "phone", label: "联系电话" },
@@ -488,7 +483,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
     if (resource === "vendors") {
       if (["name", "shortName", "province", "city", "county", "address", "description"].includes(key)) return "基础资料";
       if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds"].includes(key)) return "展示信息";
-      if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "qualityControl", "supplyRegions", "cooperationTerms", "afterSalesService"].includes(key)) return "生产与服务";
+      if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "afterSalesService"].includes(key)) return "生产与服务";
       if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
       if (["websiteUrl", "phone", "wechat", "contactName"].includes(key)) return "联系方式";
       return "平台状态";

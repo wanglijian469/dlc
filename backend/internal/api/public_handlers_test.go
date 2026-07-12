@@ -86,33 +86,6 @@ func TestVendorDetailPayloadIncludesProcessingFields(t *testing.T) {
 	}
 }
 
-func TestVendorDetailPayloadIncludesPublicImportReviewFields(t *testing.T) {
-	payload, err := json.Marshal(Response{
-		Code:    0,
-		Message: "ok",
-		Data: model.Vendor{
-			Name:         "河北冀农农机具有限公司",
-			WebsiteURL:   "https://www.hbjinong.com/",
-			SourceURL:    "https://www.hbjinong.com/",
-			SourceNote:   "公开官网首页采集，人工复核前不标记平台认证。",
-			ReviewStatus: "pending",
-		},
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	body := string(payload)
-	for _, want := range []string{
-		`"sourceUrl":"https://www.hbjinong.com/"`,
-		`"sourceNote":"公开官网首页采集，人工复核前不标记平台认证。"`,
-		`"reviewStatus":"pending"`,
-	} {
-		if !strings.Contains(body, want) {
-			t.Fatalf("body = %s, want %s", body, want)
-		}
-	}
-}
-
 func TestPublicRoutesExposeProcessingEndpoints(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()

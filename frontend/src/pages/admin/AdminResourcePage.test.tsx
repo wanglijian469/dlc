@@ -114,30 +114,6 @@ describe("AdminResourcePage CMS forms", () => {
     );
   });
 
-  it("submits public source and review fields for vendors", async () => {
-    renderAdmin("/admin/vendors");
-    await openCreateEditor("新增厂商信息");
-
-    fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "河北冀农农机具有限公司" } });
-    fireEvent.change(screen.getByLabelText("公开信息来源 URL"), { target: { value: "https://www.hbjinong.com/" } });
-    fireEvent.change(screen.getByLabelText("采集备注"), { target: { value: "公开官网首页采集，人工复核前不标记平台认证。" } });
-    fireEvent.change(screen.getByLabelText("复核状态"), { target: { value: "pending" } });
-    const form = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
-    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
-
-    await waitFor(() =>
-      expect(mockedCreateResource).toHaveBeenCalledWith(
-        "vendors",
-        expect.objectContaining({
-          name: "河北冀农农机具有限公司",
-          sourceUrl: "https://www.hbjinong.com/",
-          sourceNote: "公开官网首页采集，人工复核前不标记平台认证。",
-          reviewStatus: "pending",
-        }),
-      ),
-    );
-  });
-
   it("supports processing tag type in tag forms", async () => {
     renderAdmin("/admin/tags");
     await openCreateEditor("新增厂商标签");

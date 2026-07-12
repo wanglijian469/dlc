@@ -28,12 +28,7 @@ type Vendor struct {
 	AnnualCapacity      string         `gorm:"size:255" json:"annualCapacity"`
 	Equipment           string         `gorm:"type:text" json:"equipment"`
 	Certifications      string         `gorm:"type:text" json:"certifications"`
-	QualityControl      string         `gorm:"type:text" json:"qualityControl"`
-	SupplyRegions       string         `gorm:"size:500" json:"supplyRegions"`
-	CooperationTerms    string         `gorm:"type:text" json:"cooperationTerms"`
 	AfterSalesService   string         `gorm:"type:text" json:"afterSalesService"`
-	SourceURL           string         `gorm:"size:255" json:"sourceUrl"`
-	SourceNote          string         `gorm:"type:text" json:"sourceNote"`
 	ReviewStatus        string         `gorm:"size:30;default:pending;index" json:"reviewStatus"`
 	ProvidesProcessing  bool           `gorm:"default:false;index" json:"providesProcessing"`
 	ProcessingServices  string         `gorm:"size:500" json:"processingServices"`

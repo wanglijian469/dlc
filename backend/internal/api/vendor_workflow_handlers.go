@@ -244,9 +244,6 @@ func applyVendorEditableFields(dst *model.Vendor, src model.Vendor) {
 	dst.AnnualCapacity = src.AnnualCapacity
 	dst.Equipment = src.Equipment
 	dst.Certifications = src.Certifications
-	dst.QualityControl = src.QualityControl
-	dst.SupplyRegions = src.SupplyRegions
-	dst.CooperationTerms = src.CooperationTerms
 	dst.AfterSalesService = src.AfterSalesService
 	dst.ProvidesProcessing = src.ProvidesProcessing
 	dst.ProcessingServices = src.ProcessingServices
