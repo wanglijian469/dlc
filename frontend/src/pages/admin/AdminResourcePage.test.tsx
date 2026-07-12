@@ -146,20 +146,20 @@ describe("AdminResourcePage CMS forms", () => {
     expect(within(tagTypeSelect).getByRole("option", { name: "加工服务" })).toHaveValue("processing");
   });
 
-  it("uses category and vendor selects for products", async () => {
+  it("edits the shared product catalog without assigning a single vendor", async () => {
     renderAdmin("/admin/products");
     await openCreateEditor("新增配件产品");
 
     fireEvent.change(await screen.findByLabelText("产品名称"), { target: { value: "液压油泵总成" } });
     fireEvent.change(screen.getByLabelText("所属分类"), { target: { value: "5" } });
-    fireEvent.change(screen.getByLabelText("所属厂商"), { target: { value: "3" } });
+    fireEvent.change(screen.getByLabelText("目录发布状态"), { target: { value: "published" } });
     const form = screen.getByLabelText("产品名称").closest("form") as HTMLFormElement;
     expect(within(form).getByRole("option", { name: "液压系统配件" })).toBeInTheDocument();
-    expect(within(form).getByRole("option", { name: "江苏东成农机配件有限公司" })).toBeInTheDocument();
+    expect(within(form).queryByLabelText("所属厂商")).not.toBeInTheDocument();
     fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
-      expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, vendorId: 3 })),
+      expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, publicationStatus: "published" })),
     );
   });
 });

@@ -236,7 +236,7 @@ func (s HomeService) GetHome(ctx context.Context) (HomePayload, error) {
 	payload.Stats = s.actualStats(ctx)
 	categoryLimit, productLimit, processingLimit := moduleLimit(payload.Modules, "categories", 8), moduleLimit(payload.Modules, "featuredProducts", 6), moduleLimit(payload.Modules, "processingServices", 4)
 	s.DB.WithContext(ctx).Where("is_enabled = ?", true).Order("sort_order asc, id asc").Limit(categoryLimit).Find(&payload.PopularCategories)
-	s.DB.WithContext(ctx).Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").Where("products.status = ?", 1).Order("products.is_hot desc, products.is_recommended desc, products.sort_order asc, products.id asc").Limit(productLimit).Find(&payload.FeaturedProducts)
+	s.DB.WithContext(ctx).Model(&model.Product{}).Preload("Category").Where("products.publication_status = ?", "published").Where("EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id AND v.deleted_at IS NULL WHERE ps.product_id = products.id AND ps.deleted_at IS NULL AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')").Order("products.is_hot desc, products.is_recommended desc, products.sort_order asc, products.id asc").Limit(productLimit).Find(&payload.FeaturedProducts)
 	s.DB.WithContext(ctx).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true).Order("is_recommended desc, sort_order asc, id asc").Limit(processingLimit).Find(&payload.ProcessingVendors)
 	return payload, nil
 }
@@ -270,7 +270,7 @@ func moduleLimit(modules []HomeModule, typ string, fallback int) int {
 func (s HomeService) actualStats(ctx context.Context) []StatItem {
 	var vendors, products, processing, provinces int64
 	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ?", true, "published").Count(&vendors)
-	s.DB.WithContext(ctx).Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Where("products.status = ?", 1).Count(&products)
+	s.DB.WithContext(ctx).Model(&model.Product{}).Where("products.publication_status = ?", "published").Where("EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id AND v.deleted_at IS NULL WHERE ps.product_id = products.id AND ps.deleted_at IS NULL AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')").Count(&products)
 	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true).Count(&processing)
 	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND province <> ''", true, "published").Distinct("province").Count(&provinces)
 	return []StatItem{{Label: "入驻厂商", Value: fmt.Sprintf("%d", vendors)}, {Label: "配件产品", Value: fmt.Sprintf("%d", products)}, {Label: "加工服务厂商", Value: fmt.Sprintf("%d", processing)}, {Label: "覆盖省份", Value: fmt.Sprintf("%d", provinces)}}

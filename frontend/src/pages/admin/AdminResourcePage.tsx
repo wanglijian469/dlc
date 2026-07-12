@@ -20,6 +20,8 @@ import { AdminModal } from "../../components/admin/AdminModal";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
 import { BlocksEditor, GalleryEditor, SpecsEditor, VendorMediaEditor } from "../../components/admin/StructuredEditors";
 import { Pagination } from "../../components/public/Pagination";
+import { AdminProductSuppliersEditor } from "../../components/admin/AdminProductSuppliersEditor";
+import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProductsPanel";
 
 type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
@@ -126,7 +128,6 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "name", label: "产品名称" },
       { key: "image", label: "产品主图", type: "image" },
       { key: "categoryId", label: "所属分类", type: "select", refResource: "categories" },
-      { key: "vendorId", label: "所属厂商", type: "select", refResource: "vendors" },
       { key: "compatibleModels", label: "适配机型" },
       { key: "description", label: "列表描述", type: "textarea" },
       { key: "detailContent", label: "详情正文", type: "textarea" },
@@ -138,6 +139,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "isHot", label: "热门", type: "checkbox" },
       { key: "isRecommended", label: "推荐", type: "checkbox" },
       { key: "status", label: "状态", type: "select", options: [{ label: "上架", value: 1 }, { label: "下架", value: 2 }] },
+      { key: "publicationStatus", label: "目录发布状态", type: "select", options: [{ label: "已发布", value: "published" }, { label: "草稿", value: "draft" }, { label: "已隐藏", value: "hidden" }] },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -304,7 +306,7 @@ export function AdminResourcePage() {
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
         {(name === "vendors" || name === "products" || name === "banners" || name === "friend-links") && <ImagePreview form={form} />}
         <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
-      </form></AdminModal>}
+      </form>{name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} />}{name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
     </AdminLayout>
   );
 }
@@ -492,7 +494,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
       return "平台状态";
     }
     if (resource === "products") {
-      if (["name", "categoryId", "vendorId", "compatibleModels", "description", "priceNote"].includes(key)) return "基础信息";
+      if (["name", "categoryId", "compatibleModels", "description", "priceNote", "publicationStatus"].includes(key)) return "基础信息";
       if (["image", "galleryRaw"].includes(key)) return "展示图片";
       if (["detailContent", "specsRaw"].includes(key)) return "详情与规格";
       return "发布设置";

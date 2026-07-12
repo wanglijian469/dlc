@@ -13,28 +13,33 @@ type ProductSpec struct {
 }
 
 type Product struct {
-	ID               uint           `gorm:"primaryKey" json:"id"`
-	Name             string         `gorm:"size:150;not null" json:"name"`
-	Image            string         `gorm:"size:255" json:"image"`
-	CategoryID       uint           `gorm:"index" json:"categoryId"`
-	VendorID         uint           `gorm:"index" json:"vendorId"`
-	CompatibleModels string         `gorm:"size:500" json:"compatibleModels"`
-	Description      string         `gorm:"type:text" json:"description"`
-	DetailContent    string         `gorm:"type:text" json:"detailContent"`
-	GalleryRaw       string         `gorm:"column:gallery;type:text" json:"galleryRaw,omitempty"`
-	SpecsRaw         string         `gorm:"column:specs;type:text" json:"specsRaw,omitempty"`
-	PriceNote        string         `gorm:"size:255" json:"priceNote"`
-	InquiryText      string         `gorm:"size:100" json:"inquiryText"`
-	InquiryPath      string         `gorm:"size:255" json:"inquiryPath"`
-	IsHot            bool           `gorm:"default:false" json:"isHot"`
-	IsRecommended    bool           `gorm:"default:false" json:"isRecommended"`
-	SortOrder        int            `gorm:"default:0" json:"sortOrder"`
-	Status           int            `gorm:"default:1" json:"status"`
-	Category         Category       `json:"category,omitempty"`
-	Vendor           Vendor         `json:"vendor,omitempty"`
-	CreatedAt        time.Time      `json:"createdAt"`
-	UpdatedAt        time.Time      `json:"updatedAt"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint             `gorm:"primaryKey" json:"id"`
+	Name              string           `gorm:"size:150;not null" json:"name"`
+	Image             string           `gorm:"size:255" json:"image"`
+	CategoryID        uint             `gorm:"index" json:"categoryId"`
+	VendorID          uint             `gorm:"index" json:"vendorId"`
+	CompatibleModels  string           `gorm:"size:500" json:"compatibleModels"`
+	Description       string           `gorm:"type:text" json:"description"`
+	DetailContent     string           `gorm:"type:text" json:"detailContent"`
+	GalleryRaw        string           `gorm:"column:gallery;type:text" json:"galleryRaw,omitempty"`
+	SpecsRaw          string           `gorm:"column:specs;type:text" json:"specsRaw,omitempty"`
+	PriceNote         string           `gorm:"size:255" json:"priceNote"`
+	InquiryText       string           `gorm:"size:100" json:"inquiryText"`
+	InquiryPath       string           `gorm:"size:255" json:"inquiryPath"`
+	IsHot             bool             `gorm:"default:false" json:"isHot"`
+	IsRecommended     bool             `gorm:"default:false" json:"isRecommended"`
+	SortOrder         int              `gorm:"default:0" json:"sortOrder"`
+	Status            int              `gorm:"default:1" json:"status"`
+	PublicationStatus string           `gorm:"size:20;not null;default:published;index" json:"publicationStatus"`
+	ContentVersion    uint             `gorm:"not null;default:1" json:"contentVersion"`
+	Category          Category         `json:"category,omitempty"`
+	Vendor            Vendor           `json:"vendor,omitempty"`
+	SupplierCount     int64            `gorm:"-" json:"supplierCount"`
+	SupplierRegions   []string         `gorm:"-" json:"supplierRegions,omitempty"`
+	Supplier          *ProductSupplier `gorm:"-" json:"supplier,omitempty"`
+	CreatedAt         time.Time        `json:"createdAt"`
+	UpdatedAt         time.Time        `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt   `gorm:"index" json:"-"`
 }
 
 func (p Product) Gallery() []string {

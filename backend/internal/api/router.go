@@ -63,6 +63,7 @@ func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string
 	api.GET("/vendors/:id", handler.VendorDetail)
 	api.GET("/products", handler.Products)
 	api.GET("/products/:id", handler.ProductDetail)
+	api.GET("/products/:id/suppliers", handler.ProductSuppliers)
 	api.GET("/search", handler.Search)
 	api.GET("/filter-options", handler.FilterOptions)
 }
@@ -102,7 +103,9 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	protected.GET("/vendor-profile", handler.GetVendorProfile)
 	protected.PUT("/vendor-profile", handler.SubmitVendorProfile)
 	protected.GET("/vendor-products", handler.ListOwnProducts)
+	protected.GET("/vendor-product-catalog", handler.SearchVendorProductCatalog)
 	protected.POST("/vendor-products", handler.CreateOwnProduct)
+	protected.POST("/vendor-products/link", handler.LinkOwnProduct)
 	protected.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
 	protected.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
 
@@ -120,6 +123,8 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.DELETE("/vendors/:id", handler.DeleteVendor)
 	adminOnly.GET("/vendor-submissions", handler.ListVendorSubmissions)
 	adminOnly.PUT("/vendor-submissions/:id/review", handler.ReviewVendorSubmission)
+	adminOnly.GET("/product-submissions", handler.ListProductSubmissions)
+	adminOnly.PUT("/product-submissions/:id/review", handler.ReviewProductSubmission)
 	adminOnly.GET("/users", handler.ListCMSUsers)
 	adminOnly.POST("/users", handler.CreateCMSUser)
 	adminOnly.PUT("/users/:id", handler.UpdateCMSUser)
@@ -136,6 +141,10 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.POST("/products", handler.CreateProduct)
 	adminOnly.PUT("/products/:id", handler.UpdateProduct)
 	adminOnly.DELETE("/products/:id", handler.DeleteProduct)
+	adminOnly.GET("/products/:id/suppliers", handler.ListAdminProductSuppliers)
+	adminOnly.POST("/products/:id/suppliers", handler.SaveAdminProductSupplier)
+	adminOnly.DELETE("/products/:id/suppliers/:supplierId", handler.DisableAdminProductSupplier)
+	adminOnly.PUT("/products/:id/merge", handler.MergeProducts)
 	adminOnly.GET("/banners", handler.ListBanners)
 	adminOnly.POST("/banners", handler.CreateBanner)
 	adminOnly.PUT("/banners/:id", handler.UpdateBanner)
@@ -241,7 +250,10 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 				db.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.url = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", url, true, "published").Count(&count)
 			}
 			if count == 0 {
-				db.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id").Where("products.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?)", 1, true, "published", url, "%"+url+"%").Count(&count)
+				db.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%").Count(&count)
+				if count == 0 {
+					db.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&count)
+				}
 			}
 			if count == 0 {
 				db.Model(&model.Banner{}).Where("is_enabled = ? AND background_image = ?", true, url).Count(&count)

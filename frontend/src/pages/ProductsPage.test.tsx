@@ -40,9 +40,9 @@ describe("ProductsPage", () => {
           id: 9,
           name: "变速箱齿轮总成",
           categoryId: 2,
-          vendorId: 1,
           compatibleModels: "联合收割机、拖拉机",
-          vendor: { id: 1, name: "河北金瑞农机制造有限公司", province: "河北" },
+          supplierCount: 2,
+          supplierRegions: ["河北", "山东"],
           category: { id: 2, name: "传动配件" },
           isHot: true,
         },
@@ -62,7 +62,8 @@ describe("ProductsPage", () => {
 
     expect(await screen.findByRole("heading", { name: "配件产品" })).toBeInTheDocument();
     expect(await screen.findByText("变速箱齿轮总成")).toBeInTheDocument();
-    expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
+    expect(screen.getByText(/支持供应商：2 家/)).toBeInTheDocument();
+    expect(screen.getByText(/供应地区：河北 · 山东/)).toBeInTheDocument();
     expect(screen.getByText(/适配机型：联合收割机、拖拉机/)).toBeInTheDocument();
     expect(screen.getByText("热销")).toHaveClass("tag-orange");
     expect(container.querySelector(".product-image.industry-cover-default")).toBeInTheDocument();

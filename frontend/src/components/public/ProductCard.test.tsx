@@ -28,10 +28,10 @@ describe("ProductCard", () => {
     expect(screen.getByText("热销")).toHaveClass("tag-orange");
     expect(screen.getByText(/适配机型：联合收割机、拖拉机/)).toBeInTheDocument();
     expect(screen.getByText(/分类：传动配件/)).toBeInTheDocument();
-    expect(screen.getByText(/供应商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
+    expect(screen.getByText(/供应厂商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/价格：面议 \/ 批量报价/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "联系供应商" })).toHaveAttribute("href", "/vendors/1");
-    expect(screen.getByRole("link", { name: "厂商信息" })).toHaveAttribute("href", "/products/9");
+    expect(screen.getByRole("link", { name: "联系该厂商" })).toHaveAttribute("href", "/vendors/1");
+    expect(screen.getByRole("link", { name: "产品详情" })).toHaveAttribute("href", "/products/9");
   });
 
   it("uses the real product image as the card cover", () => {

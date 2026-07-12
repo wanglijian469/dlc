@@ -21,8 +21,10 @@ function categoryName(product: Product) {
 }
 
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
-  const vendor = product.vendor;
-  const region = [vendor?.province, vendor?.city].filter(Boolean).join(" · ");
+  const supplier = product.supplier;
+  const vendor = supplier?.vendor || product.vendor;
+  const directoryMode = !supplier && !product.vendor;
+  const regions = product.supplierRegions?.filter(Boolean).join(" · ");
   return (
     <article className={compact ? "product-card compact" : "product-card"}>
       <ProductCover product={product} />
@@ -34,19 +36,15 @@ export function ProductCard({ product, compact = false }: { product: Product; co
             {product.isRecommended && <span className="tag-blue">推荐</span>}
           </div>
         </div>
-        <p className="product-line">型号：{product.description || "按需匹配"}</p>
-        <p className="product-line">适配机型：{product.compatibleModels || "通用农机配件"}</p>
+        <p className="product-line">型号：{supplier?.vendorModel || "按供应商型号匹配"}</p>
+        <p className="product-line">适配机型：{supplier?.compatibleModels || product.compatibleModels || "通用农机配件"}</p>
         <p className="product-line">分类：{categoryName(product)}</p>
-        <p className="product-line">供应商：{vendor?.name || "平台供应商"}</p>
-        {region && <p className="product-line">地区：{region}</p>}
-        <p className="product-line">价格：{product.priceNote || "面议 / 批量报价"}</p>
+        {directoryMode ? <p className="product-line supplier-count">支持供应商：{product.supplierCount || 0} 家</p> : <p className="product-line">供应厂商：{vendor?.name || "认证厂商"}</p>}
+        {directoryMode && regions && <p className="product-line">供应地区：{regions}</p>}
+        <p className="product-line">价格：{supplier?.priceNote || product.priceNote || "面议 / 批量报价"}</p>
         <div className="card-actions">
-          <Link className="outline-btn small" to={`/products/${product.id}`}>厂商信息</Link>
-          {vendor?.id ? (
-            <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>联系供应商</Link>
-          ) : (
-            <Link className="primary-btn small" to="/vendors">联系供应商</Link>
-          )}
+          <Link className="outline-btn small" to={`/products/${product.id}`}>产品详情</Link>
+          {directoryMode ? <Link className="primary-btn small" to={`/products/${product.id}#suppliers`}>查看供应商</Link> : <Link className="primary-btn small" to={vendor?.id ? `/vendors/${vendor.id}` : `/products/${product.id}#suppliers`}>联系该厂商</Link>}
         </div>
       </div>
     </article>

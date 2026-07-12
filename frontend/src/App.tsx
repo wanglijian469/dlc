@@ -17,6 +17,7 @@ import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { VendorProfilePage } from "./pages/admin/VendorProfilePage";
 import { VendorReviewsPage } from "./pages/admin/VendorReviewsPage";
 import { AdminLogsPage } from "./pages/admin/AdminLogsPage";
+import { ProductReviewsPage } from "./pages/admin/ProductReviewsPage";
 
 export function App() {
   return (
@@ -45,6 +46,7 @@ export function App() {
       />
       <Route path="/admin/vendor-profile" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProfilePage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
       <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
       <Route

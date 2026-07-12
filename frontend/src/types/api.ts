@@ -122,8 +122,61 @@ export interface Product {
   isRecommended?: boolean;
   sortOrder?: number;
   status?: number;
+  publicationStatus?: "draft" | "published" | "hidden";
+  contentVersion?: number;
+  supplierCount?: number;
+  supplierRegions?: string[];
+  supplier?: ProductSupplier;
   category?: Category;
   vendor?: Vendor;
+}
+
+export interface ProductSupplier {
+  id: number;
+  productId: number;
+  vendorId: number;
+  vendorProductName?: string;
+  vendorModel?: string;
+  image?: string;
+  galleryRaw?: string;
+  gallery?: string[];
+  compatibleModels?: string;
+  description?: string;
+  priceNote?: string;
+  inquiryText?: string;
+  inquiryPath?: string;
+  sourceType?: string;
+  status: "pending" | "approved" | "rejected" | "disabled";
+  reviewNote?: string;
+  contentVersion?: number;
+  product?: Product;
+  vendor?: Vendor;
+}
+
+export interface ProductSubmission {
+  id: number;
+  vendorId: number;
+  productId?: number;
+  supplierId?: number;
+  submissionType: "new_product" | "link_product" | "link_supplier" | "update_supplier" | "update_offer";
+  baseVersion?: number;
+  status: "pending" | "approved" | "rejected" | "superseded";
+  reviewNote?: string;
+  submittedBy?: string;
+  reviewedBy?: string;
+  productDraft?: Partial<Product>;
+  supplierDraft?: Partial<ProductSupplier>;
+  product?: Product;
+  supplier?: ProductSupplier;
+  vendor?: Vendor;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface VendorProductRecord {
+  product: Product;
+  supplier: ProductSupplier;
+  latestSubmission?: ProductSubmission;
 }
 
 export interface Banner {

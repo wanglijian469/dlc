@@ -31,6 +31,24 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 		return err
 	}
 	for _, asset := range assets {
+		url := fmt.Sprintf("/api/media/%d", asset.ID)
+		var references int64
+		if err := db.Model(&model.Product{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+			return err
+		}
+		if references == 0 {
+			if err := db.Model(&model.ProductSupplier{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+				return err
+			}
+		}
+		if references == 0 {
+			if err := db.Model(&model.ProductSubmission{}).Where("status = ? AND (INSTR(product_payload, ?) > 0 OR INSTR(supplier_payload, ?) > 0)", "pending", url, url).Count(&references).Error; err != nil {
+				return err
+			}
+		}
+		if references > 0 {
+			continue
+		}
 		if err := db.Model(&asset).Update("status", "orphaned").Error; err != nil {
 			return err
 		}
@@ -49,6 +67,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.VendorTag{},
 		&model.Category{},
 		&model.Product{},
+		&model.ProductSupplier{},
+		&model.ProductSubmission{},
 		&model.Banner{},
 		&model.SiteConfig{},
 		&model.ContentPage{},
@@ -71,7 +91,55 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := migrateVendorPublicationState(db); err != nil {
 		return err
 	}
+	if err := migrateProductCatalog(db); err != nil {
+		return err
+	}
 	return ensureStructuredContent(db)
+}
+
+func migrateProductCatalog(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Product{}).Where("content_version = 0").Update("content_version", 1).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.Product{}).Where("status = ?", 1).Updates(map[string]interface{}{"publication_status": "published"}).Error; err != nil {
+			return err
+		}
+		if err := tx.Model(&model.Product{}).Where("status = ?", 2).Updates(map[string]interface{}{"publication_status": "draft"}).Error; err != nil {
+			return err
+		}
+		var products []model.Product
+		if err := tx.Unscoped().Where("vendor_id > 0 AND deleted_at IS NULL").Find(&products).Error; err != nil {
+			return err
+		}
+		for _, product := range products {
+			var count int64
+			if err := tx.Model(&model.ProductSupplier{}).Where("product_id = ? AND vendor_id = ?", product.ID, product.VendorID).Count(&count).Error; err != nil {
+				return err
+			}
+			if count > 0 {
+				continue
+			}
+			status := "approved"
+			if product.Status != 1 {
+				status = "pending"
+			}
+			supplier := model.ProductSupplier{ProductID: product.ID, VendorID: product.VendorID, VendorProductName: product.Name, Image: product.Image, GalleryRaw: product.GalleryRaw, CompatibleModels: product.CompatibleModels, Description: product.Description, PriceNote: product.PriceNote, InquiryText: product.InquiryText, InquiryPath: product.InquiryPath, Status: status, SourceType: "legacy", ContentVersion: 1}
+			if err := tx.Create(&supplier).Error; err != nil {
+				return err
+			}
+			if status == "pending" {
+				productPayload, _ := json.Marshal(product)
+				supplierPayload, _ := json.Marshal(supplier)
+				productID, supplierID := product.ID, supplier.ID
+				submission := model.ProductSubmission{VendorID: product.VendorID, ProductID: &productID, SupplierID: &supplierID, SubmissionType: "new_product", BaseVersion: supplier.ContentVersion, ProductPayload: string(productPayload), SupplierPayload: string(supplierPayload), Status: "pending", SubmittedBy: "migration"}
+				if err := tx.Create(&submission).Error; err != nil {
+					return err
+				}
+			}
+		}
+		return nil
+	})
 }
 
 func migrateVendorPublicationState(db *gorm.DB) error {

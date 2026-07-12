@@ -59,7 +59,7 @@ func (h AdminHandler) Profile(c *gin.Context) {
 }
 
 func (h AdminHandler) DashboardStats(c *gin.Context) {
-	var vendors, products, pending, missingImages int64
+	var vendors, products, pending, pendingProducts, missingImages int64
 	if err := h.DB.Model(&model.Vendor{}).Count(&vendors).Error; err != nil {
 		Fail(c, 500, 500, "控制台统计加载失败")
 		return
@@ -72,6 +72,10 @@ func (h AdminHandler) DashboardStats(c *gin.Context) {
 		Fail(c, 500, 500, "控制台统计加载失败")
 		return
 	}
+	if err := h.DB.Model(&model.ProductSubmission{}).Where("status = ?", "pending").Count(&pendingProducts).Error; err != nil {
+		Fail(c, 500, 500, "控制台统计加载失败")
+		return
+	}
 	if err := h.DB.Model(&model.Vendor{}).Where("logo = '' OR cover_image = ''").Count(&missingImages).Error; err != nil {
 		Fail(c, 500, 500, "控制台统计加载失败")
 		return
@@ -81,7 +85,7 @@ func (h AdminHandler) DashboardStats(c *gin.Context) {
 		Fail(c, 500, 500, "控制台统计加载失败")
 		return
 	}
-	OK(c, gin.H{"vendors": vendors, "products": products, "pendingReviews": pending, "missingImages": missingImages + productMissing})
+	OK(c, gin.H{"vendors": vendors, "products": products, "pendingReviews": pending, "pendingProductReviews": pendingProducts, "missingImages": missingImages + productMissing})
 }
 
 func (h AdminHandler) ListOperationLogs(c *gin.Context) {
@@ -211,16 +215,16 @@ func (h AdminHandler) UpdateCategory(c *gin.Context) { update[model.Category](c,
 func (h AdminHandler) DeleteCategory(c *gin.Context) { remove[model.Category](c, h.DB, "categories") }
 
 func (h AdminHandler) ListProducts(c *gin.Context) {
-	query := h.DB.Model(&model.Product{}).Preload("Category").Preload("Vendor")
+	query := h.DB.Model(&model.Product{}).Preload("Category")
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		like := "%" + search + "%"
 		query = query.Where("products.name LIKE ? OR products.description LIKE ? OR products.compatible_models LIKE ?", like, like, like)
 	}
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
-		query = query.Where("products.status = ?", status)
+		query = query.Where("products.publication_status = ?", status)
 	}
 	if vendorID := strings.TrimSpace(c.Query("vendorId")); vendorID != "" {
-		query = query.Where("products.vendor_id = ?", vendorID)
+		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.deleted_at IS NULL)", vendorID)
 	}
 	if categoryID := strings.TrimSpace(c.Query("categoryId")); categoryID != "" {
 		query = query.Where("products.category_id = ?", categoryID)
@@ -233,6 +237,7 @@ func (h AdminHandler) ListProducts(c *gin.Context) {
 			Fail(c, 500, 500, "产品列表加载失败")
 			return
 		}
+		enrichProductSummaries(h.DB, rows, 0)
 		OK(c, result)
 		return
 	}
@@ -241,6 +246,7 @@ func (h AdminHandler) ListProducts(c *gin.Context) {
 		Fail(c, http.StatusInternalServerError, 500, "读取失败")
 		return
 	}
+	enrichProductSummaries(h.DB, rows, 0)
 	OK(c, rows)
 }
 func (h AdminHandler) CreateProduct(c *gin.Context) { saveProduct(c, h.DB, 0) }
@@ -541,6 +547,25 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, "浜у搧鐘舵€佸彧鑳戒负 1 鎴?2")
 		return
 	}
+	if input.PublicationStatus == "" {
+		if input.Status == 1 {
+			input.PublicationStatus = "published"
+		} else {
+			input.PublicationStatus = "hidden"
+		}
+	}
+	if input.PublicationStatus != "published" && input.PublicationStatus != "draft" && input.PublicationStatus != "hidden" {
+		Fail(c, http.StatusBadRequest, 400, "产品发布状态无效")
+		return
+	}
+	if input.PublicationStatus == "published" {
+		input.Status = 1
+	} else {
+		input.Status = 2
+	}
+	if input.ContentVersion == 0 {
+		input.ContentVersion = 1
+	}
 	if err := validateJSONStringArray(input.GalleryRaw, "浜у搧鍥惧簱"); err != nil {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return
@@ -564,7 +589,20 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 	if input.Status == 1 {
 		publishProductMedia(db, input)
 	}
-	db.Preload("Category").Preload("Vendor").First(&input, input.ID)
+	if input.VendorID > 0 {
+		var supplier model.ProductSupplier
+		if db.Where("product_id = ? AND vendor_id = ?", input.ID, input.VendorID).First(&supplier).Error != nil {
+			supplier = model.ProductSupplier{ProductID: input.ID, VendorID: input.VendorID, ContentVersion: 1}
+		}
+		applySupplierDraft(&supplier, supplierFromProduct(input, input.ID, input.VendorID))
+		supplier.Status = "approved"
+		supplier.SourceType = "admin"
+		supplier.ReviewedBy = c.GetString("username")
+		now := time.Now()
+		supplier.ReviewedAt = &now
+		_ = db.Save(&supplier).Error
+	}
+	db.Preload("Category").First(&input, input.ID)
 	logOperation(db, c.GetString("username"), upsertAction(id), "products", input.ID)
 	OK(c, input)
 }

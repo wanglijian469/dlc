@@ -160,7 +160,10 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 	}
 	url := fmt.Sprintf("/api/media/%d", asset.ID)
 	if references == 0 {
-		h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id").Where("products.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?)", 1, true, "published", url, "%"+url+"%").Count(&references)
+		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%").Count(&references)
+		if references == 0 {
+			h.DB.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&references)
+		}
 	}
 	if references == 0 {
 		h.DB.Model(&model.Banner{}).Where("is_enabled = ? AND background_image = ?", true, url).Count(&references)

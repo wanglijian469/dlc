@@ -170,7 +170,7 @@ func (h PublicHandler) VendorDetail(c *gin.Context) {
 func (h PublicHandler) Products(c *gin.Context) {
 	var products []model.Product
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").Where("products.status = ?", 1)
+	query := visibleProductQuery(h.DB).Preload("Category")
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like)
@@ -179,7 +179,7 @@ func (h PublicHandler) Products(c *gin.Context) {
 		query = query.Where("products.category_id = ?", categoryID)
 	}
 	if vendorID := queryUint(c, "vendorId"); vendorID > 0 {
-		query = query.Where("products.vendor_id = ?", vendorID)
+		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendorID)
 	}
 	if c.Query("hot") == "true" {
 		query = query.Where("products.is_hot = ?", true)
@@ -197,22 +197,47 @@ func (h PublicHandler) Products(c *gin.Context) {
 		Fail(c, 500, 500, "产品列表加载失败")
 		return
 	}
+	enrichProductSummaries(h.DB, products, queryUint(c, "vendorId"))
 	if !c.GetBool("authenticated") {
-		redactProductVendors(products)
+		for i := range products {
+			if products[i].Supplier != nil {
+				redactVendor(&products[i].Supplier.Vendor)
+			}
+		}
 	}
 	OK(c, result)
 }
 
 func (h PublicHandler) ProductDetail(c *gin.Context) {
 	var product model.Product
-	if err := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").First(&product, "products.id = ? AND products.status = ?", c.Param("id"), 1).Error; err != nil {
+	if err := visibleProductQuery(h.DB).Preload("Category").First(&product, "products.id = ?", c.Param("id")).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "产品不存在")
 		return
 	}
-	if !c.GetBool("authenticated") {
-		redactVendor(&product.Vendor)
-	}
+	rows := []model.Product{product}
+	enrichProductSummaries(h.DB, rows, 0)
+	product = rows[0]
 	OK(c, product)
+}
+
+func (h PublicHandler) ProductSuppliers(c *gin.Context) {
+	var product model.Product
+	if err := visibleProductQuery(h.DB).First(&product, "products.id = ?", c.Param("id")).Error; err != nil {
+		Fail(c, 404, 404, "产品不存在")
+		return
+	}
+	var suppliers []model.ProductSupplier
+	query := h.DB.Preload("Vendor").Where("product_id = ? AND status = ?", product.ID, "approved").Where("EXISTS (SELECT 1 FROM vendors v WHERE v.id = product_suppliers.vendor_id AND v.deleted_at IS NULL AND v.is_visible = 1 AND v.publication_status = 'published')").Order("id asc")
+	if err := query.Find(&suppliers).Error; err != nil {
+		Fail(c, 500, 500, "供应商列表加载失败")
+		return
+	}
+	if !c.GetBool("authenticated") {
+		for i := range suppliers {
+			redactVendor(&suppliers[i].Vendor)
+		}
+	}
+	OK(c, suppliers)
 }
 
 func (h PublicHandler) Search(c *gin.Context) {
@@ -227,7 +252,7 @@ func (h PublicHandler) Search(c *gin.Context) {
 	var products []model.Product
 	var categories []model.Category
 	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, "published", like, like, like).Order("is_recommended desc, sort_order asc, id asc")
-	productQuery := h.DB.Model(&model.Product{}).Joins("JOIN vendors ON vendors.id = products.vendor_id AND vendors.deleted_at IS NULL AND vendors.is_visible = ? AND vendors.publication_status = ?", true, "published").Preload("Category").Preload("Vendor").Where("products.status = ? AND (products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?)", 1, like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
+	productQuery := visibleProductQuery(h.DB).Preload("Category").Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
 	categoryQuery := h.DB.Model(&model.Category{}).Where("is_enabled = ? AND name LIKE ?", true, like).Order("sort_order asc, id asc")
 	vendorResult, err := paginate(vendorQuery, &vendors, page, pageSize)
 	if err != nil {
@@ -244,9 +269,9 @@ func (h PublicHandler) Search(c *gin.Context) {
 		Fail(c, 500, 500, "搜索失败")
 		return
 	}
+	enrichProductSummaries(h.DB, products, 0)
 	if !c.GetBool("authenticated") {
 		redactVendorSlice(vendors)
-		redactProductVendors(products)
 	}
 	OK(c, gin.H{"vendors": vendorResult, "products": productResult, "categories": categoryResult})
 }

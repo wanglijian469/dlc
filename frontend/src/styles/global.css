@@ -2189,6 +2189,7 @@ textarea {
 .review-toolbar label { align-items: center; display: flex; gap: 10px; }
 .vendor-review-list { display: grid; gap: 16px; }
 .vendor-review-card > header { align-items: flex-start; display: flex; justify-content: space-between; }
+.product-suppliers{scroll-margin-top:96px}.supplier-list{display:grid;gap:12px}.supplier-list>article{background:#f8fafc;border:1px solid #dfe7f1;border-radius:12px;display:grid;gap:12px;padding:16px}.supplier-list>article>div:first-child{align-items:center;display:flex;justify-content:space-between}.supplier-list>article>div:first-child span{align-items:center;color:#64748b;display:flex;font-size:13px;gap:5px}.supplier-list dl{display:grid;gap:8px;grid-template-columns:repeat(3,minmax(0,1fr));margin:0}.supplier-list dl div{background:#fff;border-radius:8px;padding:9px}.supplier-list dt{color:#64748b;font-size:12px}.supplier-list dd{margin:4px 0 0}.supplier-list p{color:#475569;margin:0}.supplier-list .primary-btn{justify-self:start}.supplier-count{color:#0b5fc6;font-weight:600}@media(max-width:720px){.supplier-list dl{grid-template-columns:1fr}.supplier-list>article>div:first-child{align-items:flex-start;display:grid;gap:5px}}
 .vendor-review-card h2 { margin: 8px 0 4px; }
 .vendor-review-card header p { color: #64748b; margin: 0; }
 .review-status { border-radius: 999px; display: inline-block; font-size: 12px; padding: 3px 9px; }

@@ -24,7 +24,6 @@ function VendorSearchCard({ vendor }: { vendor: Vendor }) {
 }
 
 function ProductSearchCard({ product }: { product: Product }) {
-  const vendor = product.vendor;
   return (
     <div className="search-card product-search-card">
       <div className="search-card-head">
@@ -33,18 +32,11 @@ function ProductSearchCard({ product }: { product: Product }) {
       </div>
       <p>适配机型：{product.compatibleModels || "通用农机配件"}</p>
       <p>分类：{product.category?.name || "农机配件"}</p>
-      <p>供应商：{vendor?.name || "平台供应商"}</p>
+      <p>支持供应商：{product.supplierCount || 0} 家</p>
+      {product.supplierRegions?.length ? <p>供应地区：{product.supplierRegions.join(" · ")}</p> : null}
       <div className="card-actions">
-		<Link className="outline-btn small" to={`/products/${product.id}`}>查看产品详情</Link>
-        {vendor?.id ? (
-          <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>
-            联系供应商
-          </Link>
-        ) : (
-          <Link className="primary-btn small" to="/vendors">
-            联系供应商
-          </Link>
-        )}
+		<Link className="outline-btn small" to={`/products/${product.id}`}>产品详情</Link>
+        <Link className="primary-btn small" to={`/products/${product.id}#suppliers`}>查看供应商</Link>
       </div>
     </div>
   );

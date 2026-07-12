@@ -1,5 +1,5 @@
 ﻿import { publicClient } from "./client";
-import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, SearchPayload, SiteMeta, Vendor } from "../types/api";
+import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor } from "../types/api";
 
 export function getHome() {
   return publicClient.get<never, HomePayload>("/api/home");
@@ -27,6 +27,10 @@ export function getVendor(id: string) {
 
 export function getProduct(id: string) {
   return publicClient.get<never, Product>(`/api/products/${id}`);
+}
+
+export function getProductSuppliers(id: string) {
+  return publicClient.get<never, ProductSupplier[]>(`/api/products/${id}/suppliers`);
 }
 
 export interface VendorListParams {

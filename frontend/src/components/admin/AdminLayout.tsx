@@ -16,6 +16,7 @@ const links: AdminLink[] = [
   { label: "导航菜单", path: "/admin/menus", icon: ListTree, group: "内容" },
   { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "内容" },
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "内容" },
+  { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "内容" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "内容" },
   { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "内容" },
   { label: "配件产品", path: "/admin/products", icon: Package, group: "内容" },
