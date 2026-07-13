@@ -4,7 +4,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
-if (-not (Test-Path $EnvFile)) { throw "找不到 $EnvFile" }
+if (-not (Test-Path $EnvFile)) { throw "Missing $EnvFile" }
 
 $settings = @{}
 Get-Content $EnvFile | ForEach-Object {
@@ -19,6 +19,6 @@ $stamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $backupDir = ".\backups\$stamp"
 New-Item -ItemType Directory -Force $backupDir | Out-Null
 & $MySqlDump "-h$($settings.DB_HOST)" "-P$($settings.DB_PORT)" "-u$($settings.DB_USER)" "-p$($settings.DB_PASSWORD)" "--single-transaction" "--routines" "--events" $settings.DB_NAME "--result-file=$backupDir\database.sql"
-if ($LASTEXITCODE -ne 0) { throw "数据库导出失败" }
+if ($LASTEXITCODE -ne 0) { throw "Database export failed" }
 if (Test-Path ".\media_storage") { Copy-Item -Recurse -Force ".\media_storage" "$backupDir\media_storage" }
-Write-Host "备份完成：$backupDir"
+Write-Host "Backup completed: $backupDir"
