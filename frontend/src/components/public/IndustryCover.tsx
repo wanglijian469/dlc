@@ -46,6 +46,7 @@ export function IndustryCover({
   className,
   fallbackClassName = "",
   iconSize = 48,
+  imageAlt = "",
   children,
 }: {
   image?: string;
@@ -53,6 +54,7 @@ export function IndustryCover({
   className: string;
   fallbackClassName?: string;
   iconSize?: number;
+  imageAlt?: string;
   children?: ReactNode;
 }) {
   const validImage = getValidCoverImage(image);
@@ -61,7 +63,7 @@ export function IndustryCover({
     <div className={`${className} ${fallbackClassName} industry-cover-default industry-cover-${kind} ${validImage ? "industry-cover-image" : ""}`}>
       <div className="industry-cover-pattern" />
       <Icon className="industry-cover-main-icon" aria-hidden="true" size={iconSize} strokeWidth={1.7} />
-      {validImage && <img alt="" aria-hidden="true" className="industry-cover-photo" loading="lazy" src={validImage} onError={(event) => { event.currentTarget.style.display = "none"; }} />}
+      {validImage && <img alt={imageAlt} aria-hidden={imageAlt ? undefined : true} className="industry-cover-photo" loading="lazy" src={validImage} onError={(event) => { event.currentTarget.style.display = "none"; }} />}
       {children}
     </div>
   );

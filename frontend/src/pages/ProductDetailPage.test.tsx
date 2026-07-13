@@ -61,6 +61,11 @@ describe("ProductDetailPage", () => {
     expect(screen.getByText(/12个月/)).toBeInTheDocument();
     expect(screen.getByText("面议 / 批量报价")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "联系该厂商" })).toHaveAttribute("href", "/vendors/3");
+    const mainImage = await screen.findByRole("img", { name: "液压油泵总成" });
+    expect(mainImage).toHaveAttribute("src", "/uploads/pump-1.jpg");
+    expect(mainImage.closest(".product-main-media")?.querySelector(".industry-cover-main-icon")).toBeInTheDocument();
+    mainImage.dispatchEvent(new Event("error", { bubbles: true }));
+    expect(mainImage).toHaveStyle({ display: "none" });
     expect(mockedGetProduct).toHaveBeenCalledWith("7");
   });
 });
