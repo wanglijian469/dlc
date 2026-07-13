@@ -462,6 +462,10 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	if input.DataOrigin == "" {
 		input.DataOrigin = "admin"
 	}
+	if err := bindVendorImageAssets(db, &input); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
 	if id > 0 {
 		input.ContentVersion = previousVersion + 1
 	} else {
@@ -515,6 +519,39 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	input.TagIDs = tagIDsFromTags(input.Tags)
 	logOperation(db, c.GetString("username"), upsertAction(id), "vendors", input.ID)
 	OK(c, input)
+}
+
+func bindVendorImageAssets(db *gorm.DB, vendor *model.Vendor) error {
+	for _, item := range []struct {
+		url    string
+		target **uint
+	}{
+		{vendor.Logo, &vendor.LogoAssetID},
+		{vendor.CoverImage, &vendor.CoverAssetID},
+	} {
+		assetID := mediaAssetIDFromURL(item.url)
+		if assetID == 0 {
+			*item.target = nil
+			continue
+		}
+		var asset model.MediaAsset
+		if err := db.First(&asset, assetID).Error; err != nil {
+			return fmt.Errorf("图片资源不存在")
+		}
+		*item.target = &asset.ID
+	}
+	return nil
+}
+
+func mediaAssetIDFromURL(value string) uint {
+	if !strings.HasPrefix(value, "/api/media/") {
+		return 0
+	}
+	id, err := strconv.ParseUint(strings.TrimPrefix(value, "/api/media/"), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return uint(id)
 }
 
 func saveProduct(c *gin.Context, db *gorm.DB, id uint) {

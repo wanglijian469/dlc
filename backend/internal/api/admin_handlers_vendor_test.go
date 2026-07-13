@@ -17,6 +17,17 @@ func TestUniqueUintIDsKeepsFirstOccurrence(t *testing.T) {
 	}
 }
 
+func TestMediaAssetIDFromURL(t *testing.T) {
+	if got := mediaAssetIDFromURL("/api/media/42"); got != 42 {
+		t.Fatalf("mediaAssetIDFromURL() = %d, want 42", got)
+	}
+	for _, value := range []string{"", "https://example.com/logo.png", "/api/media/not-a-number"} {
+		if got := mediaAssetIDFromURL(value); got != 0 {
+			t.Fatalf("mediaAssetIDFromURL(%q) = %d, want 0", value, got)
+		}
+	}
+}
+
 func TestNormalizeVendorReviewStatusDefaultsBlankToPending(t *testing.T) {
 	vendor := model.Vendor{Name: "河北冀农农机具有限公司"}
 	if err := normalizeVendorReviewStatus(&vendor); err != nil {

@@ -358,7 +358,8 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url }));
+            const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
+            uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url, ...(assetKey ? { [assetKey]: result.assetId } : {}) }));
           }}
         />
       </div>

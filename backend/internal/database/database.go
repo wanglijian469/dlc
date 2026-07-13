@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"dalu-nongji-parts/backend/internal/config"
@@ -94,10 +96,56 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := dropRetiredVendorColumns(db); err != nil {
 		return err
 	}
+	if err := backfillVendorImageAssetLinks(db); err != nil {
+		return err
+	}
 	if err := migrateProductCatalog(db); err != nil {
 		return err
 	}
 	return ensureStructuredContent(db)
+}
+
+func backfillVendorImageAssetLinks(db *gorm.DB) error {
+	var vendors []model.Vendor
+	if err := db.Where("(logo LIKE ? AND logo_asset_id IS NULL) OR (cover_image LIKE ? AND cover_asset_id IS NULL)", "/api/media/%", "/api/media/%").Find(&vendors).Error; err != nil {
+		return err
+	}
+	for _, vendor := range vendors {
+		updates := map[string]interface{}{}
+		if vendor.LogoAssetID == nil {
+			if id := assetIDFromMediaURL(vendor.Logo); id > 0 && mediaAssetExists(db, id) {
+				updates["logo_asset_id"] = id
+			}
+		}
+		if vendor.CoverAssetID == nil {
+			if id := assetIDFromMediaURL(vendor.CoverImage); id > 0 && mediaAssetExists(db, id) {
+				updates["cover_asset_id"] = id
+			}
+		}
+		if len(updates) > 0 {
+			if err := db.Model(&vendor).Updates(updates).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func assetIDFromMediaURL(value string) uint {
+	if !strings.HasPrefix(value, "/api/media/") {
+		return 0
+	}
+	id, err := strconv.ParseUint(strings.TrimPrefix(value, "/api/media/"), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return uint(id)
+}
+
+func mediaAssetExists(db *gorm.DB, id uint) bool {
+	var count int64
+	db.Model(&model.MediaAsset{}).Where("id = ?", id).Count(&count)
+	return count > 0
 }
 
 func dropRetiredVendorColumns(db *gorm.DB) error {
