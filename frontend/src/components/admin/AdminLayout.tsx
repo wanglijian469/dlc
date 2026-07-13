@@ -7,29 +7,29 @@ type AdminLink = {
   label: string;
   path: string;
   icon: ComponentType<LucideProps>;
-  group: "概览" | "内容" | "系统";
+  group: "概览" | "业务内容" | "基础配置" | "系统管理";
   roles?: Array<"admin" | "vendor">;
 };
 
 const links: AdminLink[] = [
   { label: "控制台", path: "/admin/dashboard", icon: LayoutDashboard, group: "概览" },
-  { label: "导航菜单", path: "/admin/menus", icon: ListTree, group: "内容" },
-  { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "内容" },
-  { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "内容" },
-  { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "内容" },
-  { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "内容" },
-  { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "内容" },
-  { label: "配件产品", path: "/admin/products", icon: Package, group: "内容" },
-  { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "内容" },
-  { label: "内容页面", path: "/admin/pages", icon: FileText, group: "内容" },
-  { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "内容" },
-  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统" },
-  { label: "CMS 账号", path: "/admin/users", icon: KeyRound, group: "系统" },
-	{ label: "操作日志", path: "/admin/operation-logs", icon: History, group: "系统" },
-  { label: "我的厂商资料", path: "/admin/vendor-profile", icon: Factory, group: "内容", roles: ["vendor"] },
+  { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "业务内容" },
+  { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
+  { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
+  { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容" },
+  { label: "导航菜单", path: "/admin/menus", icon: ListTree, group: "基础配置" },
+  { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
+  { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置" },
+  { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "基础配置" },
+  { label: "内容页面", path: "/admin/pages", icon: FileText, group: "基础配置" },
+  { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "基础配置" },
+  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理" },
+  { label: "CMS 账号", path: "/admin/users", icon: KeyRound, group: "系统管理" },
+	{ label: "操作日志", path: "/admin/operation-logs", icon: History, group: "系统管理" },
+  { label: "我的厂商资料", path: "/admin/vendor-profile", icon: Factory, group: "业务内容", roles: ["vendor"] },
 ];
 
-const groups: AdminLink["group"][] = ["概览", "内容", "系统"];
+const groups: AdminLink["group"][] = ["概览", "业务内容", "基础配置", "系统管理"];
 
 export function AdminLayout({ title, children }: { title: string; children: ReactNode }) {
   const role = (localStorage.getItem("cms_role") || "admin") as "admin" | "vendor";

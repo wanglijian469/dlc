@@ -13,7 +13,8 @@ describe("AdminDashboardPage", () => {
 
     expect(screen.getByRole("heading", { name: "快捷入口" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "厂商信息" })).toHaveAttribute("href", "/admin/vendors");
+    expect(screen.getByRole("link", { name: "资料审核" })).toHaveAttribute("href", "/admin/vendor-reviews");
+    expect(screen.getByRole("link", { name: "产品审核" })).toHaveAttribute("href", "/admin/product-reviews");
     expect(screen.getByRole("link", { name: "配件产品" })).toHaveAttribute("href", "/admin/products");
-    expect(screen.getByRole("link", { name: "平台配置" })).toHaveAttribute("href", "/admin/configs");
   });
 });

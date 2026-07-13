@@ -1,4 +1,4 @@
-import { AlertTriangle, ClipboardCheck, FileImage, FileText, LayoutDashboard, Link as LinkIcon, ListTree, Package, Settings, Tags, Users } from "lucide-react";
+import { AlertTriangle, BarChart3, ClipboardCheck, FileImage, FileText, LayoutDashboard, Link as LinkIcon, ListTree, Package, Tags, Users } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { AdminLayout } from "../../components/admin/AdminLayout";
@@ -6,13 +6,15 @@ import { getDashboardStats } from "../../api/admin";
 
 const quickEntries = [
   { label: "厂商信息", path: "/admin/vendors", icon: Users, meta: "维护供应商资料、认证和加工能力" },
+  { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, meta: "审核厂商提交的展示资料和能力信息" },
+  { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, meta: "处理厂商产品新增与更新申请" },
   { label: "配件产品", path: "/admin/products", icon: Package, meta: "管理产品、分类关联和详情内容" },
-  { label: "平台配置", path: "/admin/configs", icon: Settings, meta: "调整首页模块、站点信息和统计文案" },
 ];
 
 const modules = [
   { label: "导航菜单", icon: ListTree, value: "5 类入口" },
   { label: "厂商标签", icon: Tags, value: "支持筛选" },
+  { label: "配件分类", icon: BarChart3, value: "产品目录" },
   { label: "Banner 管理", icon: FileImage, value: "首页主视觉" },
   { label: "内容页面", icon: FileText, value: "SEO 页面" },
   { label: "友情链接", icon: LinkIcon, value: "外部合作" },
@@ -29,7 +31,7 @@ export function AdminDashboardPage() {
         <div>
           <span className="admin-eyebrow">Console</span>
           <h2>内容运营工作台</h2>
-          <p>统一维护导航、厂商、标签、分类、产品、Banner 和平台配置。后台保存后，前台首页、目录页和搜索页会读取同一套数据。</p>
+          <p>日常重点维护厂商信息、资料审核、产品审核和配件产品；导航、标签、分类及页面内容归入基础配置，按需调整。</p>
         </div>
         <div className="admin-hero-badge">
           <LayoutDashboard aria-hidden="true" size={30} />
@@ -67,8 +69,8 @@ export function AdminDashboardPage() {
 
       <section className="admin-panel">
         <div className="admin-section-title">
-          <h2>模块概览</h2>
-          <span>后台维护范围</span>
+          <h2>基础配置</h2>
+          <span>网站平台内容，通常按需维护</span>
         </div>
         <div className="admin-module-grid">
           {modules.map(({ icon: Icon, label, value }) => (

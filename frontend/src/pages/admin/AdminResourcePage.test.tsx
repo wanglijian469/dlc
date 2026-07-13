@@ -76,10 +76,8 @@ describe("AdminResourcePage CMS forms", () => {
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "浙江汉丰农机有限公司" } });
     fireEvent.change(screen.getByLabelText("厂商官网 URL"), { target: { value: "https://vendor.example.com" } });
-    const tagSelect = screen.getByLabelText("厂商标签") as HTMLSelectElement;
-    const tagOption = within(tagSelect).getByRole("option", { name: "源头厂商" }) as HTMLOptionElement;
-    tagOption.selected = true;
-    fireEvent.change(tagSelect);
+    const vendorTags = screen.getByRole("group", { name: "配件厂商标签" });
+    fireEvent.click(within(vendorTags).getByRole("checkbox", { name: "源头厂商" }));
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
     fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
 
@@ -96,7 +94,10 @@ describe("AdminResourcePage CMS forms", () => {
     await openCreateEditor("新增厂商信息");
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "展示测试厂商" } });
-    fireEvent.click(screen.getByLabelText("前台显示（勾选即发布）"));
+    const visibilityToggle = screen.getByLabelText("前台显示");
+    expect(visibilityToggle.closest("label")).toHaveClass("admin-toggle-field");
+    expect(screen.getByText("勾选并保存后发布到前台")).toBeInTheDocument();
+    fireEvent.click(visibilityToggle);
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
     fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
 
@@ -114,6 +115,8 @@ describe("AdminResourcePage CMS forms", () => {
 
     fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "山东精工加工有限公司" } });
     fireEvent.click(screen.getByLabelText("是否提供加工服务"));
+    const processingTags = screen.getByRole("group", { name: "加工服务标签" });
+    fireEvent.click(within(processingTags).getByRole("checkbox", { name: "数控车削" }));
     fireEvent.change(screen.getByLabelText("加工服务能力"), { target: { value: "数控车削、焊接加工" } });
     fireEvent.change(screen.getByLabelText("加工设备"), { target: { value: "数控车床、焊接工位" } });
     const form = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
@@ -124,11 +127,24 @@ describe("AdminResourcePage CMS forms", () => {
         "vendors",
         expect.objectContaining({
           providesProcessing: true,
+          tagIds: [2],
           processingServices: "数控车削、焊接加工",
           processingEquipment: "数控车床、焊接工位",
         }),
       ),
     );
+  });
+
+  it("separates vendor and processing tags into checkbox groups", async () => {
+    renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
+
+    const vendorTags = screen.getByRole("group", { name: "配件厂商标签" });
+    const processingTags = screen.getByRole("group", { name: "加工服务标签" });
+    expect(within(vendorTags).getByRole("checkbox", { name: "源头厂商" })).toBeInTheDocument();
+    expect(within(vendorTags).queryByRole("checkbox", { name: "数控车削" })).not.toBeInTheDocument();
+    expect(within(processingTags).getByRole("checkbox", { name: "数控车削" })).toBeInTheDocument();
+    expect(within(processingTags).queryByRole("checkbox", { name: "源头厂商" })).not.toBeInTheDocument();
   });
 
   it("supports processing tag type in tag forms", async () => {

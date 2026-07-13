@@ -2,6 +2,7 @@ package database
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -175,20 +176,34 @@ func migrateProductCatalog(db *gorm.DB) error {
 			return err
 		}
 		for _, product := range products {
-			var count int64
-			if err := tx.Model(&model.ProductSupplier{}).Where("product_id = ? AND vendor_id = ?", product.ID, product.VendorID).Count(&count).Error; err != nil {
-				return err
-			}
-			if count > 0 {
-				continue
-			}
 			status := "approved"
 			if product.Status != 1 {
 				status = "pending"
 			}
 			supplier := model.ProductSupplier{ProductID: product.ID, VendorID: product.VendorID, VendorProductName: product.Name, Image: product.Image, GalleryRaw: product.GalleryRaw, CompatibleModels: product.CompatibleModels, Description: product.Description, PriceNote: product.PriceNote, InquiryText: product.InquiryText, InquiryPath: product.InquiryPath, Status: status, SourceType: "legacy", ContentVersion: 1}
-			if err := tx.Create(&supplier).Error; err != nil {
-				return err
+
+			// The unique index does not include deleted_at. A normal scoped lookup misses a
+			// soft-deleted relationship and a subsequent INSERT then fails with duplicate
+			// product_id/vendor_id. Include deleted rows and revive the existing record so
+			// this migration remains safe to run on every startup.
+			var existing model.ProductSupplier
+			result := tx.Unscoped().Where("product_id = ? AND vendor_id = ?", product.ID, product.VendorID).First(&existing)
+			switch {
+			case result.Error == nil:
+				if !existing.DeletedAt.Valid {
+					continue
+				}
+				supplier.ID = existing.ID
+				supplier.CreatedAt = existing.CreatedAt
+				if err := tx.Unscoped().Save(&supplier).Error; err != nil {
+					return err
+				}
+			case errors.Is(result.Error, gorm.ErrRecordNotFound):
+				if err := tx.Create(&supplier).Error; err != nil {
+					return err
+				}
+			default:
+				return result.Error
 			}
 			if status == "pending" {
 				productPayload, _ := json.Marshal(product)

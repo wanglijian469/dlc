@@ -29,10 +29,13 @@ type FormState = Record<string, FormValue>;
 type Field = {
   key: string;
   label: string;
-  type?: "text" | "number" | "checkbox" | "textarea" | "select" | "multiselect" | "image" | "gallery" | "specs" | "blocks";
+  type?: "text" | "number" | "checkbox" | "textarea" | "select" | "multiselect" | "checkbox-group" | "image" | "gallery" | "specs" | "blocks";
   options?: { label: string; value: string | number | boolean }[];
   refResource?: ResourceName;
   placeholder?: string;
+  description?: string;
+  group?: string;
+  optionTagType?: "vendor" | "processing";
 };
 
 const menuTypes = [
@@ -91,10 +94,10 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "phone", label: "联系电话" },
       { key: "wechat", label: "微信" },
       { key: "contactName", label: "联系人" },
-      { key: "tagIds", label: "厂商标签", type: "multiselect", refResource: "tags" },
-      { key: "isRecommended", label: "推荐", type: "checkbox" },
-      { key: "isVerified", label: "认证", type: "checkbox" },
-      { key: "isVisible", label: "前台显示（勾选即发布）", type: "checkbox" },
+      { key: "tagIds", label: "配件厂商标签", type: "checkbox-group", refResource: "tags", optionTagType: "vendor", group: "展示信息", description: "用于标识厂商经营与展示属性，可多选。" },
+      { key: "isRecommended", label: "推荐厂商", type: "checkbox", description: "在推荐厂商区域优先展示" },
+      { key: "isVerified", label: "平台认证", type: "checkbox", description: "在前台显示认证标识" },
+      { key: "isVisible", label: "前台显示", type: "checkbox", description: "勾选并保存后发布到前台" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -176,6 +179,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
 
 const processingVendorFields: Field[] = [
   { key: "providesProcessing", label: "是否提供加工服务", type: "checkbox" },
+  { key: "tagIds", label: "加工服务标签", type: "checkbox-group", refResource: "tags", optionTagType: "processing", group: "加工能力", description: "用于标识可承接的加工方式，可多选。" },
   { key: "processingServices", label: "加工服务能力", type: "textarea" },
   { key: "processingMaterials", label: "可加工材料 / 配件类型", type: "textarea" },
   { key: "processingEquipment", label: "加工设备", type: "textarea" },
@@ -299,7 +303,12 @@ export function AdminResourcePage() {
         {serverPaged && <Pagination onChange={setPage} page={page} pageSize={20} total={total} />}
       </div>
       {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header><form className="admin-form admin-grouped-form" onSubmit={submit}>
-        {groupFields(name, schema.fields).map((group) => <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => <label className={["textarea", "gallery", "specs", "blocks"].includes(field.type || "") ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>)}</div></fieldset>)}
+        {groupFields(name, schema.fields).map((group) => <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => {
+          const fieldWide = ["textarea", "gallery", "specs", "blocks", "checkbox-group"].includes(field.type || "");
+          if (field.type === "checkbox-group") return <div className={`admin-checkbox-group-field ${fieldWide ? "field-wide" : ""}`} key={`${field.key}-${field.optionTagType || "all"}`}><strong>{field.label}</strong>{field.description && <small>{field.description}</small>}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></div>;
+          if (field.type === "checkbox" && field.description) return <label className="admin-toggle-field" key={field.key}><FieldInput field={field} form={form} refs={refs} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.description}</small></span></label>;
+          return <label className={fieldWide ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>;
+        })}</div></fieldset>)}
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
         {(name === "vendors" || name === "products" || name === "banners" || name === "friend-links") && <ImagePreview form={form} />}
         <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
@@ -322,7 +331,7 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
     return <textarea placeholder={field.placeholder} value={String(form[field.key] ?? "")} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />;
   }
   if (field.type === "checkbox") {
-    return <input checked={Boolean(form[field.key])} type="checkbox" onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} />;
+    return <input aria-label={field.label} checked={Boolean(form[field.key])} type="checkbox" onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} />;
   }
   if (field.type === "select") {
     const options = optionsFor(field, refs);
@@ -347,6 +356,31 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
           </option>
         ))}
       </select>
+    );
+  }
+  if (field.type === "checkbox-group") {
+    const selected = Array.isArray(form[field.key]) ? (form[field.key] as number[]) : [];
+    const options = optionsFor(field, refs);
+    if (!options.length) return <p className="tag-checkbox-empty">暂无可选标签，请先在“厂商标签”中配置。</p>;
+    return (
+      <div aria-label={field.label} className="tag-checkbox-grid" role="group">
+        {options.map((option) => {
+          const id = Number(option.value);
+          return (
+            <label className="tag-checkbox-option" key={String(option.value)}>
+              <input
+                checked={selected.includes(id)}
+                type="checkbox"
+                onChange={(event) => setForm({
+                  ...form,
+                  [field.key]: event.target.checked ? Array.from(new Set([...selected, id])) : selected.filter((value) => value !== id),
+                })}
+              />
+              <span>{option.label}</span>
+            </label>
+          );
+        })}
+      </div>
     );
   }
   if (field.type === "image") {
@@ -380,7 +414,9 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
 function optionsFor(field: Field, refs: Partial<Record<ResourceName, ResourceRecord[]>>) {
   if (field.options) return field.options;
   if (!field.refResource) return [];
-  return (refs[field.refResource] || []).map((item) => ({ label: String((item as unknown as { name?: string; title?: string }).name || (item as unknown as { title?: string }).title || item.id), value: item.id }));
+  return (refs[field.refResource] || [])
+    .filter((item) => !field.optionTagType || (item as unknown as { tagType?: string }).tagType === field.optionTagType)
+    .map((item) => ({ label: String((item as unknown as { name?: string; title?: string }).name || (item as unknown as { title?: string }).title || item.id), value: item.id }));
 }
 
 function numericSelect(field: Field) {
@@ -478,7 +514,7 @@ function ImagePreview({ form }: { form: FormState }) {
 }
 
 function defaultForm(fields: Field[]) {
-  return Object.fromEntries(fields.map((field) => [field.key, field.type === "checkbox" ? false : field.type === "number" ? 0 : field.type === "multiselect" ? [] : ""]));
+  return Object.fromEntries(fields.map((field) => [field.key, field.type === "checkbox" ? false : field.type === "number" ? 0 : field.type === "multiselect" || field.type === "checkbox-group" ? [] : ""]));
 }
 
 function groupFields(resource: ResourceName, fields: Field[]) {
@@ -501,7 +537,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
     return "记录信息";
   };
   const groups: Array<{ title: string; fields: Field[] }> = [];
-  fields.forEach((field) => { const title = groupTitle(field.key); let group = groups.find((item) => item.title === title); if (!group) { group = { title, fields: [] }; groups.push(group); } group.fields.push(field); });
+  fields.forEach((field) => { const title = field.group || groupTitle(field.key); let group = groups.find((item) => item.title === title); if (!group) { group = { title, fields: [] }; groups.push(group); } group.fields.push(field); });
   return groups;
 }
 
