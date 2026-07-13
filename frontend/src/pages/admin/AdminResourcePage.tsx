@@ -142,7 +142,6 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
     title: "Banner 管理",
     fields: [
       { key: "title", label: "标题" },
-      { key: "subtitle", label: "副标题", type: "textarea" },
       { key: "backgroundImage", label: "背景图 URL", type: "image" },
       { key: "searchPlaceholder", label: "搜索占位文案" },
       { key: "hotKeywordsRaw", label: "热门关键词", placeholder: "用英文逗号分隔" },
