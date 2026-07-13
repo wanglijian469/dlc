@@ -91,6 +91,23 @@ describe("AdminResourcePage CMS forms", () => {
     );
   });
 
+  it("publishes a vendor when the front display checkbox is selected", async () => {
+    renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
+
+    fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "展示测试厂商" } });
+    fireEvent.click(screen.getByLabelText("前台显示（勾选即发布）"));
+    const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
+    fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
+
+    await waitFor(() =>
+      expect(mockedCreateResource).toHaveBeenCalledWith(
+        "vendors",
+        expect.objectContaining({ name: "展示测试厂商", isVisible: true, publicationStatus: "published" }),
+      ),
+    );
+  });
+
   it("submits processing service fields for vendors", async () => {
     renderAdmin("/admin/vendors");
     await openCreateEditor("新增厂商信息");

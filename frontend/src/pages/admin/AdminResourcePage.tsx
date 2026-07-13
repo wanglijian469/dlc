@@ -94,7 +94,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "tagIds", label: "厂商标签", type: "multiselect", refResource: "tags" },
       { key: "isRecommended", label: "推荐", type: "checkbox" },
       { key: "isVerified", label: "认证", type: "checkbox" },
-      { key: "isVisible", label: "前台显示", type: "checkbox" },
+      { key: "isVisible", label: "前台显示（勾选即发布）", type: "checkbox" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -247,7 +247,10 @@ export function AdminResourcePage() {
     event.preventDefault();
     setMessage("");
     const payload = payloadFromForm(schema.fields, form) as Partial<ResourceRecord> & { media?: VendorMedia[] };
-    if (name === "vendors") payload.media = (form.media as VendorMedia[] | undefined) || [];
+    if (name === "vendors") {
+      payload.media = (form.media as VendorMedia[] | undefined) || [];
+      (payload as { publicationStatus?: "published" | "hidden" }).publicationStatus = Boolean(form.isVisible) ? "published" : "hidden";
+    }
     const action = editingId ? updateResource<ResourceRecord>(name, editingId, payload) : createResource<ResourceRecord>(name, payload);
     action
       .then(() => {
