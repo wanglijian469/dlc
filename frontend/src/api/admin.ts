@@ -133,8 +133,8 @@ export function saveProductSupplier(productId: number, payload: Partial<ProductS
   return adminClient.post<never, ProductSupplier>(`/api/admin/products/${productId}/suppliers`, payload);
 }
 
-export function disableProductSupplier(productId: number, supplierId: number) {
-  return adminClient.delete<never, { disabled: boolean }>(`/api/admin/products/${productId}/suppliers/${supplierId}`);
+export function deleteProductSupplier(productId: number, supplierId: number) {
+	return adminClient.delete<never, { deleted: boolean }>(`/api/admin/products/${productId}/suppliers/${supplierId}`);
 }
 
 export function mergeProducts(targetProductId: number, sourceProductId: number) {

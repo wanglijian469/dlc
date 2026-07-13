@@ -203,7 +203,7 @@ func publishProductAndSupplierMedia(db *gorm.DB, product model.Product, supplier
 
 func (h AdminHandler) ListAdminProductSuppliers(c *gin.Context) {
 	var rows []model.ProductSupplier
-	if h.DB.Preload("Vendor").Where("product_id = ?", c.Param("id")).Order("id asc").Find(&rows).Error != nil {
+	if h.DB.Preload("Vendor").Where("product_id = ? AND status <> ?", c.Param("id"), "disabled").Order("id asc").Find(&rows).Error != nil {
 		Fail(c, 500, 500, "供应商列表加载失败")
 		return
 	}
@@ -225,7 +225,7 @@ func (h AdminHandler) SaveAdminProductSupplier(c *gin.Context) {
 		return
 	}
 	var row model.ProductSupplier
-	err := h.DB.Where("product_id = ? AND vendor_id = ?", uint(productID), input.VendorID).First(&row).Error
+	err := h.DB.Unscoped().Where("product_id = ? AND vendor_id = ?", uint(productID), input.VendorID).First(&row).Error
 	if err != nil && err != gorm.ErrRecordNotFound {
 		Fail(c, 500, 500, "供应关系保存失败")
 		return
@@ -233,13 +233,14 @@ func (h AdminHandler) SaveAdminProductSupplier(c *gin.Context) {
 	if err == gorm.ErrRecordNotFound {
 		row = model.ProductSupplier{ProductID: uint(productID), VendorID: input.VendorID, ContentVersion: 1}
 	}
+	row.DeletedAt = gorm.DeletedAt{}
 	applySupplierDraft(&row, input)
 	row.Status = "approved"
 	row.SourceType = "admin"
 	row.ReviewedBy = c.GetString("username")
 	now := time.Now()
 	row.ReviewedAt = &now
-	if h.DB.Save(&row).Error != nil {
+	if h.DB.Unscoped().Save(&row).Error != nil {
 		Fail(c, 500, 500, "供应关系保存失败")
 		return
 	}
@@ -248,12 +249,22 @@ func (h AdminHandler) SaveAdminProductSupplier(c *gin.Context) {
 }
 
 func (h AdminHandler) DisableAdminProductSupplier(c *gin.Context) {
-	result := h.DB.Model(&model.ProductSupplier{}).Where("id = ? AND product_id = ?", c.Param("supplierId"), c.Param("id")).Update("status", "disabled")
-	if result.Error != nil || result.RowsAffected == 0 {
+	var row model.ProductSupplier
+	if err := h.DB.Where("id = ? AND product_id = ?", c.Param("supplierId"), c.Param("id")).First(&row).Error; err != nil {
 		Fail(c, 404, 404, "供应关系不存在")
 		return
 	}
-	OK(c, gin.H{"disabled": true})
+	if err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Delete(&row).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.ProductSubmission{}).Where("supplier_id = ? AND status = ?", row.ID, "pending").Update("status", "superseded").Error
+	}); err != nil {
+		Fail(c, 500, 500, "删除供应关系失败")
+		return
+	}
+	logOperation(h.DB, c.GetString("username"), "delete", "product-suppliers", row.ID)
+	OK(c, gin.H{"deleted": true})
 }
 
 func (h AdminHandler) MergeProducts(c *gin.Context) {
