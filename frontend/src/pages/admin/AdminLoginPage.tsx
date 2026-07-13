@@ -26,7 +26,6 @@ export function AdminLoginPage() {
     <main className="admin-login">
       <section className="admin-login-visual" aria-label="后台品牌">
         <div className="admin-login-logo">农</div>
-        <p>Gin-Vue-Admin 融合后台</p>
         <h1>大陆农机配件 CMS</h1>
         <span>面向厂商、产品、导航与内容配置的一体化管理台</span>
       </section>

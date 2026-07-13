@@ -44,7 +44,6 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
           <span className="admin-brand-mark">农</span>
           <div>
             <strong>大陆农机配件 CMS</strong>
-            <span>Gin-Vue-Admin 融合后台</span>
           </div>
           <button aria-label="关闭后台导航" className="admin-nav-close" type="button" onClick={() => setMenuOpen(false)}><X size={19} /></button>
         </div>
