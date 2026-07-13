@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ImageUp, Link2, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ImageUp, Link2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { createOwnProduct, deleteOwnProduct, linkOwnProduct, listOwnProducts, searchVendorProductCatalog, updateOwnProduct, uploadFile } from "../../api/admin";
 import { getFilterOptions } from "../../api/public";
 import type { Category, Product, ProductSupplier, VendorProductRecord } from "../../types/api";
@@ -25,6 +25,14 @@ export function VendorProductsEditor() {
     setRecords(rows); setCategories(filters.categories);
   }).catch(() => setMessage("产品资料加载失败"));
   useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", closeOnEscape);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", closeOnEscape); };
+  }, [open]);
 
   const searchCatalog = () => searchVendorProductCatalog(keyword).then(setCatalog).catch(() => setMessage("平台产品目录搜索失败"));
   const reset = (nextMode: "link" | "new") => { setMode(nextMode); setCandidate(emptyCandidate); setOffer(emptyOffer); setSelectedProduct(undefined); setEditingSupplierId(undefined); setCatalog([]); setKeyword(""); setOpen(true); };
@@ -50,13 +58,15 @@ export function VendorProductsEditor() {
       <div><button aria-label="编辑供应信息" type="button" onClick={() => edit(record)}><Pencil size={16} /></button><button aria-label="停止供应" type="button" onClick={() => remove(record.supplier.id)}><Trash2 size={16} /></button></div>
     </article>)}</div>
     {!records.length && <p className="structured-empty">暂无产品供应信息，可先搜索平台产品并建立供应关联。</p>}
-    {open && <form className="vendor-product-form" onSubmit={submit}>
-      <header><strong>{mode === "new" ? "提交新产品候选" : mode === "edit" ? "编辑本厂供应信息" : "关联平台产品"}</strong><button type="button" onClick={() => setOpen(false)}>关闭</button></header>
-      {mode === "link" && <div className="catalog-picker"><div className="admin-search"><Search size={16} /><input placeholder="搜索产品名称、适配机型" value={keyword} onChange={(event) => setKeyword(event.target.value)} /><button className="outline-btn small" type="button" onClick={searchCatalog}>搜索</button></div><div className="catalog-results">{catalog.map((product) => <button className={selectedProduct?.id === product.id ? "selected" : ""} key={product.id} type="button" onClick={() => { setSelectedProduct(product); setOffer((value) => ({ ...value, vendorProductName: value.vendorProductName || product.name, compatibleModels: value.compatibleModels || product.compatibleModels })); }}><strong>{product.name}</strong><span>{product.category?.name || "农机配件"} · 已有 {product.supplierCount || 0} 家供应商</span></button>)}</div></div>}
-      {mode === "new" ? <CandidateFields form={candidate} categories={categories} onChange={setCandidate} /> : <OfferFields product={selectedProduct || candidate as Product} form={offer} onChange={setOffer} />}
-      <div className="wide-field product-cover-upload"><strong>{mode === "new" ? "产品标准配图" : "本厂产品配图"}</strong><label className="outline-btn small upload-button"><ImageUp size={15} />上传图片<input accept="image/jpeg,image/png,image/webp" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} /></label>{(mode === "new" ? candidate.image : offer.image) && <ProtectedMediaImage assetId={assetId(mode === "new" ? candidate.image : offer.image)} alt="产品图片预览" src={(mode === "new" ? candidate.image : offer.image) || ""} />}</div>
-      <button className="primary-btn" type="submit">提交审核</button>
-    </form>}
+    {open && <div className="vendor-product-drawer-layer"><button aria-label="关闭产品编辑抽屉" className="vendor-product-drawer-backdrop" type="button" onClick={() => setOpen(false)} /><aside aria-label={drawerTitle(mode)} aria-modal="true" className="vendor-product-drawer" role="dialog"><form className="vendor-product-form" onSubmit={submit}>
+      <header><div><span>{mode === "edit" ? "供应信息维护" : "产品资料提交"}</span><strong>{drawerTitle(mode)}</strong><p>{drawerHint(mode)}</p></div><button aria-label="关闭产品编辑抽屉" type="button" onClick={() => setOpen(false)}><X size={20} /></button></header>
+      <div className="vendor-product-drawer-body">
+        {mode === "link" && <div className="catalog-picker"><div className="admin-search"><Search size={16} /><input placeholder="搜索产品名称、适配机型" value={keyword} onChange={(event) => setKeyword(event.target.value)} /><button className="outline-btn small" type="button" onClick={searchCatalog}>搜索</button></div><div className="catalog-results">{catalog.map((product) => <button className={selectedProduct?.id === product.id ? "selected" : ""} key={product.id} type="button" onClick={() => { setSelectedProduct(product); setOffer((value) => ({ ...value, vendorProductName: value.vendorProductName || product.name, compatibleModels: value.compatibleModels || product.compatibleModels })); }}><strong>{product.name}</strong><span>{product.category?.name || "农机配件"} · 已有 {product.supplierCount || 0} 家供应商</span></button>)}</div>{!catalog.length && <p className="structured-empty">输入名称或适配机型搜索平台产品；搜索不到时关闭抽屉后选择“提交新产品”。</p>}</div>}
+        {mode === "new" ? <CandidateFields form={candidate} categories={categories} onChange={setCandidate} /> : <OfferFields product={selectedProduct || candidate as Product} form={offer} onChange={setOffer} />}
+        <div className="wide-field product-cover-upload"><strong>{mode === "new" ? "产品标准配图" : "本厂产品配图"}</strong><label className="outline-btn small upload-button"><ImageUp size={15} />上传图片<input accept="image/jpeg,image/png,image/webp" type="file" onChange={(event) => { const file = event.target.files?.[0]; if (file) void uploadCover(file); }} /></label>{(mode === "new" ? candidate.image : offer.image) && <ProtectedMediaImage assetId={assetId(mode === "new" ? candidate.image : offer.image)} alt="产品图片预览" src={(mode === "new" ? candidate.image : offer.image) || ""} />}</div>
+      </div>
+      <footer><button className="outline-btn" type="button" onClick={() => setOpen(false)}>取消</button><button className="primary-btn" type="submit">提交审核</button></footer>
+    </form></aside></div>}
   </section>;
 }
 
@@ -80,4 +90,6 @@ function OfferFields({ product, form, onChange }: { product?: Product; form: Par
 </div>; }
 
 function statusLabel(status: ProductSupplier["status"]) { return ({ pending: "待审核", approved: "已展示", rejected: "已驳回", disabled: "已停供" })[status]; }
+function drawerTitle(mode: "link" | "new" | "edit") { return mode === "new" ? "提交新产品候选" : mode === "edit" ? "编辑本厂供应信息" : "关联平台产品"; }
+function drawerHint(mode: "link" | "new" | "edit") { return mode === "new" ? "补充公共产品资料和标准配图，提交后由管理员审核。" : mode === "edit" ? "修改仅影响本厂供应信息，已发布版本会保留到新版本审核通过。" : "先查找平台已有产品，再填写本厂型号、适配信息和价格说明。"; }
 function assetId(url?: string) { const match = url?.match(/\/api\/media\/(\d+)/); return match ? Number(match[1]) : undefined; }

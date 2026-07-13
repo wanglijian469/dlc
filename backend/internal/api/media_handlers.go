@@ -141,10 +141,37 @@ func (h AdminHandler) authorizedAsset(c *gin.Context) (model.MediaAsset, bool) {
 		return asset, false
 	}
 	if c.GetString("role") != "admin" && asset.OwnerUsername != c.GetString("username") {
-		Fail(c, 403, 403, "无权访问该图片")
-		return asset, false
+		vendorID := c.GetUint("vendorId")
+		if vendorID == 0 || !h.assetBelongsToVendor(asset, vendorID) {
+			Fail(c, 403, 403, "无权访问该图片")
+			return asset, false
+		}
 	}
 	return asset, true
+}
+
+func (h AdminHandler) assetBelongsToVendor(asset model.MediaAsset, vendorID uint) bool {
+	if asset.VendorID != nil && *asset.VendorID == vendorID {
+		return true
+	}
+	var references int64
+	h.DB.Model(&model.Vendor{}).Where("id = ? AND (logo_asset_id = ? OR cover_asset_id = ?)", vendorID, asset.ID, asset.ID).Count(&references)
+	if references > 0 {
+		return true
+	}
+	h.DB.Model(&model.VendorMedia{}).Where("vendor_id = ? AND asset_id = ?", vendorID, asset.ID).Count(&references)
+	if references > 0 {
+		return true
+	}
+	url := fmt.Sprintf("/api/media/%d", asset.ID)
+	h.DB.Model(&model.ProductSupplier{}).Where("vendor_id = ? AND (image = ? OR gallery LIKE ?)", vendorID, url, "%"+url+"%").Count(&references)
+	if references > 0 {
+		return true
+	}
+	h.DB.Model(&model.ProductSupplier{}).
+		Joins("JOIN products ON products.id = product_suppliers.product_id").
+		Where("product_suppliers.vendor_id = ? AND (products.image = ? OR products.gallery LIKE ?)", vendorID, url, "%"+url+"%").Count(&references)
+	return references > 0
 }
 
 func (h AdminHandler) PublicMedia(c *gin.Context) {
