@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Plus, X } from "lucide-react";
+import { Download, FileUp, Plus, X } from "lucide-react";
 import {
   createResource,
   deleteResource,
+  importWorkbook,
   listConfigs,
   listResource,
   listResourcePage,
@@ -12,6 +13,7 @@ import {
   updateConfig,
   updateResource,
   uploadFile,
+  type BulkImportResult,
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import type { SiteConfig } from "../../types/api";
@@ -215,6 +217,8 @@ export function AdminResourcePage() {
 	const [statusFilter, setStatusFilter] = useState("");
 	const [provinceFilter, setProvinceFilter] = useState("");
   const [message, setMessage] = useState("");
+  const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
+  const [importing, setImporting] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
@@ -280,8 +284,10 @@ export function AdminResourcePage() {
         <input value={keyword} placeholder="搜索当前列表" onChange={(event) => setKeyword(event.target.value)} />
 		{name === "vendors" && <><select aria-label="发布状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部发布状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="hidden">已隐藏</option></select><input aria-label="地区筛选" placeholder="输入省份" value={provinceFilter} onChange={(event) => { setProvinceFilter(event.target.value); setPage(1); }} /></>}
 		{name === "products" && <select aria-label="产品状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部产品状态</option><option value="1">已上架</option><option value="2">已下架</option></select>}
+        {(name === "vendors" || name === "products") && <div className="admin-import-actions"><a className="outline-btn" download href="/templates/农机配件平台_厂商产品资料采集模板.xlsx"><Download size={16} />下载导入模板</a><label className={`outline-btn admin-import-button ${importing ? "disabled" : ""}`}><FileUp size={16} />{importing ? "正在导入…" : "批量导入 XLSX"}<input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} type="file" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setImporting(true); setImportResult(null); setMessage(""); void importWorkbook(name, file).then((result) => { setImportResult(result); if (result.imported) { setMessage("批量导入成功"); void load(); } }).catch((error) => setMessage(error?.response?.data?.message || "批量导入失败，请检查文件格式")).finally(() => setImporting(false)); }} /></label></div>}
         <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>
       </div>
+      {importResult && <section className={`admin-import-result ${importResult.imported ? "success" : "error"}`}><strong>{importResult.imported ? "导入完成" : "表格校验未通过，未写入数据"}</strong><span>读取 {importResult.totalRows} 行 · 新增 {importResult.created} 条 · 更新 {importResult.updated} 条{name === "products" ? ` · 新增供应关系 ${importResult.relationsCreated} 条 · 更新供应关系 ${importResult.relationsUpdated} 条` : ""}</span>{importResult.issues.length > 0 && <ul>{importResult.issues.slice(0, 30).map((issue, index) => <li key={`${issue.sheet}-${issue.row}-${index}`}>{issue.sheet} 第 {issue.row} 行：{issue.message}</li>)}</ul>}</section>}
       <div className="admin-table-panel">
         <ResourceTable
           rows={filteredRows}
@@ -310,7 +316,6 @@ export function AdminResourcePage() {
           return <label className={fieldWide ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>;
         })}</div></fieldset>)}
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
-        {(name === "vendors" || name === "products" || name === "banners" || name === "friend-links") && <ImagePreview form={form} />}
         <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
       </form>{name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} />}{name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
     </AdminLayout>
@@ -384,9 +389,12 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
     );
   }
   if (field.type === "image") {
+    const value = String(form[field.key] ?? "");
+    const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
+    const mediaMatch = value.match(/^\/api\/media\/(\d+)$/);
     return (
       <div className="image-field">
-        <input value={String(form[field.key] ?? "")} type="text" placeholder={field.placeholder} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
+        <input value={value} type="text" placeholder={field.placeholder} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
         <input
           aria-label={`${field.label} 上传`}
           type="file"
@@ -394,10 +402,10 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
           onChange={(event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
             uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url, ...(assetKey ? { [assetKey]: result.assetId } : {}) }));
           }}
         />
+        {value && <div className="image-field-preview"><span>{field.label} 图片预览</span><ProtectedMediaImage alt={`${field.label} 图片预览`} assetId={assetKey ? Number(form[assetKey] || 0) || (mediaMatch ? Number(mediaMatch[1]) : undefined) : mediaMatch ? Number(mediaMatch[1]) : undefined} src={value} /></div>}
       </div>
     );
   }
@@ -499,18 +507,6 @@ function ReadableConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: 
 
 function ConfigInput({ label, value, type = "text", onChange }: { label: string; value: unknown; type?: string; onChange: (value: string) => void }) {
   return <label>{label}<input type={type} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} /></label>;
-}
-
-function ImagePreview({ form }: { form: FormState }) {
-  const src = String(form.logo || form.coverImage || form.image || form.backgroundImage || "");
-  if (!src) return null;
-  const match = src.match(/^\/api\/media\/(\d+)$/);
-  return (
-    <div className="image-preview">
-      <span>图片预览</span>
-      <ProtectedMediaImage alt="图片预览" assetId={match ? Number(match[1]) : undefined} src={src} />
-    </div>
-  );
 }
 
 function defaultForm(fields: Field[]) {

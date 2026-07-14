@@ -27,9 +27,11 @@ export function ProductDetailPage() {
   const gallery = useMemo(() => product ? Array.from(new Set([product.image, ...(product.gallery || [])].filter(Boolean) as string[])) : [], [product]);
   useEffect(() => { setActiveImage(gallery[0] || ""); }, [gallery]);
 
-  if (loading) return <PageFrame title="产品详情"><LoadingState /></PageFrame>;
-  if (error || !product) return <PageFrame title="产品详情"><ErrorState text={error || "产品不存在"} onRetry={load} /></PageFrame>;
-  return <PageFrame title={product.name} subtitle={product.category?.name || "农机配件产品目录"}>
+  if (loading) return <PageFrame breadcrumbs={[{ label: "配件产品", path: "/products" }]} title="产品详情"><LoadingState /></PageFrame>;
+  if (error || !product) return <PageFrame breadcrumbs={[{ label: "配件产品", path: "/products" }]} title="产品详情"><ErrorState text={error || "产品不存在"} onRetry={load} /></PageFrame>;
+  const productBreadcrumbs = [{ label: "配件产品", path: "/products" }];
+  if (product.category?.name) productBreadcrumbs.push({ label: product.category.name, path: `/products?categoryId=${product.categoryId}` });
+  return <PageFrame breadcrumbs={productBreadcrumbs} title={product.name} subtitle={product.category?.name || "农机配件产品目录"}>
     <section className="product-showcase">
       <IndustryCover className="product-main-media" image={activeImage} imageAlt={product.name} iconSize={86} kind={getProductIndustryKind(product)}>{gallery.length > 1 && <div aria-label="产品图片选择" className="product-thumbnails" role="list">{gallery.map((src, index) => <button aria-label={`查看第 ${index + 1} 张产品图片`} aria-pressed={src === activeImage} key={src} onClick={() => setActiveImage(src)} type="button"><img alt="" src={src} /></button>)}</div>}</IndustryCover>
       <div className="product-showcase-copy"><div className="tag-row">{product.isHot && <span className="tag-orange">热销</span>}{product.isRecommended && <span className="tag-blue">推荐</span>}</div><h2>{product.name}</h2><p className="product-lead">{product.description || "平台公共产品资料；具体型号、价格、库存与交期请向下方供应商确认。"}</p><dl><div><dt>适配机型</dt><dd>{product.compatibleModels || "通用农机配件"}</dd></div><div><dt>所属分类</dt><dd>{product.category?.name || "农机配件"}</dd></div><div><dt>支持供应商</dt><dd>{product.supplierCount || suppliers.length} 家</dd></div><div><dt>供应地区</dt><dd>{product.supplierRegions?.join(" · ") || "以供应商说明为准"}</dd></div></dl><div className="contact-actions"><a className="primary-btn" href="#suppliers"><Building2 size={16} />查看供应商</a><Link className="outline-btn" to="/products">返回产品目录</Link></div></div>

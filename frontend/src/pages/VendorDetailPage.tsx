@@ -25,8 +25,8 @@ export function VendorDetailPage() {
   };
   useEffect(load, [id]);
 
-  if (loading) return <PageFrame title="厂商详情"><LoadingState /></PageFrame>;
-  if (error || !vendor) return <PageFrame title="厂商详情"><ErrorState text={error || "厂商不存在"} onRetry={load} /></PageFrame>;
+  if (loading) return <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title="厂商详情"><LoadingState /></PageFrame>;
+  if (error || !vendor) return <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title="厂商详情"><ErrorState text={error || "厂商不存在"} onRetry={load} /></PageFrame>;
 
   const region = [vendor.province, vendor.city, vendor.county].filter(Boolean).join(" · ");
   const phoneMasked = Boolean(vendor.phone?.includes("*"));
@@ -39,7 +39,7 @@ export function VendorDetailPage() {
   ].filter((row) => row[1]);
 
   return (
-    <PageFrame title={vendor.name} subtitle={region || "源头农机配件厂商"}>
+    <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title={vendor.name} subtitle={region || "源头农机配件厂商"}>
       <section className="vendor-showcase-hero">
         <VendorCover variant="detail" vendor={vendor} />
         <div className="vendor-showcase-copy">

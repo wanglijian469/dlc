@@ -103,7 +103,79 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := migrateProductCatalog(db); err != nil {
 		return err
 	}
+	if err := refreshLegacyDirectoryContent(db); err != nil {
+		return err
+	}
 	return ensureStructuredContent(db)
+}
+
+func refreshLegacyDirectoryContent(db *gorm.DB) error {
+	const legacyBannerTitle = "查农机配件，找公开厂商资料"
+	const updatedBannerTitle = "农机供应链，查农机配件，厂商信息"
+	const updatedHotKeywords = "收割机链条,齿轮,皮带,液压油泵,刀片,滤芯"
+	retiredVendorNames := []string{
+		"江苏东成农机配件有限公司", "河南中联农机制造有限公司", "安徽豪华农机配件有限公司", "山东万鑫农机配件有限公司", "宁波动力机械有限公司",
+		"浙江汉丰农机有限公司", "河北力捷机械有限公司", "辽宁佳丰农机配件有限公司", "四川川沃农机有限公司", "陕西恒农农机配件有限公司",
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.Banner{}).Where("title = ?", legacyBannerTitle).Updates(map[string]interface{}{"title": updatedBannerTitle, "hot_keywords": updatedHotKeywords}).Error; err != nil {
+			return err
+		}
+
+		var vendorIDs []uint
+		if err := tx.Unscoped().Model(&model.Vendor{}).Where("name IN ?", retiredVendorNames).Pluck("id", &vendorIDs).Error; err != nil || len(vendorIDs) == 0 {
+			return err
+		}
+
+		var productIDs []uint
+		if err := tx.Unscoped().Model(&model.Product{}).Where("vendor_id IN ?", vendorIDs).Pluck("id", &productIDs).Error; err != nil {
+			return err
+		}
+		supplierQuery := tx.Unscoped().Model(&model.ProductSupplier{}).Where("vendor_id IN ?", vendorIDs)
+		if len(productIDs) > 0 {
+			supplierQuery = supplierQuery.Or("product_id IN ?", productIDs)
+		}
+		var supplierIDs []uint
+		if err := supplierQuery.Pluck("id", &supplierIDs).Error; err != nil {
+			return err
+		}
+
+		submissionQuery := tx.Unscoped().Where("vendor_id IN ?", vendorIDs)
+		if len(productIDs) > 0 {
+			submissionQuery = submissionQuery.Or("product_id IN ?", productIDs)
+		}
+		if len(supplierIDs) > 0 {
+			submissionQuery = submissionQuery.Or("supplier_id IN ?", supplierIDs)
+		}
+		if err := submissionQuery.Delete(&model.ProductSubmission{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("vendor_id IN ?", vendorIDs).Delete(&model.VendorSubmission{}).Error; err != nil {
+			return err
+		}
+		if err := supplierQuery.Delete(&model.ProductSupplier{}).Error; err != nil {
+			return err
+		}
+		if len(productIDs) > 0 {
+			if err := tx.Unscoped().Where("id IN ?", productIDs).Delete(&model.Product{}).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Unscoped().Where("vendor_id IN ?", vendorIDs).Delete(&model.VendorMedia{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("vendor_id IN ?", vendorIDs).Delete(&model.VendorTag{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("vendor_id IN ?", vendorIDs).Delete(&model.MediaAsset{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("vendor_id IN ?", vendorIDs).Delete(&model.AdminUser{}).Error; err != nil {
+			return err
+		}
+		return tx.Unscoped().Where("id IN ?", vendorIDs).Delete(&model.Vendor{}).Error
+	})
 }
 
 func backfillVendorImageAssetLinks(db *gorm.DB) error {
@@ -231,10 +303,7 @@ func migrateVendorPublicationState(db *gorm.DB) error {
 		return err
 	}
 	templateNames := []string{
-		"山东沃得农机配件有限公司", "河北金瑞农机制造有限公司", "江苏东成农机配件有限公司",
-		"河南中联农机制造有限公司", "安徽豪华农机配件有限公司", "山东万鑫农机配件有限公司",
-		"宁波动力机械有限公司", "浙江汉丰农机有限公司", "河北力捷机械有限公司",
-		"辽宁佳丰农机配件有限公司", "四川川沃农机有限公司", "陕西恒农农机配件有限公司",
+		"山东沃得农机配件有限公司", "河北金瑞农机制造有限公司",
 	}
 	if err := db.Model(&model.Vendor{}).
 		Where("name IN ? AND established_year = ? AND factory_area = ? AND employee_count = ? AND annual_capacity <> ''", templateNames, "2012 年", "12000 平方米", "80 人").

@@ -20,6 +20,20 @@ func TestDefaultSeedDoesNotContainDemoHostsOrFakeStats(t *testing.T) {
 	}
 }
 
+func TestDefaultBannerUsesUpdatedCopyAndKeywords(t *testing.T) {
+	seed := DefaultSeed()
+	if len(seed.Banners) != 1 {
+		t.Fatalf("banner count = %d, want 1", len(seed.Banners))
+	}
+	banner := seed.Banners[0]
+	if banner.Title != "农机供应链，查农机配件，厂商信息" {
+		t.Fatalf("banner title = %q", banner.Title)
+	}
+	if banner.HotKeywordsRaw != "收割机链条,齿轮,皮带,液压油泵,刀片,滤芯" {
+		t.Fatalf("hot keywords = %q", banner.HotKeywordsRaw)
+	}
+}
+
 func TestDefaultSeedContainsTransmissionChildren(t *testing.T) {
 	seed := DefaultSeed()
 	children := 0
@@ -95,8 +109,22 @@ func TestDemoSeedVendorsAreQuarantined(t *testing.T) {
 			t.Fatalf("demo vendor %q is not quarantined", vendor.Name)
 		}
 	}
-	if demos != 12 {
-		t.Fatalf("demo vendors = %d, want 12", demos)
+	if demos != 2 {
+		t.Fatalf("demo vendors = %d, want 2", demos)
+	}
+}
+
+func TestDemoSeedExcludesRetiredVendors(t *testing.T) {
+	retired := map[string]bool{
+		"江苏东成农机配件有限公司": true, "河南中联农机制造有限公司": true, "安徽豪华农机配件有限公司": true,
+		"山东万鑫农机配件有限公司": true, "宁波动力机械有限公司": true, "浙江汉丰农机有限公司": true,
+		"河北力捷机械有限公司": true, "辽宁佳丰农机配件有限公司": true, "四川川沃农机有限公司": true,
+		"陕西恒农农机配件有限公司": true,
+	}
+	for _, vendor := range DefaultSeedWithDemo(true).Vendors {
+		if retired[vendor.Name] {
+			t.Fatalf("retired vendor %q remains in the seed", vendor.Name)
+		}
 	}
 }
 
@@ -151,8 +179,8 @@ func TestDefaultSeedContainsProcessingTagsAndVendors(t *testing.T) {
 			t.Fatalf("processing vendor %q missing equipment", vendor.Name)
 		}
 	}
-	if processingVendors < 3 {
-		t.Fatalf("processing vendors = %d, want at least 3", processingVendors)
+	if processingVendors != 2 {
+		t.Fatalf("processing vendors = %d, want 2", processingVendors)
 	}
 }
 

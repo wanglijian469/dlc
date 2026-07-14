@@ -84,4 +84,20 @@ describe("PageFrame", () => {
     expect(within(sidebar).getByRole("link", { name: /变速箱齿轮/ })).toBeInTheDocument();
     expect(within(sidebar).queryByRole("link", { name: "提交厂商" })).not.toBeInTheDocument();
   });
+
+  it("renders clickable parent levels before the current page", () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={["/products/7"]}>
+        <PageFrame breadcrumbs={[{ label: "配件产品", path: "/products" }, { label: "液压系统配件", path: "/products?categoryId=5" }]} title="液压油泵总成">
+          <div>产品详情</div>
+        </PageFrame>
+      </MemoryRouter>,
+    );
+
+    const breadcrumbs = within(container).getByRole("navigation", { name: "面包屑" });
+    expect(within(breadcrumbs).getByRole("link", { name: "首页" })).toHaveAttribute("href", "/");
+    expect(within(breadcrumbs).getByRole("link", { name: "配件产品" })).toHaveAttribute("href", "/products");
+    expect(within(breadcrumbs).getByRole("link", { name: "液压系统配件" })).toHaveAttribute("href", "/products?categoryId=5");
+    expect(within(breadcrumbs).getByText("液压油泵总成")).toHaveAttribute("aria-current", "page");
+  });
 });

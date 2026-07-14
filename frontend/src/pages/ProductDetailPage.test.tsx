@@ -66,6 +66,9 @@ describe("ProductDetailPage", () => {
     expect(mainImage.closest(".product-main-media")?.querySelector(".industry-cover-main-icon")).toBeInTheDocument();
     mainImage.dispatchEvent(new Event("error", { bubbles: true }));
     expect(mainImage).toHaveStyle({ display: "none" });
+    const breadcrumbs = screen.getByRole("navigation", { name: "面包屑" });
+    expect(breadcrumbs.querySelector('a[href="/products"]')).toHaveTextContent("配件产品");
+    expect(breadcrumbs.querySelector('a[href="/products?categoryId=5"]')).toHaveTextContent("液压系统配件");
     expect(mockedGetProduct).toHaveBeenCalledWith("7");
   });
 });

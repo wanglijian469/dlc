@@ -63,6 +63,14 @@ func DefaultSeedWithDemo(includeDemo bool) SeedData {
 }
 
 func SeedDefaults(db *gorm.DB, cfg config.Config) error {
+	var configCount int64
+	if err := db.Model(&model.SiteConfig{}).Count(&configCount).Error; err != nil {
+		return err
+	}
+	if configCount > 0 {
+		return ensureInitialAdminUser(db, cfg)
+	}
+
 	seed := DefaultSeedWithDemo(cfg.SeedDemoData)
 	menuIDs := map[string]uint{}
 	for _, item := range seed.Menus {
@@ -77,18 +85,18 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		menuIDs[item.Key] = menu.ID
 	}
 	for i := range seed.Tags {
-		if err := db.Where("tag_type = ? AND sort_order = ?", seed.Tags[i].TagType, seed.Tags[i].SortOrder).Assign(seed.Tags[i]).FirstOrCreate(&seed.Tags[i]).Error; err != nil {
+		if err := db.Where("tag_type = ? AND sort_order = ?", seed.Tags[i].TagType, seed.Tags[i].SortOrder).FirstOrCreate(&seed.Tags[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Categories {
-		if err := db.Where("sort_order = ?", seed.Categories[i].SortOrder).Assign(seed.Categories[i]).FirstOrCreate(&seed.Categories[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Categories[i].SortOrder).FirstOrCreate(&seed.Categories[i]).Error; err != nil {
 			return err
 		}
 	}
 	seedVendorIDs := make([]uint, len(seed.Vendors))
 	for i := range seed.Vendors {
-		if err := db.Where("name = ?", seed.Vendors[i].Name).Assign(seed.Vendors[i]).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
+		if err := db.Where("name = ?", seed.Vendors[i].Name).FirstOrCreate(&seed.Vendors[i]).Error; err != nil {
 			return err
 		}
 		seedVendorIDs[i] = seed.Vendors[i].ID
@@ -97,30 +105,34 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		if seed.Products[i].VendorID > 0 && int(seed.Products[i].VendorID) <= len(seedVendorIDs) {
 			seed.Products[i].VendorID = seedVendorIDs[seed.Products[i].VendorID-1]
 		}
-		if err := db.Where("name = ? AND vendor_id = ?", seed.Products[i].Name, seed.Products[i].VendorID).Assign(seed.Products[i]).FirstOrCreate(&seed.Products[i]).Error; err != nil {
+		if err := db.Where("name = ? AND vendor_id = ?", seed.Products[i].Name, seed.Products[i].VendorID).FirstOrCreate(&seed.Products[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Banners {
-		if err := db.Where("sort_order = ?", seed.Banners[i].SortOrder).Assign(seed.Banners[i]).FirstOrCreate(&seed.Banners[i]).Error; err != nil {
+		if err := db.Where("sort_order = ?", seed.Banners[i].SortOrder).FirstOrCreate(&seed.Banners[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Pages {
-		if err := db.Where("slug = ?", seed.Pages[i].Slug).Assign(seed.Pages[i]).FirstOrCreate(&seed.Pages[i]).Error; err != nil {
+		if err := db.Where("slug = ?", seed.Pages[i].Slug).FirstOrCreate(&seed.Pages[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.FriendLinks {
-		if err := db.Where("name = ?", seed.FriendLinks[i].Name).Assign(seed.FriendLinks[i]).FirstOrCreate(&seed.FriendLinks[i]).Error; err != nil {
+		if err := db.Where("name = ?", seed.FriendLinks[i].Name).FirstOrCreate(&seed.FriendLinks[i]).Error; err != nil {
 			return err
 		}
 	}
 	for i := range seed.Configs {
-		if err := db.Where("config_key = ?", seed.Configs[i].ConfigKey).Assign(seed.Configs[i]).FirstOrCreate(&seed.Configs[i]).Error; err != nil {
+		if err := db.Where("config_key = ?", seed.Configs[i].ConfigKey).FirstOrCreate(&seed.Configs[i]).Error; err != nil {
 			return err
 		}
 	}
+	return ensureInitialAdminUser(db, cfg)
+}
+
+func ensureInitialAdminUser(db *gorm.DB, cfg config.Config) error {
 	var admin model.AdminUser
 	if err := db.Where("username = ?", cfg.AdminUsername).First(&admin).Error; err == gorm.ErrRecordNotFound {
 		hash, err := auth.HashPassword(cfg.AdminPassword)
@@ -133,7 +145,7 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 }
 
 func upsertMenu(db *gorm.DB, menu *model.Menu) error {
-	if err := db.Where("menu_type = ? AND sort_order = ? AND parent_id = ?", menu.MenuType, menu.SortOrder, menu.ParentID).Assign(*menu).FirstOrCreate(menu).Error; err != nil {
+	if err := db.Where("menu_type = ? AND sort_order = ? AND parent_id = ?", menu.MenuType, menu.SortOrder, menu.ParentID).FirstOrCreate(menu).Error; err != nil {
 		return err
 	}
 	var duplicates []model.Menu
@@ -237,12 +249,15 @@ func defaultCategories() []model.Category {
 }
 
 func defaultProducts() []model.Product {
-	return []model.Product{{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", DetailContent: "适合高频维修更换，支持批量采购。", SpecsRaw: `[{"name":"质保","value":"12个月"}]`, PriceNote: "面议 / 批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/1", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1}, {Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", DetailContent: "支持来样加工和批量配套。", PriceNote: "面议", InquiryText: "联系供应商", InquiryPath: "/vendors/2", IsHot: true, SortOrder: 2, Status: 1}, {Name: "液压油泵总成", CategoryID: 5, VendorID: 3, CompatibleModels: "农机液压系统", Description: "压力稳定，适配多种液压回路", DetailContent: "可根据设备型号匹配压力和接口。", PriceNote: "批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/3", IsRecommended: true, SortOrder: 3, Status: 1}, {Name: "传动皮带", CategoryID: 2, VendorID: 4, CompatibleModels: "联合收割机", Description: "抗拉伸皮带", SortOrder: 4, Status: 1}, {Name: "离合器总成", CategoryID: 2, VendorID: 5, CompatibleModels: "多型号拖拉机", Description: "换挡平顺", SortOrder: 5, Status: 1}, {Name: "滤芯套件", CategoryID: 1, VendorID: 6, CompatibleModels: "发动机保养", Description: "过滤性能稳定", IsHot: true, SortOrder: 6, Status: 1}, {Name: "制动蹄片", CategoryID: 7, VendorID: 7, CompatibleModels: "制动系统", Description: "耐磨耐热", SortOrder: 7, Status: 1}, {Name: "刀片组件", CategoryID: 1, VendorID: 8, CompatibleModels: "收割机割台", Description: "锋利耐用", SortOrder: 8, Status: 1}, {Name: "后桥差速器", CategoryID: 2, VendorID: 9, CompatibleModels: "拖拉机后桥", Description: "传动稳定", SortOrder: 9, Status: 1}, {Name: "轴承轴套", CategoryID: 2, VendorID: 10, CompatibleModels: "通用传动", Description: "精密加工", SortOrder: 10, Status: 1}}
+	return []model.Product{
+		{Name: "收割机链条总成", CategoryID: 2, VendorID: 1, CompatibleModels: "多型号收割机", Description: "高强度传动链条", DetailContent: "适合高频维修更换，支持批量采购。", SpecsRaw: `[{"name":"质保","value":"12个月"}]`, PriceNote: "面议 / 批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/1", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
+		{Name: "变速箱齿轮", CategoryID: 3, VendorID: 2, CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", DetailContent: "支持来样加工和批量配套。", PriceNote: "面议", InquiryText: "联系供应商", InquiryPath: "/vendors/2", IsHot: true, SortOrder: 2, Status: 1},
+	}
 }
 
 func defaultVendors() []model.Vendor {
-	names := []string{"山东沃德农机配件有限公司", "河北金瑞农机制造有限公司", "江苏东成农机配件有限公司", "河南中联农机制造有限公司", "安徽豪华农机配件有限公司", "山东万鑫农机配件有限公司", "宁波动力机械有限公司", "浙江汉丰农机有限公司", "河北力捷机械有限公司", "辽宁佳丰农机配件有限公司", "四川川沃农机有限公司", "陕西恒农农机配件有限公司"}
-	provinces := []string{"山东", "河北", "江苏", "河南", "安徽", "山东", "浙江", "浙江", "河北", "辽宁", "四川", "陕西"}
+	names := []string{"山东沃德农机配件有限公司", "河北金瑞农机制造有限公司"}
+	provinces := []string{"山东", "河北"}
 	vendors := make([]model.Vendor, 0, len(names))
 	for i, name := range names {
 		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
@@ -331,7 +346,7 @@ func withProcessingSeed(vendors []model.Vendor) []model.Vendor {
 }
 
 func defaultBanners() []model.Banner {
-	return []model.Banner{{Title: "查农机配件，找公开厂商资料", Subtitle: "按产品、机型与地区检索农机行业目录，直接联系资料已公开的供应厂商", SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等", HotKeywordsRaw: "收割机链条,离合器,齿轮,皮带,液压油泵,传动轴,刀片,滤芯", IsEnabled: true, SortOrder: 1}}
+	return []model.Banner{{Title: "农机供应链，查农机配件，厂商信息", Subtitle: "按产品、机型与地区检索农机行业目录，直接联系资料已公开的供应厂商", SearchPlaceholder: "搜索配件名称、农机型号、厂商名称等", HotKeywordsRaw: "收割机链条,齿轮,皮带,液压油泵,刀片,滤芯", IsEnabled: true, SortOrder: 1}}
 }
 
 func defaultPages() []model.ContentPage {

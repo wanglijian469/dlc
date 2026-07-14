@@ -1,5 +1,6 @@
 ﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ProductCard } from "./ProductCard";
 
@@ -30,7 +31,7 @@ describe("ProductCard", () => {
     expect(screen.getByText(/分类：传动配件/)).toBeInTheDocument();
     expect(screen.getByText(/供应厂商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/价格：面议 \/ 批量报价/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "联系该厂商" })).toHaveAttribute("href", "/vendors/1");
+    expect(screen.getByRole("link", { name: "供应厂商" })).toHaveAttribute("href", "/vendors/1");
     expect(screen.getByRole("link", { name: "产品详情" })).toHaveAttribute("href", "/products/9");
   });
 
@@ -45,5 +46,6 @@ describe("ProductCard", () => {
     const image = container.querySelector(".industry-cover-photo");
     expect(cover).toBeInTheDocument();
     expect(image).toHaveAttribute("src", "https://img.example.com/cylinder.jpg");
+    expect(within(container).getByRole("link", { name: "供应厂商" })).toHaveAttribute("href", "/products/10#suppliers");
   });
 });

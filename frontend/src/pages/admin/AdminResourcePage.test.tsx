@@ -9,7 +9,8 @@ vi.mock("../../api/admin", () => ({
   deleteResource: vi.fn(),
   listConfigs: vi.fn(),
   listResource: vi.fn(),
-  listResourcePage: vi.fn(),
+    listResourcePage: vi.fn(),
+    importWorkbook: vi.fn(),
   updateConfig: vi.fn(),
   updateResource: vi.fn(),
   uploadFile: vi.fn(),
@@ -68,6 +69,32 @@ describe("AdminResourcePage CMS forms", () => {
     const payload = mockedUpdateResource.mock.calls[0][2] as Record<string, unknown>;
     expect(payload.tagIds).toEqual([1]);
     expect(payload).not.toHaveProperty("tags");
+  });
+
+  it("shows logo and cover previews with their own image fields", async () => {
+    mockedListResource.mockImplementation((resource) => {
+      if (resource === "vendors") return Promise.resolve([{ id: 3, name: "预览厂商", logo: "/api/media/50", logoAssetId: 50, coverImage: "/api/media/49", coverAssetId: 49 }] as never);
+      return Promise.resolve([] as never);
+    });
+    renderAdmin("/admin/vendors");
+
+    fireEvent.click(await screen.findByRole("button", { name: "编辑" }));
+
+    expect(screen.getByText("Logo URL 图片预览")).toBeInTheDocument();
+    expect(screen.getByText("封面 URL 图片预览")).toBeInTheDocument();
+    expect(screen.getByText("Logo URL 图片预览").closest(".image-field")).not.toBeNull();
+    expect(screen.getByText("封面 URL 图片预览").closest(".image-field")).not.toBeNull();
+  });
+
+  it("offers the XLSX template and bulk import on vendor and product pages", async () => {
+    const { unmount } = renderAdmin("/admin/vendors");
+    expect(await screen.findByRole("link", { name: "下载导入模板" })).toHaveAttribute("href", "/templates/农机配件平台_厂商产品资料采集模板.xlsx");
+    expect(screen.getByText("批量导入 XLSX")).toBeInTheDocument();
+    unmount();
+
+    renderAdmin("/admin/products");
+    expect(await screen.findByRole("link", { name: "下载导入模板" })).toBeInTheDocument();
+    expect(screen.getByText("批量导入 XLSX")).toBeInTheDocument();
   });
 
   it("submits rich vendor fields with selected tag ids", async () => {

@@ -684,6 +684,11 @@ textarea {
   font-weight: 700;
 }
 
+.product-card a.primary-btn,
+.product-card a.primary-btn:hover {
+  color: #fff;
+}
+
 .product-image {
   background-position: center;
   background-size: cover;

@@ -85,6 +85,24 @@ export function uploadFile(file: File) {
   return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/uploads", form, { headers: { "Content-Type": "multipart/form-data" } });
 }
 
+export interface BulkImportIssue { sheet: string; row: number; message: string }
+export interface BulkImportResult {
+  resource: "vendors" | "products";
+  totalRows: number;
+  created: number;
+  updated: number;
+  relationsCreated: number;
+  relationsUpdated: number;
+  imported: boolean;
+  issues: BulkImportIssue[];
+}
+
+export function importWorkbook(resource: "vendors" | "products", file: File) {
+  const form = new FormData();
+  form.append("file", file);
+  return adminClient.post<never, BulkImportResult>(`/api/admin/imports/${resource}`, form, { headers: { "Content-Type": "multipart/form-data" } });
+}
+
 export function getVendorProfile() {
   return adminClient.get<never, VendorProfileResponse>("/api/admin/vendor-profile");
 }

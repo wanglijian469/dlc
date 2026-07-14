@@ -24,7 +24,7 @@ html, body, #root { min-height: 100%; }
 body { overflow-x: hidden; }
 button, a { -webkit-tap-highlight-color: transparent; }
 button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid rgba(21, 89, 199, .24); outline-offset: 2px; }
-.breadcrumbs { align-items:center; color:var(--text-sub); display:flex; font-size:14px; gap:8px; margin-bottom:18px; }
+.breadcrumbs { align-items:center; color:var(--text-sub); display:flex; flex-wrap:wrap; font-size:14px; gap:8px; margin-bottom:18px; }
 .breadcrumbs a { color:var(--primary-blue); font-weight:700; }
 .not-found { background:#fff; border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:var(--shadow-card); padding:clamp(32px,8vw,80px); text-align:center; }
 .not-found > strong { color:var(--primary-blue); display:block; font-size:clamp(64px,12vw,120px); line-height:1; }

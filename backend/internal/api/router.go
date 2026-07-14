@@ -113,6 +113,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.Use(RequireRole("admin"))
 	adminOnly.GET("/dashboard", handler.DashboardStats)
 	adminOnly.GET("/operation-logs", handler.ListOperationLogs)
+	adminOnly.POST("/imports/:resource", handler.ImportWorkbook)
 	adminOnly.GET("/menus", handler.ListMenus)
 	adminOnly.POST("/menus", handler.CreateMenu)
 	adminOnly.PUT("/menus/:id", handler.UpdateMenu)

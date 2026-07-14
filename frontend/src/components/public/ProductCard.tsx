@@ -44,7 +44,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         <p className="product-line">价格：{supplier?.priceNote || product.priceNote || "面议 / 批量报价"}</p>
         <div className="card-actions">
           <Link className="outline-btn small" to={`/products/${product.id}`}>产品详情</Link>
-          {directoryMode ? <Link className="primary-btn small" to={`/products/${product.id}#suppliers`}>查看供应商</Link> : <Link className="primary-btn small" to={vendor?.id ? `/vendors/${vendor.id}` : `/products/${product.id}#suppliers`}>联系该厂商</Link>}
+          <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : `/vendors/${vendor.id}`}>供应厂商</Link>
         </div>
       </div>
     </article>
