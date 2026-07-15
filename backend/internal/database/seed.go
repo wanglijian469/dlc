@@ -68,6 +68,9 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		return err
 	}
 	if configCount > 0 {
+		if err := backfillCategoryMenuLinks(db); err != nil {
+			return err
+		}
 		return ensureInitialAdminUser(db, cfg)
 	}
 
@@ -129,6 +132,9 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		if err := db.Where("config_key = ?", seed.Configs[i].ConfigKey).FirstOrCreate(&seed.Configs[i]).Error; err != nil {
 			return err
 		}
+	}
+	if err := backfillCategoryMenuLinks(db); err != nil {
+		return err
 	}
 	return ensureInitialAdminUser(db, cfg)
 }
@@ -199,7 +205,7 @@ func defaultMenus() []SeedMenu {
 		{Key: "electrical", Name: "电气照明配件", Icon: "cable", MenuType: "sidebar", Path: "/products?keyword=电气", SortOrder: 8},
 		{Key: "harvester", Name: "收获割台配件", Icon: "wheat", MenuType: "sidebar", Path: "/products?keyword=割台", SortOrder: 9},
 		{Key: "seeding", Name: "播种施肥配件", Icon: "sprout", MenuType: "sidebar", Path: "/products?keyword=播种", SortOrder: 10},
-		{Key: "aux-join", Name: "提交厂商", Icon: "clipboard-plus", MenuType: "auxiliary", Path: "/join", SortOrder: 1},
+		{Key: "aux-join", Name: "厂商入驻", Icon: "clipboard-plus", MenuType: "auxiliary", Path: "/join", SortOrder: 1},
 		{Key: "aux-links", Name: "友情链接", Icon: "link", MenuType: "auxiliary", Path: "/links", SortOrder: 2},
 		{Key: "aux-about", Name: "关于平台", Icon: "info", MenuType: "auxiliary", Path: "/about", SortOrder: 3},
 		{Key: "bottom-home", Name: "首页", Icon: "home", MenuType: "mobile_bottom", Path: "/", SortOrder: 1},
@@ -351,18 +357,14 @@ func defaultBanners() []model.Banner {
 }
 
 func defaultPages() []model.ContentPage {
-	return []model.ContentPage{{Slug: "join", Title: "提交厂商", Summary: "提交资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "purchase", Title: "采购信息", Summary: "采购信息入口已预留。", Content: "当前版本重点展示厂商和产品信息，采购信息可在后续版本开放发布和审核。", SEOKeywords: "农机配件采购", IsEnabled: true, SortOrder: 4}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
+	return []model.ContentPage{{Slug: "join", Title: "厂商入驻", Summary: "提交入驻资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "purchase", Title: "采购信息", Summary: "采购信息入口已预留。", Content: "当前版本重点展示厂商和产品信息，采购信息可在后续版本开放发布和审核。", SEOKeywords: "农机配件采购", IsEnabled: true, SortOrder: 4}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
 }
 
 func defaultFriendLinks() []model.FriendLink { return []model.FriendLink{} }
 
 func defaultConfigs() []model.SiteConfig {
-	stats, _ := json.Marshal([]map[string]string{})
-	safeguards, _ := json.Marshal([]string{"资料审核", "公开来源", "信息留痕", "便捷联系"})
-	join, _ := json.Marshal(map[string]string{"text": "入驻成为厂商，展示您的产品与实力，获取更多采购商机会", "buttonText": "立即入驻", "path": "/join"})
-	siteMeta, _ := json.Marshal(map[string]string{"siteName": "大陆农机配件", "brandMark": "农", "submitVendorText": "提交厂商", "adminLoginText": "后台登录", "mobileBrandName": "大陆农机配件", "mobileBrandMark": "农"})
-	homeSections, _ := json.Marshal(map[string]interface{}{"recommendedTitle": "推荐厂商", "recommendedLink": "/vendors", "moreTitle": "更多厂商", "moreLink": "/vendors", "recommendedLimit": 5, "moreLimit": 10, "showRecommended": true, "showMore": true})
+	siteMeta, _ := json.Marshal(map[string]string{"siteName": "大陆农机配件", "brandMark": "农", "submitVendorText": "厂商入驻", "adminLoginText": "后台登录", "mobileBrandName": "大陆农机配件", "mobileBrandMark": "农", "copyrightOwner": "大陆农机配件", "copyrightYear": "2026", "filingNumber": "待运营方配置", "siteUrl": "", "defaultSeoTitle": "大陆农机配件｜农机配件厂家与加工服务目录", "defaultSeoDescription": "查找农机配件厂家、产品适配信息与加工服务，帮助采购商、维修门店和经销商快速对接真实供应资源。", "baiduVerification": "", "googleVerification": ""})
 	homeModules, _ := json.Marshal(service.DefaultHomeModules())
 	theme, _ := json.Marshal(map[string]string{"primaryColor": "#1559c7", "accentColor": "#0d8b6f"})
-	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页有序模块配置"}, {ConfigKey: "home.sections", ConfigValue: string(homeSections), Description: "首页模块标题、显示开关和展示数量"}, {ConfigKey: "home.stats", ConfigValue: string(stats), Description: "统计数字由数据库实时聚合，此项仅兼容旧版本"}, {ConfigKey: "home.safeguards", ConfigValue: string(safeguards), Description: "底部信息保障文案"}, {ConfigKey: "home.join", ConfigValue: string(join), Description: "入驻引导条"}}
+	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}}
 }

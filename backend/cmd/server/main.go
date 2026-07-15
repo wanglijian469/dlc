@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 
 	"dalu-nongji-parts/backend/internal/api"
 	"dalu-nongji-parts/backend/internal/config"
@@ -26,6 +27,18 @@ func main() {
 	if err := database.CleanupOrphanedMedia(db, cfg.MediaDir); err != nil {
 		log.Printf("cleanup staged media: %v", err)
 	}
+	if err := database.CleanupAnalytics(db, 90*24*time.Hour); err != nil {
+		log.Printf("cleanup analytics: %v", err)
+	}
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			if err := database.CleanupAnalytics(db, 90*24*time.Hour); err != nil {
+				log.Printf("cleanup analytics: %v", err)
+			}
+		}
+	}()
 	router := api.NewRouter(api.Deps{DB: db, Config: cfg})
 	log.Printf("starting API on %s", cfg.HTTPAddr)
 	if err := router.Run(cfg.HTTPAddr); err != nil {

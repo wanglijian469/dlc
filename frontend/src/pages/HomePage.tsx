@@ -25,8 +25,8 @@ export function HomePage() {
 export function HomeView({ home }: { home: HomePayload }) {
   const configured = home.modules || [];
   const moduleOf = (type: HomeModule["type"], fallback: HomeModule) => configured.find((item) => item.type === type) || fallback;
-  const recommended = moduleOf("recommendedVendors", { type: "recommendedVendors", title: "推荐厂商", visible: true, limit: home.homeSections?.recommendedLimit || 4, path: "/vendors", sortOrder: 20 });
-  const regular = moduleOf("moreVendors", { type: "moreVendors", title: "农机配件厂商", visible: true, limit: home.homeSections?.moreLimit || 8, path: "/vendors", sortOrder: 30 });
+  const recommended = moduleOf("recommendedVendors", { type: "recommendedVendors", title: "推荐厂商", visible: true, limit: 5, path: "/vendors", sortOrder: 10 });
+  const regular = moduleOf("moreVendors", { type: "moreVendors", title: "农机配件厂商", visible: true, limit: 10, path: "/vendors", sortOrder: 20 });
   const processing = moduleOf("processingServices", { type: "processingServices", title: "加工服务厂商", subtitle: "按加工能力查找可承接来图、来样与批量加工的生产企业", visible: true, limit: 4, path: "/service", sortOrder: 40 });
   const hasVendors = home.recommendedVendors.length > 0 || home.moreVendors.length > 0 || Boolean(home.processingVendors?.length);
 
@@ -46,7 +46,7 @@ export function HomeView({ home }: { home: HomePayload }) {
           </>}
         </div>
       </main>
-      <StatsFooter safeguards={home.safeguards} stats={home.stats} siteMeta={home.siteMeta} />
+      <StatsFooter stats={home.stats} siteMeta={home.siteMeta} />
       <MobileBottomNav menus={home.mobileBottomMenus} />
     </div>
   );

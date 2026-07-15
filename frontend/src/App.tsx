@@ -1,4 +1,6 @@
-﻿import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { trackRoute } from "./analytics";
 import { ContentPage } from "./pages/ContentPage";
 import { HomePage } from "./pages/HomePage";
 import { ProductDetailPage } from "./pages/ProductDetailPage";
@@ -18,8 +20,12 @@ import { VendorProfilePage } from "./pages/admin/VendorProfilePage";
 import { VendorReviewsPage } from "./pages/admin/VendorReviewsPage";
 import { AdminLogsPage } from "./pages/admin/AdminLogsPage";
 import { ProductReviewsPage } from "./pages/admin/ProductReviewsPage";
+import { ArticlePage, ArticlesPage } from "./pages/ArticlesPage";
+import { AdminAnalyticsPage } from "./pages/admin/AdminAnalyticsPage";
 
 export function App() {
+  const location = useLocation();
+  useEffect(() => { trackRoute(location.pathname, location.search); }, [location.pathname, location.search]);
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
@@ -33,6 +39,10 @@ export function App() {
       <Route path="/service" element={<ProcessingServicesPage />} />
       <Route path="/purchase" element={<ContentPage slug="purchase" />} />
       <Route path="/links" element={<ContentPage slug="links" />} />
+      <Route path="/privacy" element={<ContentPage slug="privacy" />} />
+
+      <Route path="/guides" element={<ArticlesPage />} />
+      <Route path="/guides/:slug" element={<GuideRoute />} />
       <Route path="/contact" element={<PlaceholderPage title="联系我们" description="如需平台合作、资料更正或厂商认证，请通过平台运营方公布的联系方式与我们联系。" />} />
       <Route path="/feedback" element={<PlaceholderPage title="反馈建议" description="欢迎反馈错误资料、使用问题和功能建议。反馈入口将在运营联系方式配置后开放。" />} />
       <Route path="/admin/login" element={<AdminLoginPage />} />
@@ -49,6 +59,7 @@ export function App() {
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
       <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/analytics" element={<ProtectedAdminRoute roles={["admin"]}><AdminAnalyticsPage /></ProtectedAdminRoute>} />
       <Route
         path="/admin/:resource"
         element={
@@ -61,4 +72,9 @@ export function App() {
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
+}
+
+function GuideRoute() {
+  const slug = window.location.pathname.split("/").pop() || "";
+  return <ArticlePage slug={slug} />;
 }

@@ -21,6 +21,8 @@ type Product struct {
 	CompatibleModels  string           `gorm:"size:500" json:"compatibleModels"`
 	Description       string           `gorm:"type:text" json:"description"`
 	DetailContent     string           `gorm:"type:text" json:"detailContent"`
+	SEOTitle          string           `gorm:"size:180" json:"seoTitle"`
+	SEODescription    string           `gorm:"size:500" json:"seoDescription"`
 	GalleryRaw        string           `gorm:"column:gallery;type:text" json:"galleryRaw,omitempty"`
 	SpecsRaw          string           `gorm:"column:specs;type:text" json:"specsRaw,omitempty"`
 	PriceNote         string           `gorm:"size:255" json:"priceNote"`

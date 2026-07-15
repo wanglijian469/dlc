@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSearchPath, getVendorEntryTarget } from "./navigation";
+import { getMenuLabel, getSearchPath, getVendorEntryTarget } from "./navigation";
 
 describe("navigation helpers", () => {
   it("creates encoded search paths", () => {
@@ -8,6 +8,11 @@ describe("navigation helpers", () => {
 
   it("does not create a search path for empty keywords", () => {
     expect(getSearchPath("   ")).toBe(null);
+  });
+
+  it("uses the label configured for a public menu path", () => {
+    expect(getMenuLabel([{ id: 1, name: "配件货源", path: "/products" }], "/products", "配件产品")).toBe("配件货源");
+    expect(getMenuLabel([], "/vendors", "厂商目录")).toBe("厂商目录");
   });
 
   it("prefers vendor website when present", () => {

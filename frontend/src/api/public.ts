@@ -17,6 +17,14 @@ export function getPage(slug: string) {
   return publicClient.get<never, ContentPageRecord>(`/api/pages/${slug}`);
 }
 
+export function listArticles(page = 1, pageSize = 12, keyword = "") {
+  return publicClient.get<never, PageResult<ContentPageRecord>>("/api/articles", { params: { page, pageSize, keyword: keyword || undefined } });
+}
+
+export function getArticle(slug: string) {
+  return publicClient.get<never, ContentPageRecord>(`/api/articles/${slug}`);
+}
+
 export function getFriendLinks() {
   return publicClient.get<never, FriendLink[]>("/api/friend-links");
 }

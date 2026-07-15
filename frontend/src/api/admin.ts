@@ -51,6 +51,22 @@ export function getDashboardStats() {
   return adminClient.get<never, { vendors: number; products: number; pendingReviews: number; pendingProductReviews: number; missingImages: number }>("/api/admin/dashboard");
 }
 
+export interface AnalyticsSummary {
+  days: number;
+  pv: number;
+  uv: number;
+  conversions: number;
+  conversionRate: number;
+  trend: Array<{ date: string; pv: number; uv: number }>;
+  provinces: Array<{ label: string; count: number }>;
+  contents: Array<{ path: string; contentType: string; contentId: number; count: number }>;
+  conversionEvents: Array<{ label: string; count: number }>;
+}
+
+export function getAnalyticsSummary(days: 7 | 30 | 90) {
+  return adminClient.get<never, AnalyticsSummary>("/api/admin/analytics", { params: { days } });
+}
+
 export interface OperationLog { id: number; username: string; action: string; resource: string; recordId: number; createdAt: string }
 export function listOperationLogs(params: { page: number; pageSize: number; search?: string }) { return adminClient.get<never, PageResult<OperationLog>>("/api/admin/operation-logs", { params }); }
 

@@ -8,10 +8,14 @@ import type { FilterOptions, PageResult, Product } from "../types/api";
 import { hierarchicalCategoryOptions } from "../utils/categories";
 import { SlidersHorizontal, X } from "lucide-react";
 import { Pagination } from "../components/public/Pagination";
+import { useSite } from "../contexts/SiteContext";
+import { getMenuLabel } from "../utils/navigation";
 
 const pageSize = 12;
 
 export function ProductsPage() {
+  const { layout } = useSite();
+  const pageTitle = getMenuLabel(layout.topMenus, "/products", "配件产品");
   const [params, setParams] = useSearchParams();
   const [keyword, setKeyword] = useState(params.get("keyword") || "");
   const [categoryId, setCategoryId] = useState(params.get("categoryId") || params.get("category") || "");
@@ -64,7 +68,7 @@ export function ProductsPage() {
   const clearFilters = () => { setKeyword(""); setCategoryId(""); setOnlyHot(false); setParams(new URLSearchParams()); };
 
   return (
-    <PageFrame title="配件产品" subtitle="按分类、关键词和热门标识查找农机配件产品">
+    <PageFrame title={pageTitle} subtitle={`按分类、关键词和热门标识查找${pageTitle}`}>
       <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选产品{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
       <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
         <input value={keyword} placeholder="搜索配件名称、适配机型" onChange={(event) => setKeyword(event.target.value)} />

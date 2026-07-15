@@ -22,6 +22,8 @@ type Vendor struct {
 	ServiceModels       string         `gorm:"size:500" json:"serviceModels"`
 	ServiceAdvantages   string         `gorm:"size:500" json:"serviceAdvantages"`
 	Description         string         `gorm:"type:text" json:"description"`
+	SEOTitle            string         `gorm:"size:180" json:"seoTitle"`
+	SEODescription      string         `gorm:"size:500" json:"seoDescription"`
 	EstablishedYear     string         `gorm:"size:50" json:"establishedYear"`
 	FactoryArea         string         `gorm:"size:100" json:"factoryArea"`
 	EmployeeCount       string         `gorm:"size:100" json:"employeeCount"`

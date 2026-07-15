@@ -18,6 +18,11 @@ afterEach(cleanup);
 describe("menu navigation", () => {
   it("renders semantic SVG icons", () => { const { container } = renderSidebar(); expect(container.querySelectorAll(".menu-icon svg")).toHaveLength(2); });
   it("renders mobile category icons", () => { const { container } = render(<MemoryRouter><MobileCategoryGrid menus={[{ id: 1, name: "液压系统", icon: "droplets", path: "/products" }]} /></MemoryRouter>); expect(container.querySelectorAll(".mobile-category-grid svg")).toHaveLength(1); });
+  it("does not hide category roots after the first ten items", () => {
+    const manyMenus = Array.from({ length: 11 }, (_, index) => ({ id: index + 1, name: `分类 ${index + 1}`, path: `/products?categoryId=${index + 1}` }));
+    const { container } = render(<MemoryRouter><MobileCategoryGrid menus={manyMenus} /></MemoryRouter>);
+    expect(container.querySelectorAll(".mobile-category-grid a")).toHaveLength(11);
+  });
   it("honors isDefaultOpen and toggles the whole parent row", () => {
     renderSidebar(); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "传动配件" })); expect(screen.queryByText("变速箱齿轮")).not.toBeInTheDocument();

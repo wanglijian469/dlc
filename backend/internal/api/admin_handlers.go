@@ -107,19 +107,30 @@ func (h AdminHandler) ListOperationLogs(c *gin.Context) {
 func (h AdminHandler) ListMenus(c *gin.Context)  { list[model.Menu](c, h.DB, "sort_order asc, id asc") }
 func (h AdminHandler) CreateMenu(c *gin.Context) { saveMenu(c, h.DB, 0) }
 func (h AdminHandler) UpdateMenu(c *gin.Context) { saveMenu(c, h.DB, idParam(c)) }
-func (h AdminHandler) DeleteMenu(c *gin.Context) { remove[model.Menu](c, h.DB, "menus") }
+func (h AdminHandler) DeleteMenu(c *gin.Context) { deleteMenu(c, h.DB, idParam(c)) }
 
 func saveMenu(c *gin.Context, db *gorm.DB, id uint) {
 	var item model.Menu
-	if id > 0 && db.First(&item, id).Error != nil {
-		Fail(c, http.StatusNotFound, 404, "菜单不存在")
-		return
+	var existing model.Menu
+	if id > 0 {
+		if err := db.First(&existing, id).Error; err != nil {
+			Fail(c, http.StatusNotFound, 404, "菜单不存在")
+			return
+		}
+		if existing.CategoryID > 0 {
+			Fail(c, http.StatusConflict, 409, "该菜单由配件分类生成，请到“配件分类”中维护")
+			return
+		}
+		item = existing
 	}
 	if c.ShouldBindJSON(&item) != nil {
 		Fail(c, http.StatusBadRequest, 400, "请求参数格式不正确")
 		return
 	}
 	item.ID = id
+	// Category anchor rows are maintained by the category migration only; do
+	// not allow generic menu requests to create or forge that relationship.
+	item.CategoryID = 0
 	item.Name, item.Path, item.MenuType = strings.TrimSpace(item.Name), strings.TrimSpace(item.Path), strings.TrimSpace(item.MenuType)
 	if item.Name == "" || item.MenuType == "" {
 		Fail(c, http.StatusBadRequest, 400, "菜单名称和类型不能为空")
@@ -152,12 +163,61 @@ func saveMenu(c *gin.Context, db *gorm.DB, id uint) {
 			return
 		}
 	}
+	if categoryID := managedCategoryIDForMenu(db, item); categoryID > 0 {
+		Fail(c, http.StatusConflict, 409, "分类导航由“配件分类”自动生成，请在分类管理中新增或调整")
+		return
+	}
 	if db.Save(&item).Error != nil {
 		Fail(c, http.StatusInternalServerError, 500, "菜单保存失败")
 		return
 	}
 	logOperation(db, c.GetString("username"), upsertAction(id), "menus", item.ID)
 	OK(c, item)
+}
+
+func deleteMenu(c *gin.Context, db *gorm.DB, id uint) {
+	var item model.Menu
+	if err := db.First(&item, id).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "菜单不存在")
+		return
+	}
+	if item.CategoryID > 0 {
+		Fail(c, http.StatusConflict, 409, "该菜单由配件分类生成，请到“配件分类”中维护")
+		return
+	}
+	if err := db.Delete(&item).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "菜单删除失败")
+		return
+	}
+	logOperation(db, c.GetString("username"), "delete", "menus", id)
+	OK(c, gin.H{"deleted": true})
+}
+
+func managedCategoryIDForMenu(db *gorm.DB, menu model.Menu) uint {
+	if menu.ParentID != 0 || (menu.MenuType != "sidebar" && menu.MenuType != "mobile") {
+		return 0
+	}
+	var categories []model.Category
+	if db.Where("parent_id = ?", 0).Find(&categories).Error != nil {
+		return 0
+	}
+	if parsed, err := url.Parse(menu.Path); err == nil {
+		if raw := parsed.Query().Get("categoryId"); raw != "" {
+			if value, err := strconv.ParseUint(raw, 10, 64); err == nil {
+				for _, category := range categories {
+					if category.ID == uint(value) {
+						return category.ID
+					}
+				}
+			}
+		}
+	}
+	for _, category := range categories {
+		if strings.EqualFold(strings.TrimSpace(menu.Name), strings.TrimSpace(category.Name)) {
+			return category.ID
+		}
+	}
+	return 0
 }
 
 func (h AdminHandler) ListVendors(c *gin.Context) {
@@ -685,6 +745,17 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 	if id > 0 {
 		input.ID = id
 	}
+	if strings.TrimSpace(input.PageType) == "" {
+		input.PageType = "page"
+	}
+	if input.PageType != "page" && input.PageType != "article" {
+		Fail(c, http.StatusBadRequest, 400, "内容类型仅支持平台页面或行业文章")
+		return
+	}
+	if input.PageType == "article" && input.PublishedAt == nil {
+		now := time.Now()
+		input.PublishedAt = &now
+	}
 	if strings.TrimSpace(input.Slug) == "" || strings.TrimSpace(input.Title) == "" {
 		Fail(c, http.StatusBadRequest, 400, "页面标识和标题不能为空")
 		return
@@ -811,7 +882,7 @@ func recordExists[T any](db *gorm.DB, id uint) bool {
 
 func validateConfigValue(key string, value string) error {
 	switch key {
-	case "site.meta", "site.theme", "home.join", "home.sections", "home.modules":
+	case "site.meta", "site.theme", "home.modules":
 		return validateJSON(value, "閰嶇疆")
 	case "home.stats":
 		var rows []struct {

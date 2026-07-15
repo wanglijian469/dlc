@@ -3,6 +3,7 @@ import { Building2, Lock, ShieldCheck, UserPlus, UserRound } from "lucide-react"
 import { useNavigate } from "react-router-dom";
 import { login, register, type AccountRole, type LoginResponse } from "../../api/admin";
 import { getApiErrorMessage } from "../../api/client";
+import { trackAnalytics } from "../../analytics";
 
 type Mode = "login" | "register";
 type RegistrationRole = "user" | "vendor";
@@ -63,7 +64,7 @@ export function AdminLoginPage() {
       ? login(username, password)
       : register({ username, password, role, companyName: role === "vendor" ? companyName.trim() : undefined });
     action
-      .then(completeLogin)
+      .then((result) => { if (mode === "register") trackAnalytics({ eventType: "vendor_register_success", path: "/join" }); completeLogin(result); })
       .catch((reason) => setError(getApiErrorMessage(reason, mode === "login" ? "登录失败，请检查账号密码" : "注册失败，请检查填写内容")))
       .finally(() => setSubmitting(false));
   };

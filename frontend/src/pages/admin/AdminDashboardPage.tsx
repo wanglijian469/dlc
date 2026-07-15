@@ -12,7 +12,7 @@ const quickEntries = [
 ];
 
 const modules = [
-  { label: "导航菜单", icon: ListTree, value: "5 类入口" },
+  { label: "页面与快捷导航", icon: ListTree, value: "页面与快捷入口" },
   { label: "厂商标签", icon: Tags, value: "支持筛选" },
   { label: "配件分类", icon: BarChart3, value: "产品目录" },
   { label: "Banner 管理", icon: FileImage, value: "首页主视觉" },

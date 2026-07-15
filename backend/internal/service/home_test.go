@@ -26,10 +26,10 @@ func TestBuildMenuTreeSortsAndNestsMenus(t *testing.T) {
 	}
 }
 
-func TestNormalizeHomeModulesFiltersDuplicatesAndSorts(t *testing.T) {
-	modules := []HomeModule{{Type: "join", Visible: true, SortOrder: 30}, {Type: "categories", Visible: true, Limit: -2, SortOrder: 10}, {Type: "categories", Visible: true, SortOrder: 20}, {Type: "unknown", Visible: true}}
+func TestNormalizeHomeModulesFiltersRetiredTypesDuplicatesAndSorts(t *testing.T) {
+	modules := []HomeModule{{Type: "join", Visible: true, SortOrder: 30}, {Type: "recommendedVendors", Visible: true, Limit: -2, SortOrder: 10}, {Type: "recommendedVendors", Visible: true, SortOrder: 20}, {Type: "unknown", Visible: true}}
 	normalizeHomeModules(&modules)
-	if len(modules) != 2 || modules[0].Type != "categories" || modules[1].Type != "join" {
+	if len(modules) != 3 || modules[0].Type != "recommendedVendors" {
 		t.Fatalf("normalized modules = %#v", modules)
 	}
 	if modules[0].Limit != 0 {
@@ -37,10 +37,10 @@ func TestNormalizeHomeModulesFiltersDuplicatesAndSorts(t *testing.T) {
 	}
 }
 
-func TestDefaultHomeModulesContainsAllSupportedTypes(t *testing.T) {
+func TestDefaultHomeModulesContainsOnlyRenderedTypes(t *testing.T) {
 	modules := DefaultHomeModules()
-	if len(modules) != 7 {
-		t.Fatalf("default modules = %d, want 7", len(modules))
+	if len(modules) != 3 {
+		t.Fatalf("default modules = %d, want 3", len(modules))
 	}
 	for index := 1; index < len(modules); index++ {
 		if modules[index-1].SortOrder >= modules[index].SortOrder {
@@ -104,5 +104,40 @@ func TestMergeCategoryMenusHidesChildrenOfDisabledRoot(t *testing.T) {
 	}
 	if tree := MergeCategoryMenus(menus, categories); len(tree) != 0 {
 		t.Fatalf("disabled category tree should be hidden: %#v", tree)
+	}
+}
+
+func TestMergeCategoryMenusUsesStableAnchorWhenCategoryIsRenamed(t *testing.T) {
+	menus := []model.Menu{
+		{ID: 70, CategoryID: 9, Name: "old name", MenuType: "sidebar", Path: "/products?keyword=old", IsEnabled: true},
+		{ID: 71, ParentID: 70, Name: "shortcut", MenuType: "sidebar", Path: "/products?keyword=shortcut", IsEnabled: true},
+	}
+	categories := []model.Category{{ID: 9, Name: "new name", IsEnabled: true}}
+
+	tree := MergeCategoryMenus(menus, categories)
+	if len(tree) != 1 || tree[0].Name != "new name" || tree[0].Path != "/products?categoryId=9" {
+		t.Fatalf("renamed category did not replace legacy anchor: %#v", tree)
+	}
+	if len(tree[0].Children) != 1 || tree[0].Children[0].Name != "shortcut" {
+		t.Fatalf("legacy shortcut was not retained: %#v", tree[0].Children)
+	}
+}
+
+func TestMergeMobileCategoryMenusUsesRootsAndKeepsManualShortcut(t *testing.T) {
+	menus := []model.Menu{
+		{ID: 80, CategoryID: 9, Name: "old name", MenuType: "mobile", SortOrder: 1, IsEnabled: true},
+		{ID: 81, Name: "all", MenuType: "mobile", Path: "/products", SortOrder: 99, IsEnabled: true},
+	}
+	categories := []model.Category{
+		{ID: 9, Name: "new name", Icon: "cog", SortOrder: 1, IsEnabled: true},
+		{ID: 10, Name: "child", ParentID: 9, IsEnabled: true},
+	}
+
+	menus = MergeMobileCategoryMenus(menus, categories)
+	if len(menus) != 2 || menus[0].Name != "new name" || menus[0].Path != "/products?categoryId=9" {
+		t.Fatalf("mobile categories = %#v", menus)
+	}
+	if menus[1].Name != "all" {
+		t.Fatalf("manual mobile shortcut was not retained: %#v", menus)
 	}
 }

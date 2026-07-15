@@ -7,9 +7,12 @@ import (
 )
 
 type Menu struct {
-	ID            uint           `gorm:"primaryKey" json:"id"`
-	Name          string         `gorm:"size:100;not null" json:"name"`
-	ParentID      uint           `gorm:"default:0;index" json:"parentId"`
+	ID       uint   `gorm:"primaryKey" json:"id"`
+	Name     string `gorm:"size:100;not null" json:"name"`
+	ParentID uint   `gorm:"default:0;index" json:"parentId"`
+	// CategoryID marks legacy sidebar/mobile rows that act only as anchors for
+	// category-driven navigation and its optional search shortcuts.
+	CategoryID    uint           `gorm:"default:0;index" json:"categoryId,omitempty"`
 	Icon          string         `gorm:"size:100" json:"icon"`
 	MenuType      string         `gorm:"size:50;not null;index" json:"menuType"`
 	Path          string         `gorm:"size:255" json:"path"`

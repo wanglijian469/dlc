@@ -1,6 +1,6 @@
-import { BarChart3, ClipboardCheck, Factory, FileImage, FileText, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Package, Settings, Tags, Users, X } from "lucide-react";
-import { NavLink } from "react-router-dom";
-import { useState, type ComponentType, type ReactNode } from "react";
+import { BarChart3, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImage, FileText, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Package, Settings, Tags, Users, X } from "lucide-react";
+import { NavLink, useLocation } from "react-router-dom";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
 
 type AdminLink = {
@@ -9,6 +9,7 @@ type AdminLink = {
   icon: ComponentType<LucideProps>;
   group: "概览" | "业务内容" | "基础配置" | "系统管理";
   roles?: Array<"admin" | "vendor">;
+  subLinks?: Array<{ label: string; path: string }>;
 };
 
 const links: AdminLink[] = [
@@ -17,25 +18,43 @@ const links: AdminLink[] = [
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容" },
-  { label: "导航菜单", path: "/admin/menus", icon: ListTree, group: "基础配置" },
+  { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
   { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置" },
   { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "基础配置" },
-  { label: "内容页面", path: "/admin/pages", icon: FileText, group: "基础配置" },
+  { label: "页面与行业文章", path: "/admin/pages", icon: FileText, group: "基础配置" },
   { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "基础配置" },
-  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理" },
+  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理", subLinks: [{ label: "站点与页脚", path: "/admin/configs?section=site" }, { label: "首页展示", path: "/admin/configs?section=home" }, { label: "主题样式", path: "/admin/configs?section=theme" }] },
   { label: "CMS 账号", path: "/admin/users", icon: KeyRound, group: "系统管理" },
 	{ label: "操作日志", path: "/admin/operation-logs", icon: History, group: "系统管理" },
+	{ label: "访问分析", path: "/admin/analytics", icon: BarChart3, group: "系统管理" },
   { label: "我的厂商资料", path: "/admin/vendor-profile", icon: Factory, group: "业务内容", roles: ["vendor"] },
 ];
 
 const groups: AdminLink["group"][] = ["概览", "业务内容", "基础配置", "系统管理"];
 
+function matchesTarget(pathname: string, search: string, target: string) {
+  const [targetPathname, query = ""] = target.split("?");
+  return pathname === targetPathname && search === (query ? `?${query}` : "");
+}
+
 export function AdminLayout({ title, children }: { title: string; children: ReactNode }) {
+  const location = useLocation();
   const role = (localStorage.getItem("cms_role") || "admin") as "admin" | "vendor";
   const username = localStorage.getItem("cms_username") || (role === "vendor" ? "厂商用户" : "admin");
   const visibleLinks = links.filter((link) => link.roles ? link.roles.includes(role) : role === "admin");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [openSubmenuPaths, setOpenSubmenuPaths] = useState<Set<string>>(() => new Set(links.filter((link) => link.subLinks?.some((subLink) => matchesTarget(location.pathname, location.search, subLink.path))).map((link) => link.path)));
+  const linkClass = (target: string) => matchesTarget(location.pathname, location.search, target) ? "active" : "";
+  useEffect(() => {
+    const activeParents = links.filter((link) => link.subLinks?.some((subLink) => matchesTarget(location.pathname, location.search, subLink.path))).map((link) => link.path);
+    if (activeParents.length) setOpenSubmenuPaths((current) => new Set([...current, ...activeParents]));
+  }, [location.pathname, location.search]);
+  const toggleSubmenu = (path: string) => setOpenSubmenuPaths((current) => {
+    const next = new Set(current);
+    next.has(path) ? next.delete(path) : next.add(path);
+    return next;
+  });
   return (
     <div className="admin-shell">
       {menuOpen && <button aria-label="关闭后台导航" className="admin-nav-backdrop" type="button" onClick={() => setMenuOpen(false)} />}
@@ -53,12 +72,13 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
               <span className="admin-nav-group-title">{group}</span>
               {visibleLinks
                 .filter((link) => link.group === group)
-                .map(({ icon: Icon, label, path }) => (
-                  <NavLink aria-label={`导航：${label}`} className={({ isActive }) => (isActive ? "active" : "")} key={path} to={path} onClick={() => setMenuOpen(false)}>
-                    <Icon aria-hidden="true" size={17} />
-                    <span>{label}</span>
-                  </NavLink>
-                ))}
+                .map(({ icon: Icon, label, path, subLinks }) => {
+                  const isOpen = openSubmenuPaths.has(path);
+                  return <div className="admin-nav-entry" key={path}>
+                    {subLinks ? <button aria-expanded={isOpen} className={`admin-nav-parent ${linkClass(path)}`} type="button" onClick={() => toggleSubmenu(path)}><span><Icon aria-hidden="true" size={17} /><span>{label}</span></span>{isOpen ? <ChevronDown aria-hidden="true" size={16} /> : <ChevronRight aria-hidden="true" size={16} />}</button> : <NavLink aria-label={`导航：${label}`} className={() => linkClass(path)} to={path} onClick={() => setMenuOpen(false)}><Icon aria-hidden="true" size={17} /><span>{label}</span></NavLink>}
+                    {subLinks && isOpen && <div aria-label={`${label}子菜单`} className="admin-nav-submenu">{subLinks.map((subLink) => <NavLink aria-label={`导航：${subLink.label}`} className={() => linkClass(subLink.path)} key={subLink.path} to={subLink.path} onClick={() => setMenuOpen(false)}>{subLink.label}</NavLink>)}</div>}
+                  </div>;
+                })}
             </div>
           ))}
         </nav>

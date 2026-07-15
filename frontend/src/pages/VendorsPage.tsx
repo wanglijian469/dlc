@@ -7,10 +7,14 @@ import { VendorCard } from "../components/public/VendorCard";
 import type { FilterOptions, PageResult, Vendor } from "../types/api";
 import { SlidersHorizontal, X } from "lucide-react";
 import { Pagination } from "../components/public/Pagination";
+import { useSite } from "../contexts/SiteContext";
+import { getMenuLabel } from "../utils/navigation";
 
 const pageSize = 12;
 
 export function VendorsPage() {
+  const { layout } = useSite();
+  const pageTitle = getMenuLabel(layout.topMenus, "/vendors", "厂商目录");
   const [params, setParams] = useSearchParams();
   const [keyword, setKeyword] = useState(params.get("keyword") || "");
   const [province, setProvince] = useState(params.get("province") || "");
@@ -65,7 +69,7 @@ export function VendorsPage() {
   const clearFilters = () => { setKeyword(""); setProvince(""); setTagId(""); setSort("recommended"); setParams(new URLSearchParams()); };
 
   return (
-    <PageFrame title="厂商目录" subtitle="按地区、服务标签和关键词筛选源头农机配件厂商">
+    <PageFrame title={pageTitle} subtitle="按地区、服务标签和关键词筛选源头农机配件厂商">
       <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选与排序{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
       <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
         <input value={keyword} placeholder="搜索厂商名称、主营产品" onChange={(event) => setKeyword(event.target.value)} />

@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createResource, deleteResource, listResource, listResourcePage, updateResource } from "../../api/admin";
+import { createResource, deleteResource, listConfigs, listResource, listResourcePage, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
 
 vi.mock("../../api/admin", () => ({
@@ -17,6 +17,7 @@ vi.mock("../../api/admin", () => ({
 }));
 
 const mockedCreateResource = vi.mocked(createResource);
+const mockedListConfigs = vi.mocked(listConfigs);
 const mockedListResource = vi.mocked(listResource);
 const mockedListResourcePage = vi.mocked(listResourcePage);
 const mockedUpdateResource = vi.mocked(updateResource);
@@ -39,6 +40,11 @@ describe("AdminResourcePage CMS forms", () => {
   afterEach(() => cleanup());
 
   beforeEach(() => {
+    mockedListConfigs.mockResolvedValue([
+      { id: 1, configKey: "site.meta", configValue: JSON.stringify({ siteName: "大陆农机配件" }), description: "站点品牌和页脚信息" },
+      { id: 2, configKey: "home.modules", configValue: "[]", description: "首页实际展示模块" },
+      { id: 3, configKey: "site.theme", configValue: "{}", description: "主题色" },
+    ]);
     mockedListResource.mockImplementation((resource) => {
       if (resource === "tags") return Promise.resolve([{ id: 1, name: "源头厂商", tagType: "vendor" }, { id: 2, name: "数控车削", tagType: "processing" }] as never);
       if (resource === "categories") return Promise.resolve([{ id: 5, name: "液压系统配件" }] as never);
@@ -56,6 +62,18 @@ describe("AdminResourcePage CMS forms", () => {
     mockedCreateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedUpdateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     vi.mocked(deleteResource).mockResolvedValue({ deleted: true });
+  });
+
+  it("groups platform configuration into focused submenus and exposes footer fields", async () => {
+    renderAdmin("/admin/configs");
+
+    expect((await screen.findAllByText("站点与页脚")).length).toBeGreaterThan(0);
+    expect(screen.getByLabelText("版权年份")).toBeInTheDocument();
+    expect(screen.getByLabelText("版权所有者")).toBeInTheDocument();
+    expect(screen.getByLabelText("备案号")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "首页展示" }));
+    expect(await screen.findByText("首页模块编排")).toBeInTheDocument();
   });
 
   it("does not submit preloaded tag objects when editing vendors", async () => {
@@ -197,5 +215,22 @@ describe("AdminResourcePage CMS forms", () => {
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, publicationStatus: "published" })),
     );
+  });
+
+  it("marks category-generated menu anchors as read-only", async () => {
+    mockedListResource.mockImplementation((resource) => {
+      if (resource === "menus") return Promise.resolve([
+        { id: 10, name: "播种施肥配件", categoryId: 5, menuType: "sidebar", path: "/products?categoryId=5" },
+        { id: 11, name: "全部分类", menuType: "mobile", path: "/products" },
+      ] as never);
+      if (resource === "categories") return Promise.resolve([{ id: 5, name: "播种施肥配件" }] as never);
+      return Promise.resolve([] as never);
+    });
+    renderAdmin("/admin/menus");
+
+    expect(await screen.findByText("分类导航已自动生成")).toBeInTheDocument();
+    expect(screen.getByText("分类生成")).toBeInTheDocument();
+    expect(screen.getByText("请到“配件分类”维护")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "编辑" })).toBeInTheDocument();
   });
 });

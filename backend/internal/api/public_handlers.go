@@ -57,8 +57,33 @@ func (h PublicHandler) Menus(c *gin.Context) {
 
 func (h PublicHandler) Page(c *gin.Context) {
 	var page model.ContentPage
-	if err := h.DB.Where("slug = ? AND is_enabled = ?", c.Param("slug"), true).First(&page).Error; err != nil {
+	if err := h.DB.Where("slug = ? AND page_type = ? AND is_enabled = ?", c.Param("slug"), "page", true).First(&page).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "页面不存在")
+		return
+	}
+	OK(c, page)
+}
+
+func (h PublicHandler) Articles(c *gin.Context) {
+	var pages []model.ContentPage
+	page, pageSize := pageParams(c, 12)
+	query := h.DB.Model(&model.ContentPage{}).Where("page_type = ? AND is_enabled = ?", "article", true)
+	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("title LIKE ? OR summary LIKE ? OR seo_keywords LIKE ?", like, like, like)
+	}
+	result, err := paginate(query.Order("published_at desc, updated_at desc, id desc"), &pages, page, pageSize)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "行业文章加载失败")
+		return
+	}
+	OK(c, result)
+}
+
+func (h PublicHandler) Article(c *gin.Context) {
+	var page model.ContentPage
+	if err := h.DB.Where("slug = ? AND page_type = ? AND is_enabled = ?", c.Param("slug"), "article", true).First(&page).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "行业文章不存在")
 		return
 	}
 	OK(c, page)

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 
 	"dalu-nongji-parts/backend/internal/config"
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
@@ -79,6 +81,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.OperationLog{},
 		&model.AdminUser{},
 		&model.VendorSubmission{},
+		&model.AnalyticsEvent{},
 	); err != nil {
 		return err
 	}
@@ -86,6 +89,9 @@ func AutoMigrate(db *gorm.DB) error {
 		return err
 	}
 	if err := ensureVendorTagUniqueIndex(db); err != nil {
+		return err
+	}
+	if err := ensureAnalyticsDedupeIndex(db); err != nil {
 		return err
 	}
 	if err := cleanupLegacyDemoContent(db); err != nil {
@@ -106,7 +112,142 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := refreshLegacyDirectoryContent(db); err != nil {
 		return err
 	}
+	if err := backfillCategoryMenuLinks(db); err != nil {
+		return err
+	}
+	if err := migrateHomeDisplayConfiguration(db); err != nil {
+		return err
+	}
 	return ensureStructuredContent(db)
+}
+
+func ensureAnalyticsDedupeIndex(db *gorm.DB) error {
+	if db.Migrator().HasIndex(&model.AnalyticsEvent{}, "idx_analytics_dedupe") {
+		if err := db.Migrator().DropIndex(&model.AnalyticsEvent{}, "idx_analytics_dedupe"); err != nil {
+			return err
+		}
+	}
+	return db.Migrator().CreateIndex(&model.AnalyticsEvent{}, "idx_analytics_dedupe")
+}
+
+// CleanupAnalytics removes pseudonymous visit events after their stated
+// retention period. No visitor-level analytics data is retained long-term.
+func CleanupAnalytics(db *gorm.DB, retention time.Duration) error {
+	if db == nil {
+		return nil
+	}
+	return db.Where("created_at < ?", time.Now().Add(-retention)).Delete(&model.AnalyticsEvent{}).Error
+}
+
+// migrateHomeDisplayConfiguration removes settings for homepage blocks that
+// are no longer rendered and keeps the three displayed modules as one source
+// of truth. It also normalizes the public enrollment wording in persisted data.
+func migrateHomeDisplayConfiguration(db *gorm.DB) error {
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("config_key IN ?", []string{"home.sections", "home.stats", "home.safeguards", "home.join"}).Delete(&model.SiteConfig{}).Error; err != nil {
+			return err
+		}
+
+		var moduleConfig model.SiteConfig
+		modules := service.DefaultHomeModules()
+		if err := tx.Where("config_key = ?", "home.modules").First(&moduleConfig).Error; err == nil {
+			var stored []service.HomeModule
+			if json.Unmarshal([]byte(moduleConfig.ConfigValue), &stored) == nil {
+				allowed := map[string]bool{"recommendedVendors": true, "moreVendors": true, "processingServices": true}
+				filtered := make([]service.HomeModule, 0, len(stored))
+				seen := map[string]bool{}
+				for _, item := range stored {
+					if allowed[item.Type] && !seen[item.Type] {
+						filtered = append(filtered, item)
+						seen[item.Type] = true
+					}
+				}
+				defaults := service.DefaultHomeModules()
+				byType := make(map[string]service.HomeModule, len(filtered))
+				for _, item := range filtered {
+					byType[item.Type] = item
+				}
+				modules = make([]service.HomeModule, 0, len(defaults))
+				for _, fallback := range defaults {
+					if item, ok := byType[fallback.Type]; ok {
+						modules = append(modules, item)
+					} else {
+						modules = append(modules, fallback)
+					}
+				}
+			}
+		}
+		payload, _ := json.Marshal(modules)
+		if moduleConfig.ID == 0 {
+			if err := tx.Create(&model.SiteConfig{ConfigKey: "home.modules", ConfigValue: string(payload), Description: "首页实际展示模块配置"}).Error; err != nil {
+				return err
+			}
+		} else if err := tx.Model(&moduleConfig).Updates(map[string]interface{}{"config_value": string(payload), "description": "首页实际展示模块配置"}).Error; err != nil {
+			return err
+		}
+
+		var metaConfig model.SiteConfig
+		if err := tx.Where("config_key = ?", "site.meta").First(&metaConfig).Error; err == nil {
+			var meta map[string]interface{}
+			if json.Unmarshal([]byte(metaConfig.ConfigValue), &meta) == nil {
+				meta["submitVendorText"] = "厂商入驻"
+				if value, err := json.Marshal(meta); err == nil {
+					if err := tx.Model(&metaConfig).Update("config_value", string(value)).Error; err != nil {
+						return err
+					}
+				}
+			}
+		}
+		if err := tx.Model(&model.Menu{}).Where("path = ? AND name = ?", "/join", "提交厂商").Update("name", "厂商入驻").Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.ContentPage{}).Where("slug = ?", "join").Updates(map[string]interface{}{"title": "厂商入驻", "summary": "提交入驻资料后平台运营人员会尽快联系。"}).Error
+	})
+}
+
+// backfillCategoryMenuLinks turns existing sidebar/mobile category rows into
+// stable anchors. They keep optional shortcut children but no longer own the
+// displayed category name, icon, sort order, or path.
+func backfillCategoryMenuLinks(db *gorm.DB) error {
+	var categories []model.Category
+	if err := db.Where("parent_id = ?", 0).Find(&categories).Error; err != nil {
+		return err
+	}
+	if len(categories) == 0 {
+		return nil
+	}
+	var menus []model.Menu
+	if err := db.Where("menu_type IN ? AND parent_id = ? AND category_id = ?", []string{"sidebar", "mobile"}, 0, 0).Find(&menus).Error; err != nil {
+		return err
+	}
+	for _, menu := range menus {
+		if categoryID := categoryIDForLegacyMenu(menu, categories); categoryID > 0 {
+			if err := db.Model(&menu).Update("category_id", categoryID).Error; err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func categoryIDForLegacyMenu(menu model.Menu, categories []model.Category) uint {
+	if parsed, err := url.Parse(menu.Path); err == nil {
+		if raw := parsed.Query().Get("categoryId"); raw != "" {
+			if id, err := strconv.ParseUint(raw, 10, 64); err == nil {
+				for _, category := range categories {
+					if category.ID == uint(id) {
+						return category.ID
+					}
+				}
+			}
+		}
+	}
+	for _, category := range categories {
+		if strings.EqualFold(strings.TrimSpace(menu.Name), strings.TrimSpace(category.Name)) {
+			return category.ID
+		}
+	}
+	return 0
 }
 
 func refreshLegacyDirectoryContent(db *gorm.DB) error {
@@ -330,7 +471,6 @@ func cleanupLegacyDemoContent(db *gorm.DB) error {
 		{&model.Vendor{}, "LOWER(website_url) IN ?", []interface{}{[]string{"https://example.com", "http://example.com", "https://www.example.com", "http://www.example.com"}}, "website_url", ""},
 		{&model.Product{}, "image LIKE ?", []interface{}{"%dummyimage.com%"}, "image", ""},
 		{&model.Banner{}, "background_image LIKE ?", []interface{}{"%dummyimage.com%"}, "background_image", ""},
-		{&model.SiteConfig{}, "config_key = ? AND (config_value LIKE ? OR config_value LIKE ?)", []interface{}{"home.stats", "%2000+%", "%10万+%"}, "config_value", "[]"},
 	}
 	for _, update := range updates {
 		if err := db.Model(update.model).Where(update.where, update.args...).Update(update.column, update.value).Error; err != nil {
@@ -341,6 +481,10 @@ func cleanupLegacyDemoContent(db *gorm.DB) error {
 }
 
 func ensureStructuredContent(db *gorm.DB) error {
+	privacy := model.ContentPage{Slug: "privacy", Title: "隐私说明", Summary: "本平台以最小化方式统计匿名访问数据，用于改善公开资源展示与服务。", Content: "平台默认启用匿名访问统计，用于汇总页面浏览量、匿名访客数、省级访问分布和公开内容访问排行。统计使用第一方 Cookie 生成匿名标识，原始 IP 仅用于本地省份解析后立即丢弃；不会保存搜索关键词、联系电话、微信、账号或可识别身份信息。匿名事件明细和 Cookie 最多保留 90 天。", SEOKeywords: "隐私说明,访问统计", IsEnabled: true, SortOrder: 90}
+	if err := db.Where("slug = ?", privacy.Slug).FirstOrCreate(&privacy).Error; err != nil {
+		return err
+	}
 	blocks := map[string][]model.ContentBlock{
 		"join": {
 			{Type: "hero", Title: "让更多采购商看见您的产品与实力", Text: "完成厂商账号绑定后，即可在 CMS 维护企业资料；新资料经平台审核后公开展示。", ButtonText: "已有账号，登录 CMS", ButtonPath: "/admin/login"},

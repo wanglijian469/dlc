@@ -7,8 +7,12 @@ import { PageFrame } from "../components/public/PageFrame";
 import { ProductCard } from "../components/public/ProductCard";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
 import type { Product, ProductSupplier } from "../types/api";
+import { useSite } from "../contexts/SiteContext";
+import { getMenuLabel } from "../utils/navigation";
 
 export function ProductDetailPage() {
+  const { layout } = useSite();
+  const productsLabel = getMenuLabel(layout.topMenus, "/products", "配件产品");
   const { id = "" } = useParams();
   const [product, setProduct] = useState<Product | null>(null);
   const [suppliers, setSuppliers] = useState<ProductSupplier[]>([]);
@@ -27,9 +31,9 @@ export function ProductDetailPage() {
   const gallery = useMemo(() => product ? Array.from(new Set([product.image, ...(product.gallery || [])].filter(Boolean) as string[])) : [], [product]);
   useEffect(() => { setActiveImage(gallery[0] || ""); }, [gallery]);
 
-  if (loading) return <PageFrame breadcrumbs={[{ label: "配件产品", path: "/products" }]} title="产品详情"><LoadingState /></PageFrame>;
-  if (error || !product) return <PageFrame breadcrumbs={[{ label: "配件产品", path: "/products" }]} title="产品详情"><ErrorState text={error || "产品不存在"} onRetry={load} /></PageFrame>;
-  const productBreadcrumbs = [{ label: "配件产品", path: "/products" }];
+  if (loading) return <PageFrame breadcrumbs={[{ label: productsLabel, path: "/products" }]} title="产品详情"><LoadingState /></PageFrame>;
+  if (error || !product) return <PageFrame breadcrumbs={[{ label: productsLabel, path: "/products" }]} title="产品详情"><ErrorState text={error || "产品不存在"} onRetry={load} /></PageFrame>;
+  const productBreadcrumbs = [{ label: productsLabel, path: "/products" }];
   if (product.category?.name) productBreadcrumbs.push({ label: product.category.name, path: `/products?categoryId=${product.categoryId}` });
   return <PageFrame breadcrumbs={productBreadcrumbs} title={product.name} subtitle={product.category?.name || "农机配件产品目录"}>
     <section className="product-showcase">

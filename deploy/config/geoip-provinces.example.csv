@@ -1,0 +1,7 @@
+# Offline province lookup data. Put the production file outside the web root
+# and set GEOIP_DB_PATH to its absolute path. Format: CIDR,province
+# This small example is intentionally not a production IP allocation database.
+127.0.0.0/8,未知
+10.0.0.0/8,未知
+172.16.0.0/12,未知
+192.168.0.0/16,未知

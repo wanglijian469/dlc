@@ -5,6 +5,7 @@ import { PageFrame } from "../components/public/PageFrame";
 import { Pagination } from "../components/public/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { Category, Product, SearchPayload, Vendor } from "../types/api";
+import { trackAnalytics } from "../analytics";
 
 function regionOf(vendor?: Vendor) {
   return [vendor?.province, vendor?.city].filter(Boolean).join(" · ");
@@ -75,6 +76,7 @@ export function SearchPage() {
 
   useEffect(() => { setPage(1); }, [keyword]);
   useEffect(load, [keyword, page]);
+  useEffect(() => { if (keyword) trackAnalytics({ eventType: "search_submit", path: "/search" }); }, [keyword]);
 
   const total = result?.[active].total || 0;
   const selectType = (type: typeof active) => { const next = new URLSearchParams(params); next.set("type", type); next.set("page", "1"); setPage(1); setParams(next); };

@@ -40,7 +40,11 @@ powershell -ExecutionPolicy Bypass -File .\scripts\health-check.ps1
 
 程序首次启动会自动执行数据库迁移和默认数据初始化。生产环境请勿使用模板中的占位密码。
 
-## 4. 数据迁移与升级
+## 4. 访问分析地区库
+
+访问分析默认仅汇总匿名访问数据。若要显示省级地区分布，请将离线 CIDR 到省份映射文件放在 Web 根目录之外，并在 `.env` 设置 `GEOIP_DB_PATH`。文件格式见 `config/geoip-provinces.example.csv`；生产环境应使用完整、合规更新的离线数据文件。Nginx 与后端同机部署时保持 `TRUSTED_PROXY_CIDRS=127.0.0.1,::1`。
+
+## 5. 数据迁移与升级
 
 部署包默认不打入现网用户媒体。升级前先在旧服务器运行：
 
@@ -56,7 +60,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\package-windows.ps1 -IncludeM
 
 升级时先运行 `stop-windows.ps1`，替换 `server.exe` 和 `public/`，保留 `.env`、`media_storage/`、`backups/`，再启动服务。
 
-## 5. 运维命令
+## 6. 运维命令
 
 停止：
 
@@ -72,7 +76,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\start-windows.ps1 -Foreground
 
 后台日志：`logs\server.out.log`、`logs\server.err.log`。
 
-## 6. 常见检查
+## 7. 常见检查
 
 - 页面无法访问：确认防火墙已放行 8080，随后执行健康检查。
 - 启动失败：检查 `.env` 中数据库地址、账号、密码，以及 `logs\server.err.log`。

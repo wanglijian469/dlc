@@ -19,18 +19,27 @@ type ContentBlock struct {
 }
 
 type ContentPage struct {
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	Slug        string         `gorm:"size:100;not null;uniqueIndex" json:"slug"`
-	Title       string         `gorm:"size:150;not null" json:"title"`
-	Summary     string         `gorm:"size:500" json:"summary"`
-	Content     string         `gorm:"type:text" json:"content"`
-	BlocksRaw   string         `gorm:"column:blocks;type:longtext" json:"blocksRaw,omitempty"`
-	SEOKeywords string         `gorm:"size:255" json:"seoKeywords"`
-	IsEnabled   bool           `gorm:"default:true;index" json:"isEnabled"`
-	SortOrder   int            `gorm:"default:0" json:"sortOrder"`
-	CreatedAt   time.Time      `json:"createdAt"`
-	UpdatedAt   time.Time      `json:"updatedAt"`
-	DeletedAt   gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                uint           `gorm:"primaryKey" json:"id"`
+	Slug              string         `gorm:"size:100;not null;uniqueIndex" json:"slug"`
+	Title             string         `gorm:"size:150;not null" json:"title"`
+	Summary           string         `gorm:"size:500" json:"summary"`
+	Content           string         `gorm:"type:text" json:"content"`
+	BlocksRaw         string         `gorm:"column:blocks;type:longtext" json:"blocksRaw,omitempty"`
+	SEOKeywords       string         `gorm:"size:255" json:"seoKeywords"`
+	SEOTitle          string         `gorm:"size:180" json:"seoTitle"`
+	SEODescription    string         `gorm:"size:500" json:"seoDescription"`
+	PageType          string         `gorm:"size:20;not null;default:page;index" json:"pageType"`
+	CoverImage        string         `gorm:"size:255" json:"coverImage"`
+	AuthorName        string         `gorm:"size:100" json:"authorName"`
+	PublishedAt       *time.Time     `gorm:"index" json:"publishedAt,omitempty"`
+	RelatedCategoryID uint           `gorm:"index" json:"relatedCategoryId"`
+	RelatedProductID  *uint          `gorm:"index" json:"relatedProductId,omitempty"`
+	RelatedVendorID   *uint          `gorm:"index" json:"relatedVendorId,omitempty"`
+	IsEnabled         bool           `gorm:"default:true;index" json:"isEnabled"`
+	SortOrder         int            `gorm:"default:0" json:"sortOrder"`
+	CreatedAt         time.Time      `json:"createdAt"`
+	UpdatedAt         time.Time      `json:"updatedAt"`
+	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (p ContentPage) Blocks() []ContentBlock {

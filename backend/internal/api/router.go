@@ -22,6 +22,9 @@ type Deps struct {
 
 func NewRouter(deps Deps) *gin.Engine {
 	router := gin.New()
+	if err := router.SetTrustedProxies(deps.Config.TrustedProxyCIDRs); err != nil {
+		panic("invalid trusted proxy configuration: " + err.Error())
+	}
 	router.Use(gin.Logger(), gin.Recovery())
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     deps.Config.AllowedOrigins,
@@ -31,7 +34,9 @@ func NewRouter(deps Deps) *gin.Engine {
 	}))
 	RegisterHealthRoute(router)
 	RegisterPublicRoutesWithAuth(router, deps.DB, deps.Config.AuthSecret)
+	router.POST("/api/analytics/events", AnalyticsHandler{DB: deps.DB, Config: deps.Config}.RecordEvent)
 	RegisterAdminRoutes(router, deps.DB, deps.Config)
+	RegisterSEORoutes(router, deps.DB, deps.Config)
 	mediaHandler := AdminHandler{DB: deps.DB, Config: deps.Config}
 	router.GET("/api/media/:id", mediaHandler.PublicMedia)
 	RegisterStaticRoutes(router, deps.DB, deps.Config.PublicDir)
@@ -55,6 +60,8 @@ func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string
 	api.GET("/layout-config", handler.LayoutConfig)
 	api.GET("/menus", handler.Menus)
 	api.GET("/pages/:slug", handler.Page)
+	api.GET("/articles", handler.Articles)
+	api.GET("/articles/:slug", handler.Article)
 	api.GET("/friend-links", handler.FriendLinks)
 	api.GET("/processing-vendors", handler.ProcessingVendors)
 	api.GET("/processing-filter-options", handler.ProcessingFilterOptions)
@@ -117,6 +124,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly := protected.Group("")
 	adminOnly.Use(RequireRole("admin"))
 	adminOnly.GET("/dashboard", handler.DashboardStats)
+	adminOnly.GET("/analytics", AnalyticsHandler{DB: db, Config: cfg}.Summary)
 	adminOnly.GET("/operation-logs", handler.ListOperationLogs)
 	adminOnly.POST("/imports/:resource", handler.ImportWorkbook)
 	adminOnly.GET("/menus", handler.ListMenus)
@@ -303,6 +311,9 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			Fail(c, http.StatusNotFound, 404, "接口不存在")
+			return
+		}
+		if RenderSEOApp(c, db, config.Config{PublicDir: publicDir}, publicDir) {
 			return
 		}
 		c.File(filepath.Join(publicDir, "index.html"))

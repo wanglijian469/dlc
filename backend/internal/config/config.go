@@ -8,40 +8,45 @@ import (
 )
 
 type Config struct {
-	HTTPAddr       string
-	DBHost         string
-	DBPort         string
-	DBUser         string
-	DBPassword     string
-	DBName         string
-	AdminUsername  string
-	AdminPassword  string
-	AuthSecret     string
-	PublicDir      string
-	MediaDir       string
-	Environment    string
-	AllowedOrigins []string
-	SeedDemoData   bool
+	HTTPAddr          string
+	DBHost            string
+	DBPort            string
+	DBUser            string
+	DBPassword        string
+	DBName            string
+	AdminUsername     string
+	AdminPassword     string
+	AuthSecret        string
+	PublicDir         string
+	MediaDir          string
+	Environment       string
+	AllowedOrigins    []string
+	TrustedProxyCIDRs []string
+	GeoIPDBPath       string
+	SeedDemoData      bool
 }
 
 func Load() Config {
 	seedDemo, _ := strconv.ParseBool(env("SEED_DEMO_DATA", "false"))
 	origins := strings.Split(env("CORS_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"), ",")
+	trustedProxies := strings.Split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1,::1"), ",")
 	return Config{
-		HTTPAddr:       env("HTTP_ADDR", ":8080"),
-		DBHost:         env("DB_HOST", "127.0.0.1"),
-		DBPort:         env("DB_PORT", "13306"),
-		DBUser:         env("DB_USER", "root"),
-		DBPassword:     env("DB_PASSWORD", "root"),
-		DBName:         env("DB_NAME", "dl_nongji_parts"),
-		AdminUsername:  env("ADMIN_USERNAME", "admin"),
-		AdminPassword:  env("ADMIN_PASSWORD", "admin123"),
-		AuthSecret:     env("AUTH_SECRET", "dev-secret-change-me"),
-		PublicDir:      env("PUBLIC_DIR", ""),
-		MediaDir:       env("MEDIA_DIR", "media_storage"),
-		Environment:    env("APP_ENV", "development"),
-		AllowedOrigins: origins,
-		SeedDemoData:   seedDemo,
+		HTTPAddr:          env("HTTP_ADDR", ":8080"),
+		DBHost:            env("DB_HOST", "127.0.0.1"),
+		DBPort:            env("DB_PORT", "13306"),
+		DBUser:            env("DB_USER", "root"),
+		DBPassword:        env("DB_PASSWORD", "root"),
+		DBName:            env("DB_NAME", "dl_nongji_parts"),
+		AdminUsername:     env("ADMIN_USERNAME", "admin"),
+		AdminPassword:     env("ADMIN_PASSWORD", "admin123"),
+		AuthSecret:        env("AUTH_SECRET", "dev-secret-change-me"),
+		PublicDir:         env("PUBLIC_DIR", ""),
+		MediaDir:          env("MEDIA_DIR", "media_storage"),
+		Environment:       env("APP_ENV", "development"),
+		AllowedOrigins:    origins,
+		TrustedProxyCIDRs: trustedProxies,
+		GeoIPDBPath:       env("GEOIP_DB_PATH", ""),
+		SeedDemoData:      seedDemo,
 	}
 }
 

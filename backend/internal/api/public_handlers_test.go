@@ -98,6 +98,18 @@ func TestPublicRoutesExposeProcessingEndpoints(t *testing.T) {
 	}
 }
 
+func TestPublicRoutesExposeIndustryGuideEndpoints(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterPublicRoutes(router, nil)
+
+	for _, want := range []string{"/api/articles", "/api/articles/:slug"} {
+		if !routeExists(router.Routes(), http.MethodGet, want) {
+			t.Fatalf("GET %s route is not registered", want)
+		}
+	}
+}
+
 func TestPageResultSerializesPaginationShape(t *testing.T) {
 	payload, err := json.Marshal(Response{
 		Code:    0,

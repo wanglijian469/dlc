@@ -3,11 +3,12 @@ import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import type { AccountRole } from "../../api/admin";
 import type { Menu, SiteMeta } from "../../types/api";
+import { trackAnalytics } from "../../analytics";
 
 const defaultMeta: SiteMeta = {
   brandMark: "农",
   siteName: "大陆农机配件",
-  submitVendorText: "提交厂商",
+  submitVendorText: "厂商入驻",
   adminLoginText: "后台登录",
   mobileBrandName: "大陆农机配件",
   mobileBrandMark: "农",
@@ -40,7 +41,7 @@ export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: Si
       </nav>
       <div className="header-actions">
         {!menus.some((menu) => menu.path === "/about") && <Link className="header-text-link" to="/about">关于平台</Link>}
-        <Link className="primary-btn" to="/join">{meta.submitVendorText}</Link>
+        <Link className="primary-btn" to="/join" onClick={() => trackAnalytics({ eventType: "join_cta_click", path: "/join" })}>{meta.submitVendorText}</Link>
         {session ? (
           <span className="header-account">
             {session.role === "user"

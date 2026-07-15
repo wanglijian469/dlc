@@ -52,7 +52,7 @@ export function ContentPage({ slug }: { slug: string }) {
   );
 }
 
-function ContentBlockView({ block }: { block: ContentBlock }) {
+export function ContentBlockView({ block }: { block: ContentBlock }) {
   if (block.type === "hero") return <section className="content-hero-block"><span>大陆农机配件</span><h2>{block.title}</h2><p>{block.text}</p>{block.buttonPath && <Link className="primary-btn" to={block.buttonPath}>{block.buttonText || "立即查看"}</Link>}</section>;
   if (block.type === "steps") return <section className="content-section-block"><h2>{block.title}</h2><div className="content-steps">{block.items?.map((item, index) => <article key={item}><strong>{String(index + 1).padStart(2, "0")}</strong><p>{item}</p></article>)}</div></section>;
   if (block.type === "faq") return <section className="content-section-block"><h2>{block.title}</h2><div className="content-faq">{block.items?.map((item) => { const [question, answer] = item.split("|"); return <details key={item}><summary>{question}</summary><p>{answer || "请联系平台运营人员了解详情。"}</p></details>; })}</div></section>;

@@ -8,6 +8,7 @@ export interface Menu {
   id: number;
   name: string;
   parentId?: number;
+	categoryId?: number;
   icon?: string;
   menuType?: string;
   path?: string;
@@ -52,6 +53,8 @@ export interface Vendor {
   serviceModels?: string;
   serviceAdvantages?: string;
   description?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   establishedYear?: string;
   factoryArea?: string;
   employeeCount?: string;
@@ -88,6 +91,8 @@ export interface Category {
   name: string;
   parentId?: number;
   icon?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   sortOrder?: number;
   isEnabled?: boolean;
 }
@@ -106,6 +111,8 @@ export interface Product {
   compatibleModels?: string;
   description?: string;
   detailContent?: string;
+  seoTitle?: string;
+  seoDescription?: string;
   galleryRaw?: string;
   gallery?: string[];
   specsRaw?: string;
@@ -201,6 +208,14 @@ export interface SiteMeta {
   adminLoginText: string;
   mobileBrandName: string;
   mobileBrandMark: string;
+  copyrightOwner?: string;
+  copyrightYear?: string;
+  filingNumber?: string;
+  siteUrl?: string;
+  defaultSeoTitle?: string;
+  defaultSeoDescription?: string;
+  baiduVerification?: string;
+  googleVerification?: string;
 }
 
 export interface ThemeConfig { primaryColor: string; accentColor: string; }
@@ -226,7 +241,7 @@ export interface HomeSections {
   showMore?: boolean;
 }
 
-export type HomeModuleType = "categories" | "recommendedVendors" | "featuredProducts" | "processingServices" | "moreVendors" | "safeguards" | "join";
+export type HomeModuleType = "recommendedVendors" | "processingServices" | "moreVendors";
 export interface HomeModule {
   type: HomeModuleType;
   title: string;
@@ -238,6 +253,14 @@ export interface HomeModule {
   sortOrder: number;
 }
 
+// Kept only for source compatibility with retired components; the public home
+// endpoint no longer emits or renders this configuration.
+export interface JoinConfig {
+  text: string;
+  buttonText: string;
+  path: string;
+}
+
 export interface ContentPageRecord {
   id: number;
   slug: string;
@@ -247,6 +270,15 @@ export interface ContentPageRecord {
   blocksRaw?: string;
   blocks?: ContentBlock[];
   seoKeywords?: string;
+  seoTitle?: string;
+  seoDescription?: string;
+  pageType?: "page" | "article";
+  coverImage?: string;
+  authorName?: string;
+  publishedAt?: string;
+  relatedCategoryId?: number;
+  relatedProductId?: number;
+  relatedVendorId?: number;
   isEnabled?: boolean;
   sortOrder?: number;
 }
@@ -278,12 +310,6 @@ export interface StatItem {
   value: string;
 }
 
-export interface JoinConfig {
-  text: string;
-  buttonText: string;
-  path: string;
-}
-
 export interface HomePayload {
   siteMeta?: SiteMeta;
   topMenus: Menu[];
@@ -291,17 +317,20 @@ export interface HomePayload {
   auxiliaryMenus: Menu[];
   mobileMenus: Menu[];
   mobileBottomMenus?: Menu[];
-  homeSections?: HomeSections;
   banner: Banner;
   recommendedVendors: Vendor[];
   moreVendors: Vendor[];
   stats: StatItem[];
-  safeguards: string[];
-  join: JoinConfig;
   modules?: HomeModule[];
-  popularCategories?: Category[];
-  featuredProducts?: Product[];
   processingVendors?: Vendor[];
+  /** @deprecated Retired homepage configuration, not rendered. */
+  safeguards?: string[];
+  /** @deprecated Retired homepage configuration, not rendered. */
+  join?: JoinConfig;
+  /** @deprecated Retired homepage payload, not rendered. */
+  popularCategories?: Category[];
+  /** @deprecated Retired homepage payload, not rendered. */
+  featuredProducts?: Product[];
 }
 
 export interface PageResult<T> {

@@ -12,11 +12,13 @@ type CategoryForm = {
   level: "root" | "child";
   parentId: number;
   icon: string;
+  seoTitle: string;
+  seoDescription: string;
   sortOrder: number;
   isEnabled: boolean;
 };
 
-const emptyForm: CategoryForm = { name: "", level: "root", parentId: 0, icon: "", sortOrder: 0, isEnabled: true };
+const emptyForm: CategoryForm = { name: "", level: "root", parentId: 0, icon: "", seoTitle: "", seoDescription: "", sortOrder: 0, isEnabled: true };
 
 export function AdminCategoriesPage() {
   const [rows, setRows] = useState<Category[]>([]);
@@ -53,6 +55,8 @@ export function AdminCategoriesPage() {
       level: category.parentId ? "child" : "root",
       parentId: category.parentId || 0,
       icon: category.icon || "",
+      seoTitle: category.seoTitle || "",
+      seoDescription: category.seoDescription || "",
       sortOrder: category.sortOrder || 0,
       isEnabled: category.isEnabled !== false,
     });
@@ -119,6 +123,8 @@ export function AdminCategoriesPage() {
           {form.level === "child" && <label>所属一级分类<select aria-label="所属一级分类" required value={form.parentId || ""} onChange={(event) => setForm({ ...form, parentId: Number(event.target.value) })}><option value="">请选择一级分类</option>{roots.filter((root) => root.id !== editingId).map((root) => <option key={root.id} value={root.id}>{root.name}</option>)}</select></label>}
           <label>分类名称<input required value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} /></label>
           <label>图标<input placeholder="图标名称或图标地址" value={form.icon} onChange={(event) => setForm({ ...form, icon: event.target.value })} /></label>
+          <label>SEO 标题<input value={form.seoTitle} onChange={(event) => setForm({ ...form, seoTitle: event.target.value })} /></label>
+          <label className="field-wide">SEO 摘要<textarea value={form.seoDescription} onChange={(event) => setForm({ ...form, seoDescription: event.target.value })} /></label>
           <label>排序<input type="number" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: Number(event.target.value) })} /></label>
           <label className="admin-toggle-field"><input aria-label="启用分类" checked={form.isEnabled} type="checkbox" onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} /><span><strong>启用分类</strong><small>停用一级分类会同时从前台隐藏其全部二级分类</small></span></label>
         </div></fieldset><div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" disabled={saving} type="submit">{saving ? "保存中…" : "保存分类"}</button></div></form>

@@ -7,8 +7,13 @@ import { ProductCard } from "../components/public/ProductCard";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
 import { VendorCover } from "../components/public/VendorCover";
 import type { Product, Vendor } from "../types/api";
+import { useSite } from "../contexts/SiteContext";
+import { getMenuLabel } from "../utils/navigation";
+import { trackAnalytics } from "../analytics";
 
 export function VendorDetailPage() {
+  const { layout } = useSite();
+  const vendorsLabel = getMenuLabel(layout.topMenus, "/vendors", "厂商目录");
   const { id = "" } = useParams();
   const [vendor, setVendor] = useState<Vendor | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -25,8 +30,8 @@ export function VendorDetailPage() {
   };
   useEffect(load, [id]);
 
-  if (loading) return <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title="厂商详情"><LoadingState /></PageFrame>;
-  if (error || !vendor) return <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title="厂商详情"><ErrorState text={error || "厂商不存在"} onRetry={load} /></PageFrame>;
+  if (loading) return <PageFrame breadcrumbs={[{ label: vendorsLabel, path: "/vendors" }]} title="厂商详情"><LoadingState /></PageFrame>;
+  if (error || !vendor) return <PageFrame breadcrumbs={[{ label: vendorsLabel, path: "/vendors" }]} title="厂商详情"><ErrorState text={error || "厂商不存在"} onRetry={load} /></PageFrame>;
 
   const region = [vendor.province, vendor.city, vendor.county].filter(Boolean).join(" · ");
   const phoneMasked = Boolean(vendor.phone?.includes("*"));
@@ -39,7 +44,7 @@ export function VendorDetailPage() {
   ].filter((row) => row[1]);
 
   return (
-    <PageFrame breadcrumbs={[{ label: "厂商目录", path: "/vendors" }]} title={vendor.name} subtitle={region || "源头农机配件厂商"}>
+    <PageFrame breadcrumbs={[{ label: vendorsLabel, path: "/vendors" }]} title={vendor.name} subtitle={region || "源头农机配件厂商"}>
       <section className="vendor-showcase-hero">
         <VendorCover variant="detail" vendor={vendor} />
         <div className="vendor-showcase-copy">
@@ -47,12 +52,12 @@ export function VendorDetailPage() {
           <p className="vendor-lead">{vendor.serviceAdvantages || vendor.description || "专注农机配件生产与供应"}</p>
           <div className="vendor-key-lines"><span><MapPin size={16} />{region || "全国供应"}</span><span><Wrench size={16} />{vendor.mainProducts || "农机配件"}</span></div>
           <div className="contact-actions">
-            {vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`}><Phone size={16} />电话联系</a>}
+            {vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}
             {vendor.phone && !phoneMasked && <button className="outline-btn" type="button" onClick={() => copy("电话", vendor.phone!)}><Clipboard size={16} />{copied === "电话" ? "已复制" : "复制电话"}</button>}
             {vendor.phone && phoneMasked && <Link className="primary-btn" to="/admin/login"><Phone size={16} />登录查看完整电话</Link>}
-            {vendor.wechat && <button className="outline-btn" type="button" onClick={() => copy("微信", vendor.wechat!)}><Clipboard size={16} />{copied === "微信" ? "已复制" : "复制微信"}</button>}
+            {vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}><Clipboard size={16} />{copied === "微信" ? "已复制" : "复制微信"}</button>}
             {copied === "复制失败" && <span className="form-error" role="status">复制失败，请手动选择内容</span>}
-            {vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank"><ExternalLink size={16} />访问官网</a>}
+            {vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><ExternalLink size={16} />访问官网</a>}
           </div>
         </div>
       </section>
@@ -72,7 +77,7 @@ export function VendorDetailPage() {
       {productsError && <section className="inline-notice" role="status">关联产品暂时加载失败，企业主体资料不受影响。</section>}
       {products.length > 0 && <section className="section-block"><div className="section-title"><h2>关联产品</h2><Link to={`/products?vendorId=${vendor.id}`}>查看全部</Link></div><div className="product-grid related-products">{products.map((product) => <ProductCard compact key={product.id} product={{ ...product, vendor }} />)}</div></section>}
 
-      {(vendor.phone || vendor.wechat || vendor.websiteUrl) && <div className="mobile-contact-bar">{vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`}><Phone size={16} />电话联系</a>}{vendor.phone && phoneMasked && <Link className="primary-btn" to="/admin/login">登录查看电话</Link>}{vendor.wechat && <button className="outline-btn" type="button" onClick={() => copy("微信", vendor.wechat!)}>复制微信</button>}{vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank">访问官网</a>}</div>}
+      {(vendor.phone || vendor.wechat || vendor.websiteUrl) && <div className="mobile-contact-bar">{vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}{vendor.phone && phoneMasked && <Link className="primary-btn" to="/admin/login">登录查看电话</Link>}{vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}>复制微信</button>}{vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}>访问官网</a>}</div>}
     </PageFrame>
   );
 }

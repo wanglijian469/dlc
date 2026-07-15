@@ -7,6 +7,7 @@ import { MobileHeader } from "./MobileHeader";
 import { PublicHeader } from "./PublicHeader";
 import { SidebarNav } from "./SidebarNav";
 import { StatsFooter } from "./StatsFooter";
+import { getMenuLabel } from "../../utils/navigation";
 
 type BreadcrumbItem = { label: string; path: string };
 
@@ -15,7 +16,7 @@ export function PageFrame({ title, subtitle, breadcrumbs = [], children }: { tit
   const [legacyLayout, setLegacyLayout] = useState(site.layout);
   useEffect(() => { if (!site.provided) getHome().then((home) => setLegacyLayout({ ...site.layout, siteMeta: home.siteMeta || site.layout.siteMeta, topMenus: home.topMenus.length ? home.topMenus : site.layout.topMenus, sidebarMenus: home.sidebarMenus, auxiliaryMenus: home.auxiliaryMenus, mobileMenus: home.mobileMenus, mobileBottomMenus: home.mobileBottomMenus || site.layout.mobileBottomMenus })).catch(() => undefined); }, [site.provided]);
   const layout = site.provided ? site.layout : legacyLayout;
-  const breadcrumbTrail = [{ label: "首页", path: "/" }, ...breadcrumbs];
+  const breadcrumbTrail = [{ label: getMenuLabel(layout.topMenus, "/", "首页"), path: "/" }, ...breadcrumbs];
   return <div className="site-shell">
     <PublicHeader menus={layout.topMenus} siteMeta={layout.siteMeta} />
     <MobileHeader auxiliaryMenus={layout.auxiliaryMenus} menus={layout.sidebarMenus} siteMeta={layout.siteMeta} />
