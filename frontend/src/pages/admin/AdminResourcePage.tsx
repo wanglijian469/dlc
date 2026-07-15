@@ -4,6 +4,7 @@ import { Download, FileUp, Plus, X } from "lucide-react";
 import {
   createResource,
   deleteResource,
+	 downloadRemoteImage,
   importWorkbook,
   listConfigs,
   listResource,
@@ -16,7 +17,7 @@ import {
   type BulkImportResult,
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import type { SiteConfig } from "../../types/api";
+import type { Category, SiteConfig } from "../../types/api";
 import type { VendorMedia } from "../../types/api";
 import { AdminModal } from "../../components/admin/AdminModal";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
@@ -24,6 +25,8 @@ import { BlocksEditor, GalleryEditor, SpecsEditor, VendorMediaEditor } from "../
 import { Pagination } from "../../components/public/Pagination";
 import { AdminProductSuppliersEditor } from "../../components/admin/AdminProductSuppliersEditor";
 import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProductsPanel";
+import { AdminCategoriesPage } from "./AdminCategoriesPage";
+import { hierarchicalCategoryOptions } from "../../utils/categories";
 
 type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
@@ -207,6 +210,7 @@ function extendProcessingSchemas() {
 export function AdminResourcePage() {
   const { resource = "menus" } = useParams();
   if (resource === "configs") return <ConfigPage />;
+  if (resource === "categories") return <AdminCategoriesPage />;
   const name = (schemas[resource as ResourceName] ? resource : "menus") as ResourceName;
   const schema = schemas[name];
   const [rows, setRows] = useState<ResourceRecord[]>([]);
@@ -287,7 +291,7 @@ export function AdminResourcePage() {
         {(name === "vendors" || name === "products") && <div className="admin-import-actions"><a className="outline-btn" download href="/templates/农机配件平台_厂商产品资料采集模板.xlsx"><Download size={16} />下载导入模板</a><label className={`outline-btn admin-import-button ${importing ? "disabled" : ""}`}><FileUp size={16} />{importing ? "正在导入…" : "批量导入 XLSX"}<input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} type="file" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setImporting(true); setImportResult(null); setMessage(""); void importWorkbook(name, file).then((result) => { setImportResult(result); if (result.imported) { setMessage("批量导入成功"); void load(); } }).catch((error) => setMessage(error?.response?.data?.message || "批量导入失败，请检查文件格式")).finally(() => setImporting(false)); }} /></label></div>}
         <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>
       </div>
-      {importResult && <section className={`admin-import-result ${importResult.imported ? "success" : "error"}`}><strong>{importResult.imported ? "导入完成" : "表格校验未通过，未写入数据"}</strong><span>读取 {importResult.totalRows} 行 · 新增 {importResult.created} 条 · 更新 {importResult.updated} 条{name === "products" ? ` · 新增供应关系 ${importResult.relationsCreated} 条 · 更新供应关系 ${importResult.relationsUpdated} 条` : ""}</span>{importResult.issues.length > 0 && <ul>{importResult.issues.slice(0, 30).map((issue, index) => <li key={`${issue.sheet}-${issue.row}-${index}`}>{issue.sheet} 第 {issue.row} 行：{issue.message}</li>)}</ul>}</section>}
+      {importResult && <section className={`admin-import-result ${importResult.imported ? "success" : "error"}`}><strong>{importResult.imported ? "导入完成" : "表格校验未通过，未写入数据"}</strong><span>读取 {importResult.totalRows} 行 · 新增 {importResult.created} 条 · 更新 {importResult.updated} 条{name === "products" ? ` · 新增供应关系 ${importResult.relationsCreated} 条 · 更新供应关系 ${importResult.relationsUpdated} 条` : ""}</span>{importResult.issues.length > 0 && <ul>{importResult.issues.slice(0, 30).map((issue, index) => <li key={`${issue.sheet}-${issue.row}-${index}`}>{issue.sheet} 第 {issue.row} 行：{issue.message}</li>)}</ul>}{(importResult.warnings || []).length > 0 && <div className="admin-import-warnings"><strong>以下图片未能本地化，已保留原始链接：</strong><ul>{(importResult.warnings || []).slice(0, 30).map((warning, index) => <li key={`${warning.sheet}-${warning.row}-${index}`}>{warning.sheet} 第 {warning.row} 行：{warning.message}</li>)}</ul></div>}</section>}
       <div className="admin-table-panel">
         <ResourceTable
           rows={filteredRows}
@@ -388,27 +392,7 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
       </div>
     );
   }
-  if (field.type === "image") {
-    const value = String(form[field.key] ?? "");
-    const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
-    const mediaMatch = value.match(/^\/api\/media\/(\d+)$/);
-    return (
-      <div className="image-field">
-        <input value={value} type="text" placeholder={field.placeholder} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />
-        <input
-          aria-label={`${field.label} 上传`}
-          type="file"
-          accept="image/*"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            if (!file) return;
-            uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url, ...(assetKey ? { [assetKey]: result.assetId } : {}) }));
-          }}
-        />
-        {value && <div className="image-field-preview"><span>{field.label} 图片预览</span><ProtectedMediaImage alt={`${field.label} 图片预览`} assetId={assetKey ? Number(form[assetKey] || 0) || (mediaMatch ? Number(mediaMatch[1]) : undefined) : mediaMatch ? Number(mediaMatch[1]) : undefined} src={value} /></div>}
-      </div>
-    );
-  }
+  if (field.type === "image") return <ImageField field={field} form={form} setForm={setForm} />;
   return (
     <input
       value={String(form[field.key] ?? "")}
@@ -419,9 +403,50 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
   );
 }
 
+function ImageField({ field, form, setForm }: { field: Field; form: FormState; setForm: (form: FormState) => void }) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState("");
+  const value = String(form[field.key] ?? "");
+  const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
+  const mediaMatch = value.match(/^\/api\/media\/(\d+)$/);
+  const canDownload = /^https?:\/\//i.test(value);
+
+  const useLocalCopy = () => {
+    if (!canDownload || downloading) return;
+    setDownloading(true);
+    setDownloadError("");
+    void downloadRemoteImage(value)
+      .then((result) => setForm({ ...form, [field.key]: result.url, ...(assetKey ? { [assetKey]: result.assetId } : {}) }))
+      .catch((error) => setDownloadError(error?.response?.data?.message || "下载失败，请确认图片地址可公开访问"))
+      .finally(() => setDownloading(false));
+  };
+
+  return (
+    <div className="image-field">
+      <input value={value} type="text" placeholder={field.placeholder} onChange={(event) => { setDownloadError(""); setForm({ ...form, [field.key]: event.target.value }); }} />
+      <div className="image-field-actions">
+        <input
+          aria-label={`${field.label} 上传`}
+          type="file"
+          accept="image/*"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+            uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url, ...(assetKey ? { [assetKey]: result.assetId } : {}) }));
+          }}
+        />
+        <button className="outline-btn small" disabled={!canDownload || downloading} onClick={useLocalCopy} type="button">{downloading ? "正在下载…" : "下载到本地"}</button>
+      </div>
+      {downloadError && <small className="image-download-error">{downloadError}</small>}
+      {value && <div className="image-field-preview"><span>{field.label} 图片预览</span><ProtectedMediaImage alt={`${field.label} 图片预览`} assetId={assetKey ? Number(form[assetKey] || 0) || (mediaMatch ? Number(mediaMatch[1]) : undefined) : mediaMatch ? Number(mediaMatch[1]) : undefined} src={value} /></div>}
+    </div>
+  );
+}
+
 function optionsFor(field: Field, refs: Partial<Record<ResourceName, ResourceRecord[]>>) {
   if (field.options) return field.options;
   if (!field.refResource) return [];
+  if (field.refResource === "categories") return hierarchicalCategoryOptions((refs.categories || []) as Category[]);
   return (refs[field.refResource] || [])
     .filter((item) => !field.optionTagType || (item as unknown as { tagType?: string }).tagType === field.optionTagType)
     .map((item) => ({ label: String((item as unknown as { name?: string; title?: string }).name || (item as unknown as { title?: string }).title || item.id), value: item.id }));
@@ -498,7 +523,7 @@ function ReadableConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: 
   const save = () => updateConfig(row.configKey, { ...row, configValue: JSON.stringify(value) }).then(() => onMessage("配置已保存")).catch(() => onMessage("配置保存失败，请检查字段"));
   if (row.configKey === "home.stats") return <section className="config-card"><header><div><strong>首页真实统计</strong><small>{row.description}</small></div></header><p>厂商、产品、加工服务厂商和覆盖省份均从当前数据库实时聚合，无需手工填写。</p></section>;
   return <section className="config-card"><header><div><strong>{configLabel(row.configKey)}</strong><small>{row.description}</small></div><button className="primary-btn small" type="button" onClick={save}>保存配置</button></header><div className="config-field-grid">
-    {row.configKey === "site.meta" && <><ConfigInput label="站点名称" value={objectValue.siteName} onChange={(next) => update("siteName", next)} /><ConfigInput label="品牌标识" value={objectValue.brandMark} onChange={(next) => update("brandMark", next)} /><ConfigInput label="提交厂商入口" value={objectValue.submitVendorText} onChange={(next) => update("submitVendorText", next)} /><ConfigInput label="后台入口" value={objectValue.adminLoginText} onChange={(next) => update("adminLoginText", next)} /></>}
+    {row.configKey === "site.meta" && <><ConfigInput label="站点名称" value={objectValue.siteName} onChange={(next) => update("siteName", next)} /><BrandLogoConfigInput value={objectValue.brandLogo} onChange={(next) => update("brandLogo", next)} /><ConfigInput label="品牌标识文字（未上传 Logo 时显示）" value={objectValue.brandMark} onChange={(next) => update("brandMark", next)} /><ConfigInput label="提交厂商入口" value={objectValue.submitVendorText} onChange={(next) => update("submitVendorText", next)} /><ConfigInput label="后台入口" value={objectValue.adminLoginText} onChange={(next) => update("adminLoginText", next)} /></>}
     {row.configKey === "home.sections" && <><ConfigInput label="推荐区标题" value={objectValue.recommendedTitle} onChange={(next) => update("recommendedTitle", next)} /><ConfigInput label="更多区标题" value={objectValue.moreTitle} onChange={(next) => update("moreTitle", next)} /><ConfigInput label="推荐数量" type="number" value={objectValue.recommendedLimit} onChange={(next) => update("recommendedLimit", Number(next))} /><ConfigInput label="更多数量" type="number" value={objectValue.moreLimit} onChange={(next) => update("moreLimit", Number(next))} /><label className="checkbox-field"><input checked={Boolean(objectValue.showRecommended)} type="checkbox" onChange={(event) => update("showRecommended", event.target.checked)} />显示推荐厂商</label><label className="checkbox-field"><input checked={Boolean(objectValue.showMore)} type="checkbox" onChange={(event) => update("showMore", event.target.checked)} />显示更多厂商</label></>}
     {row.configKey === "home.join" && <><ConfigInput label="引导文案" value={objectValue.text} onChange={(next) => update("text", next)} /><ConfigInput label="按钮文案" value={objectValue.buttonText} onChange={(next) => update("buttonText", next)} /><ConfigInput label="跳转路径" value={objectValue.path} onChange={(next) => update("path", next)} /></>}
     {row.configKey === "home.safeguards" && <label className="field-wide">保障文案（每行一条）<textarea value={(Array.isArray(value) ? value : []).join("\n")} onChange={(event) => setValue(event.target.value.split("\n").map((item) => item.trim()).filter(Boolean))} /></label>}
@@ -507,6 +532,14 @@ function ReadableConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: 
 
 function ConfigInput({ label, value, type = "text", onChange }: { label: string; value: unknown; type?: string; onChange: (value: string) => void }) {
   return <label>{label}<input type={type} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} /></label>;
+}
+
+function BrandLogoConfigInput({ value, onChange }: { value: unknown; onChange: (value: string) => void }) {
+  const [downloading, setDownloading] = useState(false);
+  const [error, setError] = useState("");
+  const url = String(value ?? "");
+  const remoteURL = /^https?:\/\//i.test(url);
+  return <label className="field-wide brand-logo-config">品牌 Logo<small>上传透明背景的图标效果最佳；会显示在站点名称左侧。</small><input value={url} placeholder="上传后自动填写图片地址" type="text" onChange={(event) => { setError(""); onChange(event.target.value); }} /><div className="image-field-actions"><input aria-label="品牌 Logo 上传" type="file" accept="image/*" onChange={(event) => { const file = event.target.files?.[0]; if (!file) return; void uploadFile(file).then((result) => onChange(result.url)).catch(() => setError("图片上传失败，请重试")); }} /><button className="outline-btn small" disabled={!remoteURL || downloading} type="button" onClick={() => { if (!remoteURL || downloading) return; setDownloading(true); setError(""); void downloadRemoteImage(url).then((result) => onChange(result.url)).catch((requestError) => setError(requestError?.response?.data?.message || "下载失败，请确认图片地址可公开访问")).finally(() => setDownloading(false)); }}>{downloading ? "正在下载…" : "下载到本地"}</button></div>{error && <small className="image-download-error">{error}</small>}{url && <div className="brand-logo-config-preview"><img alt="品牌 Logo 预览" src={url} /><span>前台会在站点名称左侧展示此 Logo。</span></div>}</label>;
 }
 
 function defaultForm(fields: Field[]) {

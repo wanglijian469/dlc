@@ -5,6 +5,7 @@ import { PageFrame } from "../components/public/PageFrame";
 import { ProductCard } from "../components/public/ProductCard";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { FilterOptions, PageResult, Product } from "../types/api";
+import { hierarchicalCategoryOptions } from "../utils/categories";
 import { SlidersHorizontal, X } from "lucide-react";
 import { Pagination } from "../components/public/Pagination";
 
@@ -69,8 +70,8 @@ export function ProductsPage() {
         <input value={keyword} placeholder="搜索配件名称、适配机型" onChange={(event) => setKeyword(event.target.value)} />
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
           <option value="">全部分类</option>
-          {filters.categories.map((category) => (
-            <option key={category.id} value={category.id}>{category.name}</option>
+          {hierarchicalCategoryOptions(filters.categories).map((category) => (
+            <option key={category.value} value={category.value}>{category.label}</option>
           ))}
         </select>
         <label className="inline-check">

@@ -1,17 +1,19 @@
 ﻿import { adminClient, publicClient } from "./client";
 import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorProductRecord } from "../types/api";
 
+export type AccountRole = "admin" | "vendor" | "user";
+
 export interface LoginResponse {
   token: string;
   username: string;
-  role: "admin" | "vendor";
+  role: AccountRole;
   vendorId?: number;
 }
 
 export interface CMSUser {
   id: number;
   username: string;
-  role: "admin" | "vendor";
+  role: AccountRole;
   vendorId?: number;
   vendor?: Vendor;
   isEnabled: boolean;
@@ -39,6 +41,10 @@ export interface VendorProfileResponse {
 
 export function login(username: string, password: string) {
   return publicClient.post<never, LoginResponse>("/api/admin/login", { username, password });
+}
+
+export function register(payload: { username: string; password: string; role: "user" | "vendor"; companyName?: string }) {
+  return publicClient.post<never, LoginResponse>("/api/admin/register", payload);
 }
 
 export function getDashboardStats() {
@@ -85,6 +91,10 @@ export function uploadFile(file: File) {
   return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/uploads", form, { headers: { "Content-Type": "multipart/form-data" } });
 }
 
+export function downloadRemoteImage(url: string) {
+  return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/remote-images", { url });
+}
+
 export interface BulkImportIssue { sheet: string; row: number; message: string }
 export interface BulkImportResult {
   resource: "vendors" | "products";
@@ -95,6 +105,7 @@ export interface BulkImportResult {
   relationsUpdated: number;
   imported: boolean;
   issues: BulkImportIssue[];
+  warnings?: BulkImportIssue[];
 }
 
 export function importWorkbook(resource: "vendors" | "products", file: File) {
@@ -179,11 +190,11 @@ export function listCMSUserPage(params: { page: number; pageSize: number; search
   return adminClient.get<never, PageResult<CMSUser>>("/api/admin/users", { params });
 }
 
-export function createCMSUser(payload: { username: string; password: string; role: "admin" | "vendor"; vendorId?: number; isEnabled: boolean }) {
+export function createCMSUser(payload: { username: string; password: string; role: AccountRole; vendorId?: number; companyName?: string; isEnabled: boolean }) {
   return adminClient.post<never, CMSUser>("/api/admin/users", payload);
 }
 
-export function updateCMSUser(id: number, payload: { username: string; password?: string; role: "admin" | "vendor"; vendorId?: number; isEnabled: boolean }) {
+export function updateCMSUser(id: number, payload: { username: string; password?: string; role: AccountRole; vendorId?: number; isEnabled: boolean }) {
   return adminClient.put<never, CMSUser>(`/api/admin/users/${id}`, payload);
 }
 

@@ -216,7 +216,7 @@ func TestDefaultSeedContainsHBJinongPublicImport(t *testing.T) {
 
 	productNames := map[string]bool{}
 	for _, product := range seed.Products {
-		if int(product.VendorID) == vendorIndex {
+		if int(product.VendorIDValue()) == vendorIndex {
 			productNames[product.Name] = true
 		}
 	}

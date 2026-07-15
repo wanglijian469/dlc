@@ -17,7 +17,7 @@ type Product struct {
 	Name              string           `gorm:"size:150;not null" json:"name"`
 	Image             string           `gorm:"size:255" json:"image"`
 	CategoryID        uint             `gorm:"index" json:"categoryId"`
-	VendorID          uint             `gorm:"index" json:"vendorId"`
+	VendorID          *uint            `gorm:"index" json:"vendorId,omitempty"`
 	CompatibleModels  string           `gorm:"size:500" json:"compatibleModels"`
 	Description       string           `gorm:"type:text" json:"description"`
 	DetailContent     string           `gorm:"type:text" json:"detailContent"`
@@ -33,13 +33,29 @@ type Product struct {
 	PublicationStatus string           `gorm:"size:20;not null;default:published;index" json:"publicationStatus"`
 	ContentVersion    uint             `gorm:"not null;default:1" json:"contentVersion"`
 	Category          Category         `json:"category,omitempty"`
-	Vendor            Vendor           `json:"vendor,omitempty"`
+	Vendor            *Vendor          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"vendor,omitempty"`
 	SupplierCount     int64            `gorm:"-" json:"supplierCount"`
 	SupplierRegions   []string         `gorm:"-" json:"supplierRegions,omitempty"`
 	Supplier          *ProductSupplier `gorm:"-" json:"supplier,omitempty"`
 	CreatedAt         time.Time        `json:"createdAt"`
 	UpdatedAt         time.Time        `json:"updatedAt"`
 	DeletedAt         gorm.DeletedAt   `gorm:"index" json:"-"`
+}
+
+// ProductVendorID converts the legacy zero value into a nullable vendor link.
+// The product catalog can be created before a supplying vendor is associated.
+func ProductVendorID(id uint) *uint {
+	if id == 0 {
+		return nil
+	}
+	return &id
+}
+
+func (p Product) VendorIDValue() uint {
+	if p.VendorID == nil {
+		return 0
+	}
+	return *p.VendorID
 }
 
 func (p Product) Gallery() []string {

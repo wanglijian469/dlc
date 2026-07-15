@@ -94,20 +94,25 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	handler := AdminHandler{DB: db, Config: cfg}
 	admin := router.Group("/api/admin")
 	admin.POST("/login", handler.Login)
+	admin.POST("/register", handler.Register)
 	protected := admin.Group("")
 	protected.Use(CMSAuth(db, cfg.AuthSecret))
 	protected.GET("/profile", handler.Profile)
-	protected.POST("/uploads", handler.SecureUpload)
-	protected.GET("/media/:id", handler.PreviewMedia)
-	protected.DELETE("/media/:id", handler.DeleteMedia)
-	protected.GET("/vendor-profile", handler.GetVendorProfile)
-	protected.PUT("/vendor-profile", handler.SubmitVendorProfile)
-	protected.GET("/vendor-products", handler.ListOwnProducts)
-	protected.GET("/vendor-product-catalog", handler.SearchVendorProductCatalog)
-	protected.POST("/vendor-products", handler.CreateOwnProduct)
-	protected.POST("/vendor-products/link", handler.LinkOwnProduct)
-	protected.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
-	protected.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
+
+	cmsOnly := protected.Group("")
+	cmsOnly.Use(RequireAnyRole("admin", "vendor"))
+	cmsOnly.POST("/uploads", handler.SecureUpload)
+	cmsOnly.POST("/remote-images", handler.DownloadRemoteImage)
+	cmsOnly.GET("/media/:id", handler.PreviewMedia)
+	cmsOnly.DELETE("/media/:id", handler.DeleteMedia)
+	cmsOnly.GET("/vendor-profile", handler.GetVendorProfile)
+	cmsOnly.PUT("/vendor-profile", handler.SubmitVendorProfile)
+	cmsOnly.GET("/vendor-products", handler.ListOwnProducts)
+	cmsOnly.GET("/vendor-product-catalog", handler.SearchVendorProductCatalog)
+	cmsOnly.POST("/vendor-products", handler.CreateOwnProduct)
+	cmsOnly.POST("/vendor-products/link", handler.LinkOwnProduct)
+	cmsOnly.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
+	cmsOnly.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
 
 	adminOnly := protected.Group("")
 	adminOnly.Use(RequireRole("admin"))
@@ -224,6 +229,21 @@ func CMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 func RequireRole(role string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if c.GetString("role") != role {
+			Fail(c, http.StatusForbidden, 403, "没有权限执行此操作")
+			c.Abort()
+			return
+		}
+		c.Next()
+	}
+}
+
+func RequireAnyRole(roles ...string) gin.HandlerFunc {
+	allowed := make(map[string]struct{}, len(roles))
+	for _, role := range roles {
+		allowed[role] = struct{}{}
+	}
+	return func(c *gin.Context) {
+		if _, ok := allowed[c.GetString("role")]; !ok {
 			Fail(c, http.StatusForbidden, 403, "没有权限执行此操作")
 			c.Abort()
 			return

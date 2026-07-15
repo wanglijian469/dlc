@@ -35,6 +35,7 @@ type BulkImportResult struct {
 	RelationsUpdated int               `json:"relationsUpdated"`
 	Imported         bool              `json:"imported"`
 	Issues           []BulkImportIssue `json:"issues"`
+	Warnings         []BulkImportIssue `json:"warnings"`
 }
 
 type xlsxRow struct {
@@ -55,6 +56,8 @@ type vendorImportRow struct {
 	IsVerified         *bool
 	SortOrder          *int
 	PublicationStatus  string
+	LogoAssetID        *uint
+	CoverAssetID       *uint
 }
 
 type productImportRow struct {
@@ -121,7 +124,7 @@ func (h AdminHandler) ImportWorkbook(c *gin.Context) {
 }
 
 func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string) (BulkImportResult, error) {
-	result := BulkImportResult{Resource: "vendors", Issues: []BulkImportIssue{}}
+	result := BulkImportResult{Resource: "vendors", Issues: []BulkImportIssue{}, Warnings: []BulkImportIssue{}}
 	sheet, ok := sheets["厂商信息"]
 	if !ok {
 		result.Issues = append(result.Issues, BulkImportIssue{Sheet: "厂商信息", Row: 1, Message: "缺少“厂商信息”工作表"})
@@ -190,7 +193,29 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 			} else {
 				vendor.ContentVersion++
 			}
+			if row.Values["Logo URL"] != "" {
+				localized, assetID, localizeErr := h.localizeImportImage(tx, row.Values["Logo URL"], username, vendorIDPointer(vendor.ID), "published")
+				if localizeErr != nil {
+					result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "Logo URL 未能下载到本地，保留原地址：" + localizeErr.Error()})
+				} else {
+					row.Values["Logo URL"], row.LogoAssetID = localized, assetID
+				}
+			}
+			if row.Values["封面图 URL"] != "" {
+				localized, assetID, localizeErr := h.localizeImportImage(tx, row.Values["封面图 URL"], username, vendorIDPointer(vendor.ID), "published")
+				if localizeErr != nil {
+					result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "封面图 URL 未能下载到本地，保留原地址：" + localizeErr.Error()})
+				} else {
+					row.Values["封面图 URL"], row.CoverAssetID = localized, assetID
+				}
+			}
 			applyVendorImport(&vendor, row)
+			if row.LogoAssetID != nil {
+				vendor.LogoAssetID = row.LogoAssetID
+			}
+			if row.CoverAssetID != nil {
+				vendor.CoverAssetID = row.CoverAssetID
+			}
 			if err := tx.Omit("Tags", "Media").Save(&vendor).Error; err != nil {
 				return err
 			}
@@ -211,7 +236,7 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 }
 
 func (h AdminHandler) importProducts(sheets map[string]xlsxSheet, username string) (BulkImportResult, error) {
-	result := BulkImportResult{Resource: "products", Issues: []BulkImportIssue{}}
+	result := BulkImportResult{Resource: "products", Issues: []BulkImportIssue{}, Warnings: []BulkImportIssue{}}
 	sheet, ok := sheets["配件产品"]
 	if !ok {
 		sheet, ok = sheets["产品信息"]
@@ -315,6 +340,23 @@ func (h AdminHandler) importProducts(sheets map[string]xlsxSheet, username strin
 				} else {
 					product.ContentVersion++
 				}
+				if row.Values["产品主图 URL"] != "" {
+					localized, _, localizeErr := h.localizeImportImage(tx, row.Values["产品主图 URL"], username, vendorIDPointer(row.VendorID), "published")
+					if localizeErr != nil {
+						result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "产品主图 URL 未能下载到本地，保留原地址：" + localizeErr.Error()})
+					} else {
+						row.Values["产品主图 URL"] = localized
+					}
+				}
+				if row.Values["产品图库 URL（多个用换行）"] != "" {
+					gallery, localizeErrors := h.localizeImportImageList(tx, row.Values["产品图库 URL（多个用换行）"], username, vendorIDPointer(row.VendorID), "published")
+					for _, localizeErr := range localizeErrors {
+						result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "产品图库图片未能下载到本地，保留原地址：" + localizeErr.Error()})
+					}
+					row.Values["产品图库 URL（多个用换行）"] = strings.Join(gallery, "\n")
+					galleryRaw, _ := json.Marshal(gallery)
+					row.GalleryRaw = string(galleryRaw)
+				}
 				applyProductImport(&product, row)
 				if err := tx.Save(&product).Error; err != nil {
 					return err
@@ -337,6 +379,23 @@ func (h AdminHandler) importProducts(sheets map[string]xlsxSheet, username strin
 				supplier = model.ProductSupplier{ProductID: product.ID, VendorID: row.VendorID, ContentVersion: 1}
 			} else {
 				supplier.ContentVersion++
+			}
+			if row.Values["厂商产品图片 URL"] != "" {
+				localized, _, localizeErr := h.localizeImportImage(tx, row.Values["厂商产品图片 URL"], username, vendorIDPointer(row.VendorID), "published")
+				if localizeErr != nil {
+					result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "厂商产品图片 URL 未能下载到本地，保留原地址：" + localizeErr.Error()})
+				} else {
+					row.Values["厂商产品图片 URL"] = localized
+				}
+			}
+			if row.Values["厂商产品图库 URL（多个用换行）"] != "" {
+				gallery, localizeErrors := h.localizeImportImageList(tx, row.Values["厂商产品图库 URL（多个用换行）"], username, vendorIDPointer(row.VendorID), "published")
+				for _, localizeErr := range localizeErrors {
+					result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Row, Message: "厂商产品图库图片未能下载到本地，保留原地址：" + localizeErr.Error()})
+				}
+				row.Values["厂商产品图库 URL（多个用换行）"] = strings.Join(gallery, "\n")
+				galleryRaw, _ := json.Marshal(gallery)
+				row.SupplierGalleryRaw = string(galleryRaw)
 			}
 			applySupplierImport(&supplier, product, row, username)
 			if err := tx.Save(&supplier).Error; err != nil {

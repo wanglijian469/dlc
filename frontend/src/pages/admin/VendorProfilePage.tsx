@@ -48,7 +48,7 @@ export function VendorProfilePage() {
   const load = () => getVendorProfile().then((result) => {
     setForm(result.draft);
     original.current = JSON.stringify(result.draft);
-    setStatus(result.submission?.status || "published");
+    setStatus(result.submission?.status || (result.vendor.publicationStatus === "draft" ? "draft" : "published"));
     setReviewNote(result.submission?.reviewNote || "");
   }).catch(() => setMessage("厂商资料加载失败，请联系管理员确认账号绑定")).finally(() => setLoading(false));
 
@@ -113,10 +113,11 @@ function VendorField({ field, form, setForm }: { field: Field; form: Partial<Ven
 }
 
 function statusLabel(status: string) {
-  return ({ pending: "资料审核中", rejected: "资料已驳回，请修改后重新提交", approved: "最近提交已审核通过", published: "当前展示的是已发布资料" } as Record<string, string>)[status] || "厂商资料";
+  return ({ draft: "公司资料待完善，当前尚未发布", pending: "资料审核中", rejected: "资料已驳回，请修改后重新提交", approved: "最近提交已审核通过", published: "当前展示的是已发布资料" } as Record<string, string>)[status] || "厂商资料";
 }
 
 function statusHint(status: string, note: string) {
+  if (status === "draft") return "请完善公司资料并提交审核，审核通过后公司才会在前台展示。";
   if (status === "pending") return "管理员通过后，新资料会自动更新到前台厂商页面。";
   if (status === "rejected") return note ? `审核意见：${note}` : "请完善资料后再次提交。";
   return "修改资料后提交审核，审核期间不会影响当前前台内容。";

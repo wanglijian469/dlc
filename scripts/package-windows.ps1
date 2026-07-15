@@ -33,6 +33,12 @@ try {
 
 Copy-Item -Recurse -Force (Join-Path $Root "frontend\dist\*") (Join-Path $PackageRoot "public")
 Copy-Item -Force (Join-Path $Root "deploy\config\.env.example") (Join-Path $PackageRoot ".env.example")
+[System.IO.File]::WriteAllText(
+  (Join-Path $PackageRoot "default.env"),
+  [System.IO.File]::ReadAllText((Join-Path $Root "deploy\config\.env.example"))
+)
+# 运行包提供可见的默认配置；启动脚本会在不存在 .env 时自动读取它。
+[System.IO.File]::WriteAllText((Join-Path $PackageRoot "default.env"), [System.IO.File]::ReadAllText((Join-Path $Root "deploy\config\.env.example")))
 Copy-Item -Force (Join-Path $Root "deploy\DEPLOY.md") (Join-Path $PackageRoot "DEPLOY.md")
 Copy-Item -Force (Join-Path $Root "deploy\README.txt") (Join-Path $PackageRoot "README.txt")
 Copy-Item -Force (Join-Path $Root "deploy\config\nginx.conf.example") (Join-Path $PackageRoot "config\nginx.conf.example")

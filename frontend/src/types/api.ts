@@ -196,6 +196,7 @@ export interface SiteConfig {
 export interface SiteMeta {
   siteName: string;
   brandMark: string;
+  brandLogo?: string;
   submitVendorText: string;
   adminLoginText: string;
   mobileBrandName: string;

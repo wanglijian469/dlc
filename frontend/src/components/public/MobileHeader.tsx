@@ -25,7 +25,7 @@ export function MobileHeader({ siteMeta, menus = [], auxiliaryMenus = [] }: { si
     <>
       <header className="mobile-header">
         <button aria-expanded={open} aria-label="打开分类菜单" className="mobile-icon-button" ref={triggerRef} type="button" onClick={() => setOpen(true)}><MenuIconButton size={22} /></button>
-        <Link className="brand mobile-brand" to="/"><span className="brand-mark">{siteMeta?.mobileBrandMark || siteMeta?.brandMark || "农"}</span><span>{siteMeta?.mobileBrandName || siteMeta?.siteName || "大陆农机配件"}</span></Link>
+        <Link className="brand mobile-brand" to="/">{siteMeta?.brandLogo ? <img alt="" className="brand-logo" src={siteMeta.brandLogo} /> : <span className="brand-mark">{siteMeta?.mobileBrandMark || siteMeta?.brandMark || "农"}</span>}<span>{siteMeta?.mobileBrandName || siteMeta?.siteName || "大陆农机配件"}</span></Link>
         <Link aria-label="搜索" className="mobile-icon-button" to="/search"><Search size={22} /></Link>
       </header>
       {open && <button aria-label="关闭分类菜单" className="mobile-drawer-backdrop" type="button" onClick={() => setOpen(false)} />}

@@ -44,6 +44,26 @@
 .image-field-preview { align-items:start;background:#f8fafc;border:1px solid #dbe5f0;border-radius:8px;display:flex;gap:10px;padding:9px; }
 .image-field-preview > span { color:#475569;font-size:12px;font-weight:700;line-height:1.4;min-width:70px; }
 .image-field-preview img { border:1px solid #e2e8f0;border-radius:5px;height:72px;max-width:150px;object-fit:contain;width:110px; }
+.image-field-actions { align-items:center;display:flex;flex-wrap:wrap;gap:8px; }
+.image-field-actions .outline-btn:disabled { cursor:not-allowed;opacity:.55; }
+.image-download-error { color:#b45309;display:block;line-height:1.45; }
+.admin-import-warnings { background:#fffbeb;border:1px solid #fde68a;border-radius:8px;color:#92400e;margin-top:12px;padding:10px 12px; }
+.admin-import-warnings ul { margin:7px 0 0;padding-left:20px; }
+.category-toolbar select { min-width:160px; }
+.category-admin-actions,.category-row-actions { align-items:center;display:flex;flex-wrap:wrap;gap:8px; }
+.category-tree-name { align-items:center;display:flex;font-weight:700;gap:9px; }
+.category-child-row .category-tree-name { color:#475569;padding-left:24px; }
+.category-child-row .category-tree-name > span { color:#94a3b8;font-weight:400; }
+.category-level-badge { border-radius:999px;display:inline-block;font-size:12px;font-weight:700;padding:4px 9px; }
+.category-level-badge.root { background:#e8f2ff;color:#1559c7; }
+.category-level-badge.child { background:#f1f5f9;color:#526174; }
+.category-row-actions button { background:#fff;border:1px solid #dbe5f0;border-radius:6px;color:#1559c7;cursor:pointer;padding:6px 9px; }
+.category-editor-message { margin:14px 22px 0; }
+.brand-logo-config { display:grid;gap:7px; }
+.brand-logo-config > small { color:#64748b;line-height:1.45; }
+.brand-logo-config-preview { align-items:center;background:#f8fafc;border:1px solid #dbe5f0;border-radius:8px;display:flex;gap:12px;padding:10px; }
+.brand-logo-config-preview img { background:#fff;border:1px solid #e2e8f0;border-radius:6px;height:48px;max-width:210px;object-fit:contain;width:auto; }
+.brand-logo-config-preview span { color:#64748b;font-size:12px; }
 
 .structured-editor { background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;padding:14px; }
 .structured-editor-title { align-items:center;display:flex;gap:10px;justify-content:space-between;margin-bottom:12px; }.structured-editor-title select{max-width:190px}

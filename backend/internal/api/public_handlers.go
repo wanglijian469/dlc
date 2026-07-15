@@ -35,21 +35,23 @@ func (h PublicHandler) SiteMeta(c *gin.Context) {
 }
 
 func (h PublicHandler) LayoutConfig(c *gin.Context) {
-	c.Header("Cache-Control", "public, max-age=60, stale-while-revalidate=300")
+	// Revalidate on each page load so category-driven menus are visible after a
+	// normal refresh while still allowing intermediary caches to store a copy.
+	c.Header("Cache-Control", "public, no-cache")
 	OK(c, h.HomeService.Layout(c.Request.Context()))
 }
 
 func (h PublicHandler) Menus(c *gin.Context) {
+	if c.Query("type") == "sidebar" {
+		OK(c, h.HomeService.SidebarMenus(c.Request.Context()))
+		return
+	}
 	var menus []model.Menu
 	query := h.DB.Where("is_enabled = ?", true)
 	if typ := c.Query("type"); typ != "" {
 		query = query.Where("menu_type = ?", typ)
 	}
 	query.Order("sort_order asc, id asc").Find(&menus)
-	if c.Query("type") == "sidebar" {
-		OK(c, service.BuildMenuTree(menus))
-		return
-	}
 	OK(c, menus)
 }
 
@@ -176,7 +178,7 @@ func (h PublicHandler) Products(c *gin.Context) {
 		query = query.Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like)
 	}
 	if categoryID := queryUint(c, "categoryId"); categoryID > 0 {
-		query = query.Where("products.category_id = ?", categoryID)
+		query = query.Where("products.category_id IN ?", productCategoryIDs(h.DB, categoryID))
 	}
 	if vendorID := queryUint(c, "vendorId"); vendorID > 0 {
 		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendorID)
@@ -206,6 +208,17 @@ func (h PublicHandler) Products(c *gin.Context) {
 		}
 	}
 	OK(c, result)
+}
+
+func productCategoryIDs(db *gorm.DB, categoryID uint) []uint {
+	ids := []uint{categoryID}
+	var category model.Category
+	if err := db.First(&category, categoryID).Error; err != nil || category.ParentID != 0 {
+		return ids
+	}
+	var childIDs []uint
+	db.Model(&model.Category{}).Where("parent_id = ?", categoryID).Pluck("id", &childIDs)
+	return append(ids, childIDs...)
 }
 
 func (h PublicHandler) ProductDetail(c *gin.Context) {
@@ -284,7 +297,9 @@ func redactVendorSlice(vendors []model.Vendor) {
 
 func redactProductVendors(products []model.Product) {
 	for i := range products {
-		redactVendor(&products[i].Vendor)
+		if products[i].Vendor != nil {
+			redactVendor(products[i].Vendor)
+		}
 	}
 }
 

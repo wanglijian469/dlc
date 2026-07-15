@@ -248,18 +248,22 @@ func migrateProductCatalog(db *gorm.DB) error {
 			return err
 		}
 		for _, product := range products {
+			vendorID := product.VendorIDValue()
+			if vendorID == 0 {
+				continue
+			}
 			status := "approved"
 			if product.Status != 1 {
 				status = "pending"
 			}
-			supplier := model.ProductSupplier{ProductID: product.ID, VendorID: product.VendorID, VendorProductName: product.Name, Image: product.Image, GalleryRaw: product.GalleryRaw, CompatibleModels: product.CompatibleModels, Description: product.Description, PriceNote: product.PriceNote, InquiryText: product.InquiryText, InquiryPath: product.InquiryPath, Status: status, SourceType: "legacy", ContentVersion: 1}
+			supplier := model.ProductSupplier{ProductID: product.ID, VendorID: vendorID, VendorProductName: product.Name, Image: product.Image, GalleryRaw: product.GalleryRaw, CompatibleModels: product.CompatibleModels, Description: product.Description, PriceNote: product.PriceNote, InquiryText: product.InquiryText, InquiryPath: product.InquiryPath, Status: status, SourceType: "legacy", ContentVersion: 1}
 
 			// The unique index does not include deleted_at. A normal scoped lookup misses a
 			// soft-deleted relationship and a subsequent INSERT then fails with duplicate
 			// product_id/vendor_id. Include deleted rows and revive the existing record so
 			// this migration remains safe to run on every startup.
 			var existing model.ProductSupplier
-			result := tx.Unscoped().Where("product_id = ? AND vendor_id = ?", product.ID, product.VendorID).First(&existing)
+			result := tx.Unscoped().Where("product_id = ? AND vendor_id = ?", product.ID, vendorID).First(&existing)
 			switch {
 			case result.Error == nil:
 				if !existing.DeletedAt.Valid {
@@ -281,7 +285,7 @@ func migrateProductCatalog(db *gorm.DB) error {
 				productPayload, _ := json.Marshal(product)
 				supplierPayload, _ := json.Marshal(supplier)
 				productID, supplierID := product.ID, supplier.ID
-				submission := model.ProductSubmission{VendorID: product.VendorID, ProductID: &productID, SupplierID: &supplierID, SubmissionType: "new_product", BaseVersion: supplier.ContentVersion, ProductPayload: string(productPayload), SupplierPayload: string(supplierPayload), Status: "pending", SubmittedBy: "migration"}
+				submission := model.ProductSubmission{VendorID: vendorID, ProductID: &productID, SupplierID: &supplierID, SubmissionType: "new_product", BaseVersion: supplier.ContentVersion, ProductPayload: string(productPayload), SupplierPayload: string(supplierPayload), Status: "pending", SubmittedBy: "migration"}
 				if err := tx.Create(&submission).Error; err != nil {
 					return err
 				}

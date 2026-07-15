@@ -360,38 +360,56 @@ func (h AdminHandler) ListCMSUsers(c *gin.Context) {
 	OK(c, users)
 }
 
-func (h AdminHandler) CreateCMSUser(c *gin.Context) { h.saveCMSUser(c, 0) }
-func (h AdminHandler) UpdateCMSUser(c *gin.Context) { h.saveCMSUser(c, idParam(c)) }
-
-func (h AdminHandler) saveCMSUser(c *gin.Context, id uint) {
-	var req struct {
-		Username  string `json:"username"`
-		Password  string `json:"password"`
-		Role      string `json:"role"`
-		VendorID  *uint  `json:"vendorId"`
-		IsEnabled *bool  `json:"isEnabled"`
+func (h AdminHandler) CreateCMSUser(c *gin.Context) {
+	var req cmsUserRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		Fail(c, http.StatusBadRequest, 400, "账号内容格式不正确")
+		return
 	}
+	enabled := true
+	if req.IsEnabled != nil {
+		enabled = *req.IsEnabled
+	}
+	user, err := createAccount(h.DB, accountCreateInput{
+		Username:    req.Username,
+		Password:    req.Password,
+		Role:        req.Role,
+		VendorID:    req.VendorID,
+		CompanyName: req.CompanyName,
+		IsEnabled:   enabled,
+		DataOrigin:  "admin",
+	})
+	if err != nil {
+		writeAccountCreateError(c, err)
+		return
+	}
+	logOperation(h.DB, c.GetString("username"), "create", "users", user.ID)
+	OK(c, user)
+}
+
+func (h AdminHandler) UpdateCMSUser(c *gin.Context) {
+	var req cmsUserRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, http.StatusBadRequest, 400, "账号内容格式不正确")
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || (req.Role != "admin" && req.Role != "vendor") {
-		Fail(c, http.StatusBadRequest, 400, "用户名不能为空，角色只能是 admin 或 vendor")
+	if req.Username == "" || (req.Role != "admin" && req.Role != "vendor" && req.Role != "user") {
+		Fail(c, http.StatusBadRequest, 400, "用户名不能为空，角色只能是 admin、vendor 或 user")
 		return
 	}
 	if req.Role == "vendor" && (req.VendorID == nil || *req.VendorID == 0 || !recordExists[model.Vendor](h.DB, *req.VendorID)) {
 		Fail(c, http.StatusBadRequest, 400, "厂商账号必须绑定有效厂商")
 		return
 	}
+	if req.Role != "vendor" && req.VendorID != nil {
+		Fail(c, http.StatusBadRequest, 400, "普通用户和管理员不能绑定公司")
+		return
+	}
 	var user model.AdminUser
-	if id > 0 {
-		if err := h.DB.First(&user, id).Error; err != nil {
-			Fail(c, http.StatusNotFound, 404, "账号不存在")
-			return
-		}
-	} else if len(req.Password) < 6 {
-		Fail(c, http.StatusBadRequest, 400, "新账号密码至少 6 位")
+	id := idParam(c)
+	if err := h.DB.First(&user, id).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "账号不存在")
 		return
 	}
 	user.Username = req.Username
@@ -403,8 +421,6 @@ func (h AdminHandler) saveCMSUser(c *gin.Context, id uint) {
 	}
 	if req.IsEnabled != nil {
 		user.IsEnabled = *req.IsEnabled
-	} else if id == 0 {
-		user.IsEnabled = true
 	}
 	if req.Password != "" {
 		if len(req.Password) < 6 {
@@ -419,11 +435,11 @@ func (h AdminHandler) saveCMSUser(c *gin.Context, id uint) {
 		user.PasswordHash = hash
 	}
 	if err := h.DB.Save(&user).Error; err != nil {
-		Fail(c, http.StatusBadRequest, 400, "账号保存失败，用户名可能已存在")
+		Fail(c, http.StatusConflict, 409, "账号保存失败，用户名可能已存在")
 		return
 	}
 	h.DB.Preload("Vendor").First(&user, user.ID)
-	logOperation(h.DB, c.GetString("username"), upsertAction(id), "users", user.ID)
+	logOperation(h.DB, c.GetString("username"), "update", "users", user.ID)
 	OK(c, user)
 }
 

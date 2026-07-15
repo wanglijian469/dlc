@@ -15,4 +15,5 @@ go run ./cmd/server
 - `GET /api/vendors`
 - `GET /api/products`
 - `POST /api/admin/login`
+- `POST /api/admin/register`
 - `GET/POST/PUT/DELETE /api/admin/*`

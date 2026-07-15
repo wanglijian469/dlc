@@ -80,7 +80,7 @@ func (h AdminHandler) CreateOwnProduct(c *gin.Context) {
 		return
 	}
 	input.ID = 0
-	input.VendorID = vendorID
+	input.VendorID = model.ProductVendorID(vendorID)
 	input.Status = 2
 	input.PublicationStatus = "draft"
 	input.ContentVersion = 1

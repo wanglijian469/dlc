@@ -6,7 +6,11 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path $EnvFile)) {
-  throw "Missing $EnvFile. Copy .env.example to .env and set production values first."
+  if ($EnvFile -eq ".\.env" -and (Test-Path ".\default.env")) {
+    $EnvFile = ".\default.env"
+  } else {
+    throw "Missing $EnvFile. Copy .env.example to .env, or use default.env for local testing."
+  }
 }
 
 Get-Content $EnvFile | ForEach-Object {

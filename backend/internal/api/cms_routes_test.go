@@ -27,6 +27,7 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 	}
 
 	for _, want := range []string{
+		"POST /api/admin/register",
 		"GET /api/site-meta",
 		"GET /api/pages/:slug",
 		"GET /api/products/:id",

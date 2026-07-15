@@ -196,6 +196,9 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 		h.DB.Model(&model.Banner{}).Where("is_enabled = ? AND background_image = ?", true, url).Count(&references)
 	}
 	if references == 0 {
+		h.DB.Model(&model.SiteConfig{}).Where("config_key = ? AND config_value LIKE ?", "site.meta", "%"+url+"%").Count(&references)
+	}
+	if references == 0 {
 		Fail(c, 404, 404, "图片不存在")
 		return
 	}

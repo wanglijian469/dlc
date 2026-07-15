@@ -3,6 +3,7 @@ import { ImageUp, Link2, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { createOwnProduct, deleteOwnProduct, linkOwnProduct, listOwnProducts, searchVendorProductCatalog, updateOwnProduct, uploadFile } from "../../api/admin";
 import { getFilterOptions } from "../../api/public";
 import type { Category, Product, ProductSupplier, VendorProductRecord } from "../../types/api";
+import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { ProtectedMediaImage } from "./ProtectedMediaImage";
 
 const emptyCandidate: Partial<Product> = { name: "", compatibleModels: "", description: "", detailContent: "", image: "", priceNote: "" };
@@ -72,7 +73,7 @@ export function VendorProductsEditor() {
 
 function CandidateFields({ form, categories, onChange }: { form: Partial<Product>; categories: Category[]; onChange: (value: Partial<Product>) => void }) { return <div className="vendor-product-fields">
   <label>产品名称<input required value={form.name || ""} onChange={(event) => onChange({ ...form, name: event.target.value })} /></label>
-  <label>产品分类<select value={form.categoryId || ""} onChange={(event) => onChange({ ...form, categoryId: Number(event.target.value) || undefined })}><option value="">请选择</option>{categories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
+  <label>产品分类<select value={form.categoryId || ""} onChange={(event) => onChange({ ...form, categoryId: Number(event.target.value) || undefined })}><option value="">请选择</option>{hierarchicalCategoryOptions(categories).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
   <label>通用适配机型<input value={form.compatibleModels || ""} onChange={(event) => onChange({ ...form, compatibleModels: event.target.value })} /></label>
   <label>本厂价格说明<input value={form.priceNote || ""} onChange={(event) => onChange({ ...form, priceNote: event.target.value })} /></label>
   <label className="wide-field">公共产品说明<textarea value={form.description || ""} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>

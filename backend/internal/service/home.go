@@ -2,9 +2,13 @@ package service
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
@@ -25,6 +29,7 @@ type JoinConfig struct {
 type SiteMeta struct {
 	SiteName         string `json:"siteName"`
 	BrandMark        string `json:"brandMark"`
+	BrandLogo        string `json:"brandLogo"`
 	SubmitVendorText string `json:"submitVendorText"`
 	AdminLoginText   string `json:"adminLoginText"`
 	MobileBrandName  string `json:"mobileBrandName"`
@@ -127,6 +132,147 @@ func BuildMenuTree(menus []model.Menu) []model.Menu {
 	return tree
 }
 
+const categoryMenuIDBase uint = 1_000_000_000
+
+// MergeCategoryMenus overlays enabled categories on the historic sidebar menu.
+// Category-derived rows are virtual and are never persisted to the menus table.
+func MergeCategoryMenus(menus []model.Menu, categories []model.Category) []model.Menu {
+	manualRoots := BuildMenuTree(menus)
+	roots := make([]model.Category, 0)
+	children := make(map[uint][]model.Category)
+	for _, category := range categories {
+		if category.ParentID == 0 {
+			roots = append(roots, category)
+		} else {
+			children[category.ParentID] = append(children[category.ParentID], category)
+		}
+	}
+	sortCategories(roots)
+	for parentID := range children {
+		sortCategories(children[parentID])
+	}
+
+	matchedRoots := make(map[uint]bool)
+	result := make([]model.Menu, 0, len(manualRoots)+len(roots))
+	for _, menu := range manualRoots {
+		category, found := matchRootCategory(menu, roots, matchedRoots)
+		if !found {
+			result = append(result, menu)
+			continue
+		}
+		matchedRoots[category.ID] = true
+		if !category.IsEnabled {
+			continue
+		}
+		categoryMenu := categoryAsMenu(category, &menu, 0)
+		categoryMenu.Children = mergeCategoryChildren(categoryMenu.ID, menu.Children, children[category.ID])
+		result = append(result, categoryMenu)
+	}
+	for _, category := range roots {
+		if matchedRoots[category.ID] || !category.IsEnabled {
+			continue
+		}
+		categoryMenu := categoryAsMenu(category, nil, 0)
+		categoryMenu.Children = mergeCategoryChildren(categoryMenu.ID, nil, children[category.ID])
+		result = append(result, categoryMenu)
+	}
+	sortMenus(result)
+	return result
+}
+
+func mergeCategoryChildren(parentMenuID uint, manual []model.Menu, categories []model.Category) []model.Menu {
+	categoryNames := make(map[string]bool, len(categories))
+	result := make([]model.Menu, 0, len(manual)+len(categories))
+	for _, category := range categories {
+		name := normalizeMenuName(category.Name)
+		categoryNames[name] = true
+		if !category.IsEnabled {
+			continue
+		}
+		var matched *model.Menu
+		for index := range manual {
+			if normalizeMenuName(manual[index].Name) == name {
+				copy := manual[index]
+				matched = &copy
+				break
+			}
+		}
+		result = append(result, categoryAsMenu(category, matched, parentMenuID))
+	}
+	for _, menu := range manual {
+		if categoryNames[normalizeMenuName(menu.Name)] {
+			continue
+		}
+		menu.ParentID = parentMenuID
+		result = append(result, menu)
+	}
+	sortMenus(result)
+	return result
+}
+
+func categoryAsMenu(category model.Category, existing *model.Menu, parentID uint) model.Menu {
+	menu := model.Menu{
+		ID:        categoryMenuIDBase + category.ID,
+		MenuType:  "sidebar",
+		IsEnabled: true,
+	}
+	if existing != nil {
+		menu = *existing
+		menu.Children = nil
+	}
+	menu.ID = categoryMenuIDBase + category.ID
+	menu.Name = strings.TrimSpace(category.Name)
+	menu.ParentID = parentID
+	menu.Icon = category.Icon
+	menu.Path = fmt.Sprintf("/products?categoryId=%d", category.ID)
+	menu.SortOrder = category.SortOrder
+	menu.IsEnabled = true
+	menu.MenuType = "sidebar"
+	return menu
+}
+
+func matchRootCategory(menu model.Menu, categories []model.Category, matched map[uint]bool) (model.Category, bool) {
+	if id := categoryIDFromPath(menu.Path); id > 0 {
+		for _, category := range categories {
+			if category.ID == id && !matched[id] {
+				return category, true
+			}
+		}
+	}
+	name := normalizeMenuName(menu.Name)
+	for _, category := range categories {
+		if !matched[category.ID] && normalizeMenuName(category.Name) == name {
+			return category, true
+		}
+	}
+	return model.Category{}, false
+}
+
+func categoryIDFromPath(path string) uint {
+	parsed, err := url.Parse(path)
+	if err != nil {
+		return 0
+	}
+	value, err := strconv.ParseUint(parsed.Query().Get("categoryId"), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return uint(value)
+}
+
+func normalizeMenuName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
+}
+
+func sortCategories(categories []model.Category) {
+	sort.SliceStable(categories, func(i, j int) bool {
+		if categories[i].SortOrder == categories[j].SortOrder {
+			return categories[i].ID < categories[j].ID
+		}
+		return categories[i].SortOrder < categories[j].SortOrder
+	})
+}
+
 func sortMenus(menus []model.Menu) {
 	sort.SliceStable(menus, func(i, j int) bool {
 		if menus[i].SortOrder == menus[j].SortOrder {
@@ -171,7 +317,7 @@ func (s HomeService) SiteMeta(ctx context.Context) SiteMeta {
 func (s HomeService) Layout(ctx context.Context) LayoutConfig {
 	result := LayoutConfig{SiteMeta: s.SiteMeta(ctx), Theme: ThemeConfig{PrimaryColor: "#1559c7", AccentColor: "#0d8b6f"}}
 	result.TopMenus = s.menus(ctx, "top")
-	result.SidebarMenus = BuildMenuTree(s.menus(ctx, "sidebar"))
+	result.SidebarMenus = s.SidebarMenus(ctx)
 	result.AuxiliaryMenus = s.menus(ctx, "auxiliary")
 	result.MobileMenus = s.menus(ctx, "mobile")
 	result.MobileBottomMenus = s.menus(ctx, "mobile_bottom")
@@ -179,10 +325,19 @@ func (s HomeService) Layout(ctx context.Context) LayoutConfig {
 	if s.DB != nil && s.DB.WithContext(ctx).Where("config_key = ?", "site.theme").First(&config).Error == nil {
 		_ = json.Unmarshal([]byte(config.ConfigValue), &result.Theme)
 	}
-	var menuUpdated, configUpdated time.Time
+	var menuUpdated, categoryUpdated, configUpdated time.Time
+	var categoryDeleted sql.NullTime
 	if s.DB != nil {
 		s.DB.WithContext(ctx).Model(&model.Menu{}).Select("MAX(updated_at)").Scan(&menuUpdated)
+		s.DB.WithContext(ctx).Unscoped().Model(&model.Category{}).Select("MAX(updated_at)").Scan(&categoryUpdated)
+		s.DB.WithContext(ctx).Unscoped().Model(&model.Category{}).Select("MAX(deleted_at)").Scan(&categoryDeleted)
 		s.DB.WithContext(ctx).Model(&model.SiteConfig{}).Select("MAX(updated_at)").Scan(&configUpdated)
+	}
+	if categoryUpdated.After(menuUpdated) {
+		menuUpdated = categoryUpdated
+	}
+	if categoryDeleted.Valid && categoryDeleted.Time.After(menuUpdated) {
+		menuUpdated = categoryDeleted.Time
 	}
 	if configUpdated.After(menuUpdated) {
 		menuUpdated = configUpdated
@@ -197,7 +352,7 @@ func (s HomeService) GetHome(ctx context.Context) (HomePayload, error) {
 	payload.HomeSections = DefaultHomeSections()
 	payload.Modules = DefaultHomeModules()
 	payload.TopMenus = s.menus(ctx, "top")
-	payload.SidebarMenus = BuildMenuTree(s.menus(ctx, "sidebar"))
+	payload.SidebarMenus = s.SidebarMenus(ctx)
 	payload.AuxiliaryMenus = s.menus(ctx, "auxiliary")
 	payload.MobileMenus = s.menus(ctx, "mobile")
 	payload.MobileBottomMenus = s.menus(ctx, "mobile_bottom")
@@ -283,4 +438,13 @@ func (s HomeService) menus(ctx context.Context, menuType string) []model.Menu {
 	var menus []model.Menu
 	s.DB.WithContext(ctx).Where("menu_type = ? AND is_enabled = ?", menuType, true).Order("sort_order asc, id asc").Find(&menus)
 	return menus
+}
+
+func (s HomeService) SidebarMenus(ctx context.Context) []model.Menu {
+	if s.DB == nil {
+		return nil
+	}
+	var categories []model.Category
+	s.DB.WithContext(ctx).Order("sort_order asc, id asc").Find(&categories)
+	return MergeCategoryMenus(s.menus(ctx, "sidebar"), categories)
 }

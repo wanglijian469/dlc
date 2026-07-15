@@ -67,6 +67,110 @@ textarea {
   width: 36px;
 }
 
+.brand-logo {
+  height: 36px;
+  max-width: 140px;
+  object-fit: contain;
+  width: auto;
+}
+
+.header-account,
+.header-account-name {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.header-account .header-text-link {
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  padding: 0;
+}
+
+.admin-auth-tabs {
+  background: #eef3f8;
+  border-radius: 10px;
+  display: grid;
+  gap: 4px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  padding: 4px;
+}
+
+.admin-auth-tabs button {
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  color: var(--text-sub);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+
+.admin-auth-tabs button.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgb(15 23 42 / 8%);
+}
+
+.registration-role-picker,
+.company-mode-picker {
+  border: 1px solid #dbe5f0;
+  border-radius: 8px;
+  display: flex;
+  gap: 16px;
+  margin: 0;
+  padding: 10px 12px;
+}
+
+.registration-role-picker legend,
+.company-mode-picker legend {
+  color: var(--text-sub);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 0 5px;
+}
+
+.registration-role-picker label,
+.company-mode-picker label {
+  align-items: center;
+  display: inline-flex;
+  flex-direction: row;
+  gap: 6px;
+}
+
+.registration-role-picker input,
+.company-mode-picker input {
+  width: auto;
+}
+
+.registration-hint {
+  color: var(--text-sub);
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.existing-session {
+  align-items: center;
+  background: #ecfdf5;
+  border: 1px solid #a7f3d0;
+  border-radius: 8px;
+  color: #065f46;
+  display: flex;
+  font-size: 13px;
+  justify-content: space-between;
+  padding: 9px 11px;
+}
+
+.existing-session button {
+  background: transparent;
+  border: 0;
+  color: #047857;
+  cursor: pointer;
+  font-weight: 700;
+}
+
 .top-nav {
   display: flex;
   flex: 1;

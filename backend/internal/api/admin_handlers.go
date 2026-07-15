@@ -208,11 +208,16 @@ func (h AdminHandler) UpdateTag(c *gin.Context) { update[model.Tag](c, h.DB, "ta
 func (h AdminHandler) DeleteTag(c *gin.Context) { remove[model.Tag](c, h.DB, "tags") }
 
 func (h AdminHandler) ListCategories(c *gin.Context) {
-	list[model.Category](c, h.DB, "sort_order asc, id asc")
+	var categories []model.Category
+	if err := h.DB.Order("parent_id asc, sort_order asc, id asc").Find(&categories).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "分类列表加载失败")
+		return
+	}
+	OK(c, categories)
 }
-func (h AdminHandler) CreateCategory(c *gin.Context) { create[model.Category](c, h.DB, "categories") }
-func (h AdminHandler) UpdateCategory(c *gin.Context) { update[model.Category](c, h.DB, "categories") }
-func (h AdminHandler) DeleteCategory(c *gin.Context) { remove[model.Category](c, h.DB, "categories") }
+func (h AdminHandler) CreateCategory(c *gin.Context) { saveCategory(c, h.DB, 0) }
+func (h AdminHandler) UpdateCategory(c *gin.Context) { saveCategory(c, h.DB, idParam(c)) }
+func (h AdminHandler) DeleteCategory(c *gin.Context) { deleteCategory(c, h.DB, idParam(c)) }
 
 func (h AdminHandler) ListProducts(c *gin.Context) {
 	query := h.DB.Model(&model.Product{}).Preload("Category")
@@ -611,9 +616,13 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, "分类不存在")
 		return
 	}
-	if input.VendorID > 0 && !recordExists[model.Vendor](db, input.VendorID) {
-		Fail(c, http.StatusBadRequest, 400, "厂商不存在")
-		return
+	if input.VendorID != nil && *input.VendorID == 0 {
+		input.VendorID = nil
+	}
+	if vendorID := input.VendorIDValue(); vendorID > 0 && !recordExists[model.Vendor](db, vendorID) {
+		// 后台产品目录是共享目录。若浏览器保留了已删除厂商的旧 ID，
+		// 则忽略该过期关联，仍允许创建产品。
+		input.VendorID = nil
 	}
 	if err := db.Save(&input).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
@@ -622,12 +631,12 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 	if input.Status == 1 {
 		publishProductMedia(db, input)
 	}
-	if input.VendorID > 0 {
+	if vendorID := input.VendorIDValue(); vendorID > 0 {
 		var supplier model.ProductSupplier
-		if db.Where("product_id = ? AND vendor_id = ?", input.ID, input.VendorID).First(&supplier).Error != nil {
-			supplier = model.ProductSupplier{ProductID: input.ID, VendorID: input.VendorID, ContentVersion: 1}
+		if db.Where("product_id = ? AND vendor_id = ?", input.ID, vendorID).First(&supplier).Error != nil {
+			supplier = model.ProductSupplier{ProductID: input.ID, VendorID: vendorID, ContentVersion: 1}
 		}
-		applySupplierDraft(&supplier, supplierFromProduct(input, input.ID, input.VendorID))
+		applySupplierDraft(&supplier, supplierFromProduct(input, input.ID, vendorID))
 		supplier.Status = "approved"
 		supplier.SourceType = "admin"
 		supplier.ReviewedBy = c.GetString("username")
