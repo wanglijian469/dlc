@@ -18,7 +18,9 @@ import (
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/config"
+	"dalu-nongji-parts/backend/internal/database"
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -28,30 +30,67 @@ type AdminHandler struct {
 	Config config.Config
 }
 
+const (
+	loginInvalidRequestMessage     = "请求格式错误"
+	loginInvalidCredentialsMessage = "用户名或密码错误"
+	loginSessionFailureMessage     = "登录失败"
+)
+
 func (h AdminHandler) Login(c *gin.Context) {
+	h.login(c, "vendor")
+}
+
+func (h AdminHandler) StaffLogin(c *gin.Context) {
+	h.login(c, "staff")
+}
+
+func (h AdminHandler) login(c *gin.Context, audience string) {
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		Fail(c, http.StatusBadRequest, 400, "璇锋眰鏍煎紡閿欒")
+		Fail(c, http.StatusBadRequest, 400, loginInvalidRequestMessage)
+		return
+	}
+	key := c.ClientIP() + "|" + strings.ToLower(strings.TrimSpace(req.Username))
+	if !loginAllowed(key, time.Now()) {
+		Fail(c, http.StatusTooManyRequests, 429, "登录尝试过多，请稍后再试")
 		return
 	}
 	var user model.AdminUser
 	if err := h.DB.Where("username = ? AND is_enabled = ?", req.Username, true).First(&user).Error; err != nil || !auth.CheckPassword(user.PasswordHash, req.Password) {
-		Fail(c, http.StatusUnauthorized, 401, "鐢ㄦ埛鍚嶆垨瀵嗙爜閿欒")
-		return
-	}
-	token, err := auth.IssueToken(user.Username, h.Config.AuthSecret)
-	if err != nil {
-		Fail(c, http.StatusInternalServerError, 500, "鐧诲綍澶辫触")
+		recordLoginFailure(key, time.Now())
+		Fail(c, http.StatusUnauthorized, 401, loginInvalidCredentialsMessage)
 		return
 	}
 	role := strings.TrimSpace(user.Role)
 	if role == "" {
 		role = "admin"
 	}
-	OK(c, gin.H{"token": token, "username": user.Username, "role": role, "vendorId": user.VendorID})
+	if !loginAudienceAllows(audience, role) {
+		recordLoginFailure(key, time.Now())
+		message := "该入口仅供厂商账号使用"
+		if audience == "staff" {
+			message = "该入口仅供 CMS 员工账号使用"
+		}
+		Fail(c, http.StatusForbidden, 403, message)
+		return
+	}
+	csrf, err := h.startSession(c, user)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, loginSessionFailureMessage)
+		return
+	}
+	clearLoginFailures(key)
+	OK(c, gin.H{"username": user.Username, "role": role, "vendorId": user.VendorID, "csrfToken": csrf})
+}
+
+func loginAudienceAllows(audience, role string) bool {
+	if audience == "staff" {
+		return role == "admin" || role == "editor" || role == "reviewer"
+	}
+	return audience == "vendor" && role == "vendor"
 }
 
 func (h AdminHandler) Profile(c *gin.Context) {
@@ -512,6 +551,7 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return
 	}
+	service.ApplyVendorSEO(&input)
 	if input.PublicationStatus == "" {
 		if input.IsVisible {
 			input.PublicationStatus = "published"
@@ -524,6 +564,9 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		return
 	}
 	input.IsVisible = input.PublicationStatus == "published"
+	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
+		return
+	}
 	if input.DataOrigin == "" {
 		input.DataOrigin = "admin"
 	}
@@ -535,6 +578,14 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		input.ContentVersion = previousVersion + 1
 	} else {
 		input.ContentVersion = 1
+	}
+	if err := database.EnsureVendorSlug(db, &input); err != nil {
+		Fail(c, http.StatusConflict, 409, "厂商页面标识冲突")
+		return
+	}
+	if input.PublicationStatus == "published" && input.PublishedAt == nil {
+		now := time.Now()
+		input.PublishedAt = &now
 	}
 	tagIDs := uniqueUintIDs(input.TagIDs)
 	media := input.Media
@@ -582,7 +633,7 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	committed = true
 	db.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&input, input.ID)
 	input.TagIDs = tagIDsFromTags(input.Tags)
-	logOperation(db, c.GetString("username"), upsertAction(id), "vendors", input.ID)
+	logOperationReason(db, c.GetString("username"), upsertAction(id), "vendors", input.ID, c.GetString("publishReason"))
 	OK(c, input)
 }
 
@@ -661,8 +712,22 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 	} else {
 		input.Status = 2
 	}
+	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
+		return
+	}
 	if input.ContentVersion == 0 {
 		input.ContentVersion = 1
+	}
+	if id > 0 {
+		input.ContentVersion++
+	}
+	if err := database.EnsureProductSlug(db, &input); err != nil {
+		Fail(c, http.StatusConflict, 409, "产品页面标识冲突")
+		return
+	}
+	if input.PublicationStatus == "published" && input.PublishedAt == nil {
+		now := time.Now()
+		input.PublishedAt = &now
 	}
 	if err := validateJSONStringArray(input.GalleryRaw, "浜у搧鍥惧簱"); err != nil {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
@@ -705,7 +770,7 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 		_ = db.Save(&supplier).Error
 	}
 	db.Preload("Category").First(&input, input.ID)
-	logOperation(db, c.GetString("username"), upsertAction(id), "products", input.ID)
+	logOperationReason(db, c.GetString("username"), upsertAction(id), "products", input.ID, c.GetString("publishReason"))
 	OK(c, input)
 }
 
@@ -748,6 +813,26 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 	if strings.TrimSpace(input.PageType) == "" {
 		input.PageType = "page"
 	}
+	if input.ContentVersion == 0 {
+		input.ContentVersion = 1
+	} else if id > 0 {
+		input.ContentVersion++
+	}
+	if input.PublishedAt != nil && input.PublishedAt.After(time.Now()) {
+		input.PublicationStatus = "scheduled"
+		input.IsEnabled = true
+	} else if input.IsEnabled {
+		input.PublicationStatus = "published"
+	} else {
+		input.PublicationStatus = "archived"
+	}
+	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
+		return
+	}
+	if err := database.EnsurePageSlug(db, &input); err != nil {
+		Fail(c, http.StatusConflict, 409, "页面标识已存在")
+		return
+	}
 	if input.PageType != "page" && input.PageType != "article" {
 		Fail(c, http.StatusBadRequest, 400, "内容类型仅支持平台页面或行业文章")
 		return
@@ -768,7 +853,7 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
 	}
-	logOperation(db, c.GetString("username"), upsertAction(id), "pages", input.ID)
+	logOperationReason(db, c.GetString("username"), upsertAction(id), "pages", input.ID, c.GetString("publishReason"))
 	OK(c, input)
 }
 
@@ -923,11 +1008,33 @@ func validateJSONStringArray(value string, label string) error {
 }
 
 func logOperation(db *gorm.DB, username string, action string, resource string, recordID uint) {
+	logOperationReason(db, username, action, resource, recordID, "")
+}
+
+func logOperationReason(db *gorm.DB, username string, action string, resource string, recordID uint, reason string) {
 	if db == nil {
 		return
 	}
 	if username == "" {
 		username = "admin"
 	}
-	_ = db.Create(&model.OperationLog{Username: username, Action: action, Resource: resource, RecordID: recordID}).Error
+	_ = db.Create(&model.OperationLog{Username: username, Action: action, Resource: resource, RecordID: recordID, Reason: strings.TrimSpace(reason)}).Error
+}
+
+func requireEmergencyPublishReason(c *gin.Context, publishing bool) bool {
+	if !publishing || c.GetString("role") != "admin" {
+		return true
+	}
+	encodedReason := strings.TrimSpace(c.GetHeader("X-Publish-Reason"))
+	reason, err := url.QueryUnescape(encodedReason)
+	if err != nil {
+		reason = encodedReason
+	}
+	reason = strings.TrimSpace(reason)
+	if reason == "" {
+		Fail(c, http.StatusBadRequest, 400, "管理员越权直接发布必须填写紧急发布原因")
+		return false
+	}
+	c.Set("publishReason", reason)
+	return true
 }

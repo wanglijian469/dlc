@@ -5,9 +5,11 @@ import (
 	"net/http"
 	"strings"
 
+	"dalu-nongji-parts/backend/internal/database"
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"time"
 )
 
 func saveCategory(c *gin.Context, db *gorm.DB, id uint) {
@@ -38,6 +40,27 @@ func saveCategory(c *gin.Context, db *gorm.DB, id uint) {
 	}
 
 	disabled := !category.IsEnabled
+	if category.ContentVersion == 0 {
+		category.ContentVersion = 1
+	} else if id > 0 {
+		category.ContentVersion++
+	}
+	if category.IsEnabled {
+		category.PublicationStatus = "published"
+		if category.PublishedAt == nil {
+			now := time.Now()
+			category.PublishedAt = &now
+		}
+	} else {
+		category.PublicationStatus = "archived"
+	}
+	if !requireEmergencyPublishReason(c, category.PublicationStatus == "published") {
+		return
+	}
+	if err := database.EnsureCategorySlug(db, &category); err != nil {
+		Fail(c, http.StatusConflict, 409, "分类页面标识冲突")
+		return
+	}
 	if err := db.Save(&category).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "分类保存失败")
 		return
@@ -51,7 +74,7 @@ func saveCategory(c *gin.Context, db *gorm.DB, id uint) {
 		}
 		category.IsEnabled = false
 	}
-	logOperation(db, c.GetString("username"), upsertAction(id), "categories", category.ID)
+	logOperationReason(db, c.GetString("username"), upsertAction(id), "categories", category.ID, c.GetString("publishReason"))
 	OK(c, category)
 }
 

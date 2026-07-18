@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 - `.env.example`
 - `scripts/init-db.sql`
 - `start-windows.ps1`
-- `config/nginx.conf.example`
+- `GATEWAY_GIN.md`（云网关/CDN 统一回源 Gin；不部署 Nginx）
 - `DEPLOY.md`
 
 解压后复制 `.env.example` 为 `.env`，按服务器数据库信息修改配置，然后执行：

@@ -1,5 +1,5 @@
 ﻿import { FormEvent, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useParams, useSearchParams } from "react-router-dom";
 import { getFilterOptions, listProducts, type ProductListParams } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
 import { ProductCard } from "../components/public/ProductCard";
@@ -10,6 +10,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { Pagination } from "../components/public/Pagination";
 import { useSite } from "../contexts/SiteContext";
 import { getMenuLabel } from "../utils/navigation";
+import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
 
 const pageSize = 12;
 
@@ -17,6 +18,7 @@ export function ProductsPage() {
   const { layout } = useSite();
   const pageTitle = getMenuLabel(layout.topMenus, "/products", "配件产品");
   const [params, setParams] = useSearchParams();
+  const { slug: categorySlug } = useParams();
   const [keyword, setKeyword] = useState(params.get("keyword") || "");
   const [categoryId, setCategoryId] = useState(params.get("categoryId") || params.get("category") || "");
   const [onlyHot, setOnlyHot] = useState(params.get("hot") === "true");
@@ -30,12 +32,13 @@ export function ProductsPage() {
     () => ({
       keyword: params.get("keyword") || undefined,
       categoryId: params.get("categoryId") || params.get("category") || undefined,
+      categorySlug: categorySlug || undefined,
       vendorId: params.get("vendorId") || undefined,
       hot: params.get("hot") === "true" || undefined,
       page: Number(params.get("page") || 1),
       pageSize,
     }),
-    [params],
+    [params, categorySlug],
   );
 
   const load = () => {
@@ -69,9 +72,10 @@ export function ProductsPage() {
 
   return (
     <PageFrame title={pageTitle} subtitle={`按分类、关键词和热门标识查找${pageTitle}`}>
+      <MobileDirectorySearch value={keyword} placeholder="搜索配件名称、适配机型" onChange={setKeyword} onSubmit={submit} />
       <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选产品{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
       <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
-        <input value={keyword} placeholder="搜索配件名称、适配机型" onChange={(event) => setKeyword(event.target.value)} />
+        <input className="filter-keyword" value={keyword} placeholder="搜索配件名称、适配机型" onChange={(event) => setKeyword(event.target.value)} />
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
           <option value="">全部分类</option>
           {hierarchicalCategoryOptions(filters.categories).map((category) => (

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { Download, FileUp, Plus, X } from "lucide-react";
 import {
@@ -11,13 +11,16 @@ import {
   listResourcePage,
   ResourceName,
   ResourceRecord,
+  saveRevision,
+  suggestVendorSEO,
+  submitRevision,
   updateConfig,
   updateResource,
   uploadFile,
   type BulkImportResult,
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import type { Category, Menu, SiteConfig } from "../../types/api";
+import type { Category, Menu, SiteConfig, Vendor } from "../../types/api";
 import type { VendorMedia } from "../../types/api";
 import { AdminModal } from "../../components/admin/AdminModal";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
@@ -27,6 +30,7 @@ import { AdminProductSuppliersEditor } from "../../components/admin/AdminProduct
 import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProductsPanel";
 import { AdminCategoriesPage } from "./AdminCategoriesPage";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
+import { getApiErrorMessage } from "../../api/client";
 
 type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
@@ -89,6 +93,8 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "description", label: "公司介绍", type: "textarea" },
       { key: "seoTitle", label: "SEO 标题" },
       { key: "seoDescription", label: "SEO 摘要", type: "textarea" },
+      { key: "seoTitleManual", label: "SEO 标题人工设置", type: "checkbox", group: "SEO 优化建议" },
+      { key: "seoDescriptionManual", label: "SEO 摘要人工设置", type: "checkbox", group: "SEO 优化建议" },
       { key: "establishedYear", label: "成立年份" },
       { key: "factoryArea", label: "厂房面积" },
       { key: "employeeCount", label: "员工规模" },
@@ -105,6 +111,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "isRecommended", label: "推荐厂商", type: "checkbox", description: "在推荐厂商区域优先展示" },
       { key: "isVerified", label: "平台认证", type: "checkbox", description: "在前台显示认证标识" },
       { key: "isVisible", label: "前台显示", type: "checkbox", description: "勾选并保存后发布到前台" },
+      { key: "publishReason", label: "发布说明", type: "textarea", description: "发布到前台时必填，用于操作日志，例如：资料已核对，允许上线" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -147,6 +154,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "isRecommended", label: "推荐", type: "checkbox" },
       { key: "status", label: "状态", type: "select", options: [{ label: "上架", value: 1 }, { label: "下架", value: 2 }] },
       { key: "publicationStatus", label: "目录发布状态", type: "select", options: [{ label: "已发布", value: "published" }, { label: "草稿", value: "draft" }, { label: "已隐藏", value: "hidden" }] },
+      { key: "publishReason", label: "发布说明", type: "textarea", description: "发布到前台时必填，用于操作日志" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -180,6 +188,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "relatedProductId", label: "关联产品", type: "select", refResource: "products" },
       { key: "relatedVendorId", label: "关联厂商", type: "select", refResource: "vendors" },
       { key: "isEnabled", label: "启用", type: "checkbox" },
+      { key: "publishReason", label: "发布说明", type: "textarea", description: "启用并发布到前台时必填，用于操作日志" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -207,6 +216,21 @@ const processingVendorFields: Field[] = [
 ];
 
 extendProcessingSchemas();
+extendSEOSchemas();
+
+function extendSEOSchemas() {
+  (["vendors", "products", "categories"] as ResourceName[]).forEach((resource) => {
+    const fields = schemas[resource].fields;
+    if (!fields.some((field) => field.key === "slug")) {
+      const nameIndex = fields.findIndex((field) => field.key === "name");
+      fields.splice(nameIndex + 1, 0, { key: "slug", label: "短拼音标识", description: "发布后修改会自动保留 301 历史重定向" });
+    }
+  });
+  const categoryFields = schemas.categories.fields;
+  if (!categoryFields.some((field) => field.key === "seoTitle")) {
+    categoryFields.push({ key: "seoTitle", label: "SEO 标题" }, { key: "seoDescription", label: "SEO 摘要", type: "textarea" });
+  }
+}
 
 function extendProcessingSchemas() {
   const vendorFields = schemas.vendors.fields;
@@ -220,12 +244,14 @@ function extendProcessingSchemas() {
   }
 }
 
-export function AdminResourcePage() {
-  const { resource = "menus" } = useParams();
+export function AdminResourcePage({ resourceName }: { resourceName?: ResourceName }) {
+  const { resource: routeResource = "menus" } = useParams();
+  const resource = resourceName || routeResource;
   if (resource === "configs") return <ConfigPage />;
   if (resource === "categories") return <AdminCategoriesPage />;
   const name = (schemas[resource as ResourceName] ? resource : "menus") as ResourceName;
   const schema = schemas[name];
+  const isEditor = localStorage.getItem("cms_role") === "editor";
   const [rows, setRows] = useState<ResourceRecord[]>([]);
   const [refs, setRefs] = useState<Partial<Record<ResourceName, ResourceRecord[]>>>({});
   const [form, setForm] = useState<FormState>({});
@@ -241,9 +267,6 @@ export function AdminResourcePage() {
   const [total, setTotal] = useState(0);
   const serverPaged = name === "vendors" || name === "products";
 	const debouncedKeyword = useDebouncedValue(keyword, 300);
-	const categoryManagedMenuIDs = useMemo(() => new Set(
-		name === "menus" ? rows.filter((row) => Boolean((row as Menu).categoryId)).map((row) => row.id) : [],
-	), [name, rows]);
 
   const load = () => {
     if (serverPaged) {
@@ -287,22 +310,44 @@ export function AdminResourcePage() {
       payload.media = (form.media as VendorMedia[] | undefined) || [];
       (payload as { publicationStatus?: "published" | "hidden" }).publicationStatus = Boolean(form.isVisible) ? "published" : "hidden";
     }
-    const action = editingId ? updateResource<ResourceRecord>(name, editingId, payload) : createResource<ResourceRecord>(name, payload);
-    action
+    const action = async () => {
+      if (isEditor) {
+        if (!editingId) throw new Error("编辑角色只能提交现有内容的修订");
+        const resourceType = name === "pages"
+          ? ((payload as Record<string, unknown>).pageType === "article" ? "article" : "page")
+          : name.slice(0, -1) as "vendor" | "product";
+        const revision = await saveRevision({
+          resourceType,
+          resourceId: editingId,
+          baseVersion: Number(form.contentVersion || 1),
+          snapshot: payload,
+        });
+        await submitRevision(revision.id);
+        return;
+      }
+      await (editingId ? updateResource<ResourceRecord>(name, editingId, payload) : createResource<ResourceRecord>(name, payload));
+    };
+    void action()
       .then(() => {
         setForm(defaultForm(schema.fields));
         setEditingId(null);
         setEditorOpen(false);
-        setMessage("保存成功");
+        setMessage(isEditor ? "修订已保存并送审" : "保存成功");
         void load();
       })
-      .catch(() => setMessage("保存失败，请检查字段"));
+      .catch((error) => setMessage(getApiErrorMessage(error, "保存失败，请检查字段")));
   };
 
   const filteredRows = useMemo(() => {
     const value = keyword.trim().toLowerCase();
-    if (!value) return rows;
-    return rows.filter((row) => JSON.stringify(row).toLowerCase().includes(value));
+    const visibleRows = name === "menus"
+      ? rows.filter((row) => {
+          const menu = row as Menu;
+          return menu.menuType !== "sidebar" && !menu.categoryId;
+        })
+      : rows;
+    if (!value) return visibleRows;
+    return visibleRows.filter((row) => JSON.stringify(row).toLowerCase().includes(value));
   }, [keyword, rows]);
 
   return (
@@ -313,15 +358,14 @@ export function AdminResourcePage() {
         <input value={keyword} placeholder="搜索当前列表" onChange={(event) => setKeyword(event.target.value)} />
 		{name === "vendors" && <><select aria-label="发布状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部发布状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="hidden">已隐藏</option></select><input aria-label="地区筛选" placeholder="输入省份" value={provinceFilter} onChange={(event) => { setProvinceFilter(event.target.value); setPage(1); }} /></>}
 		{name === "products" && <select aria-label="产品状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部产品状态</option><option value="1">已上架</option><option value="2">已下架</option></select>}
-        {(name === "vendors" || name === "products") && <div className="admin-import-actions"><a className="outline-btn" download href="/templates/农机配件平台_厂商产品资料采集模板.xlsx"><Download size={16} />下载导入模板</a><label className={`outline-btn admin-import-button ${importing ? "disabled" : ""}`}><FileUp size={16} />{importing ? "正在导入…" : "批量导入 XLSX"}<input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} type="file" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setImporting(true); setImportResult(null); setMessage(""); void importWorkbook(name, file).then((result) => { setImportResult(result); if (result.imported) { setMessage("批量导入成功"); void load(); } }).catch((error) => setMessage(error?.response?.data?.message || "批量导入失败，请检查文件格式")).finally(() => setImporting(false)); }} /></label></div>}
-        <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>
+        {!isEditor && (name === "vendors" || name === "products") && <div className="admin-import-actions"><a className="outline-btn" download href="/templates/农机配件平台_厂商产品资料采集模板.xlsx"><Download size={16} />下载导入模板</a><label className={`outline-btn admin-import-button ${importing ? "disabled" : ""}`}><FileUp size={16} />{importing ? "正在导入…" : "批量导入 XLSX"}<input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} type="file" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setImporting(true); setImportResult(null); setMessage(""); void importWorkbook(name, file).then((result) => { setImportResult(result); if (result.imported) { setMessage("批量导入成功"); void load(); } }).catch((error) => setMessage(error?.response?.data?.message || "批量导入失败，请检查文件格式")).finally(() => setImporting(false)); }} /></label></div>}
+        {!isEditor && <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>}
       </div>
       {importResult && <section className={`admin-import-result ${importResult.imported ? "success" : "error"}`}><strong>{importResult.imported ? "导入完成" : "表格校验未通过，未写入数据"}</strong><span>读取 {importResult.totalRows} 行 · 新增 {importResult.created} 条 · 更新 {importResult.updated} 条{name === "products" ? ` · 新增供应关系 ${importResult.relationsCreated} 条 · 更新供应关系 ${importResult.relationsUpdated} 条` : ""}</span>{importResult.issues.length > 0 && <ul>{importResult.issues.slice(0, 30).map((issue, index) => <li key={`${issue.sheet}-${issue.row}-${index}`}>{issue.sheet} 第 {issue.row} 行：{issue.message}</li>)}</ul>}{(importResult.warnings || []).length > 0 && <div className="admin-import-warnings"><strong>以下图片未能本地化，已保留原始链接：</strong><ul>{(importResult.warnings || []).slice(0, 30).map((warning, index) => <li key={`${warning.sheet}-${warning.row}-${index}`}>{warning.sheet} 第 {warning.row} 行：{warning.message}</li>)}</ul></div>}</section>}
       <div className="admin-table-panel">
         <ResourceTable
           rows={filteredRows}
-			categoryManagedMenuIDs={name === "menus" ? categoryManagedMenuIDs : undefined}
-          onDelete={(id) => {
+          onDelete={isEditor ? undefined : (id) => {
             if (!window.confirm("确认删除这条记录？")) return;
             deleteResource(name, id)
               .then(() => {
@@ -339,17 +383,97 @@ export function AdminResourcePage() {
         {serverPaged && <Pagination onChange={setPage} page={page} pageSize={20} total={total} />}
       </div>
       {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header><form className="admin-form admin-grouped-form" onSubmit={submit}>
-        {groupFields(name, schema.fields).map((group) => <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => {
+        {groupFields(name, schema.fields).map((group) => name === "vendors" && group.title === "SEO 优化建议" ? <fieldset className="vendor-seo-workbench" key={group.title}><legend>{group.title}</legend><VendorSEOEditor form={form} setForm={setForm} /></fieldset> : <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => {
           const fieldWide = ["textarea", "gallery", "specs", "blocks", "checkbox-group"].includes(field.type || "");
           if (field.type === "checkbox-group") return <div className={`admin-checkbox-group-field ${fieldWide ? "field-wide" : ""}`} key={`${field.key}-${field.optionTagType || "all"}`}><strong>{field.label}</strong>{field.description && <small>{field.description}</small>}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></div>;
           if (field.type === "checkbox" && field.description) return <label className="admin-toggle-field" key={field.key}><FieldInput field={field} form={form} refs={refs} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.description}</small></span></label>;
           return <label className={fieldWide ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>;
         })}</div></fieldset>)}
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
+        {(["vendors", "products", "categories", "pages"] as ResourceName[]).includes(name) && <SEOPublishChecklist resource={name} form={form} />}
         <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
-      </form>{name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} />}{name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
+      </form>{!isEditor && name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} />}{!isEditor && name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
     </AdminLayout>
   );
+}
+
+function SEOPublishChecklist({ resource, form }: { resource: ResourceName; form: FormState }) {
+  const title = String(form.seoTitle || form.title || form.name || "").trim();
+  const description = String(form.seoDescription || form.summary || form.description || "").trim();
+  const slug = String(form.slug || "").trim();
+  const image = String(form.coverImage || form.image || form.logo || "").trim();
+  const body = String(form.content || form.detailContent || form.description || "");
+  const issues = [
+    !slug && "缺少短拼音 URL 标识",
+    !title && "缺少标题",
+    title.length > 32 && "标题建议控制在 32 个汉字以内",
+    !description && "缺少搜索摘要",
+    description.length > 120 && "摘要建议控制在 120 个汉字以内",
+    resource !== "categories" && !image && "缺少分享图片",
+    resource === "pages" && body && !/\/(products|vendors|guides)/.test(body) && "正文没有内部链接",
+  ].filter(Boolean) as string[];
+  const score = Math.max(0, 100 - issues.length * 14);
+  return <fieldset className="seo-publish-checklist"><legend>SEO 发布检查</legend><div className="seo-score"><strong>{score}</strong><span>/ 100</span></div><div className="seo-serp-preview"><small>搜索结果预览</small><h3>{title || "请填写 SEO 标题"}</h3><span>https://example.com/{resource}/{slug || "slug"}</span><p>{description || "请填写能够准确概括页面内容的摘要。"}</p></div>{issues.length ? <ul>{issues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : <p className="seo-check-passed">发布前 SEO 检查已通过</p>}</fieldset>;
+}
+
+type VendorSuggestion = Awaited<ReturnType<typeof suggestVendorSEO>>;
+
+function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch<SetStateAction<FormState>> }) {
+  const [suggestion, setSuggestion] = useState<VendorSuggestion | null>(null);
+  const [loading, setLoading] = useState(false);
+  const sourceSignature = JSON.stringify([
+    form.name, form.shortName, form.province, form.city, form.mainProducts, form.serviceModels,
+    form.description, form.providesProcessing, form.processingServices,
+  ]);
+  const titleManual = Boolean(form.seoTitleManual);
+  const descriptionManual = Boolean(form.seoDescriptionManual);
+
+  useEffect(() => {
+    if (!String(form.name || "").trim()) {
+      setSuggestion(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      void suggestVendorSEO(form as unknown as Partial<Vendor>)
+        .then((result) => {
+          if (cancelled) return;
+          setSuggestion(result);
+          setForm((current) => ({
+			...current,
+			seoTitle: Boolean(current.seoTitleManual) ? current.seoTitle : result.seoTitle,
+			seoDescription: Boolean(current.seoDescriptionManual) ? current.seoDescription : result.seoDescription,
+		  }));
+        })
+        .finally(() => { if (!cancelled) setLoading(false); });
+    }, 320);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [sourceSignature, titleManual, descriptionManual]);
+
+  const title = String(form.seoTitle || "");
+  const description = String(form.seoDescription || "");
+  const restore = (field: "title" | "description") => {
+    if (field === "title") setForm((current) => ({ ...current, seoTitleManual: false, seoTitle: suggestion?.seoTitle || String(current.seoTitle || "") }));
+    else setForm((current) => ({ ...current, seoDescriptionManual: false, seoDescription: suggestion?.seoDescription || String(current.seoDescription || "") }));
+  };
+
+  return <div className="vendor-seo-editor">
+    <p className="vendor-seo-intro">根据厂商名称、地区、主营产品、适配机型与加工能力生成。自动模式会随资料更新，人工设置后不再覆盖。</p>
+    <div className="vendor-seo-fields">
+      <label>
+        <span className="vendor-seo-field-head"><strong>SEO 标题</strong><em className={titleManual ? "manual" : "auto"}>{titleManual ? "人工设置" : "自动生成"}</em></span>
+        <input aria-label="SEO 标题" value={title} onChange={(event) => setForm({ ...form, seoTitle: event.target.value, seoTitleManual: true })} />
+        <small><span className={Array.from(title).length > 32 ? "over-limit" : ""}>{Array.from(title).length} / 32 字</span>{titleManual && <button type="button" onClick={() => restore("title")}>恢复自动生成</button>}</small>
+      </label>
+      <label className="field-wide">
+        <span className="vendor-seo-field-head"><strong>SEO 摘要</strong><em className={descriptionManual ? "manual" : "auto"}>{descriptionManual ? "人工设置" : "自动生成"}</em></span>
+        <textarea aria-label="SEO 摘要" value={description} onChange={(event) => setForm({ ...form, seoDescription: event.target.value, seoDescriptionManual: true })} />
+        <small><span className={Array.from(description).length > 120 ? "over-limit" : ""}>{Array.from(description).length} / 120 字</span>{descriptionManual && <button type="button" onClick={() => restore("description")}>恢复自动生成</button>}</small>
+      </label>
+    </div>
+    <div className="vendor-seo-preview"><small>{loading ? "正在更新建议…" : `建议依据：${suggestion?.sourceFields.join("、") || "填写厂商资料后自动生成"}`}</small><h3>{title || "等待生成 SEO 标题"}</h3><span>https://example.com/vendors/{String(form.slug || "vendor-slug")}</span><p>{description || "等待生成 SEO 摘要"}</p></div>
+  </div>;
 }
 
 function useDebouncedValue<T>(value: T, delay: number) {
@@ -487,8 +611,8 @@ function numericSelect(field: Field) {
   return Boolean(field.refResource || field.key.endsWith("Id") || field.key === "status" || field.key === "parentId");
 }
 
-function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { rows: ResourceRecord[]; onEdit: (row: ResourceRecord) => void; onDelete: (id: number) => void; categoryManagedMenuIDs?: Set<number> }) {
-  const keys = useMemo(() => Object.keys(rows[0] || {}).filter((key) => ["id", "name", "title", "slug", "province", "sortOrder", "isEnabled", "isVisible", "isRecommended"].includes(key)), [rows]);
+function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { rows: ResourceRecord[]; onEdit: (row: ResourceRecord) => void; onDelete?: (id: number) => void; categoryManagedMenuIDs?: Set<number> }) {
+  const keys = useMemo(() => Object.keys(rows[0] || {}).filter((key) => ["id", "name", "title", "slug", "province", "menuType", "path", "publicationStatus", "sortOrder", "isEnabled", "isVisible", "isRecommended"].includes(key)), [rows]);
 	const showSource = categoryManagedMenuIDs !== undefined;
   return (
     <table className="admin-table">
@@ -505,11 +629,11 @@ function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { row
         {rows.map((row) => (
           <tr key={row.id}>
             {keys.map((key) => (
-              <td data-label={columnLabel(key)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key])}</td>
+              <td data-label={columnLabel(key)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key], key)}</td>
             ))}
 			{showSource && <td data-label="来源">{categoryManagedMenuIDs.has(row.id) ? <span className="category-derived-badge">分类生成</span> : "人工维护"}</td>}
             <td data-label="操作">
-				{categoryManagedMenuIDs?.has(row.id) ? <span className="category-derived-note">请到“配件分类”维护</span> : <><button type="button" onClick={() => onEdit(row)}>编辑</button><button type="button" onClick={() => onDelete(row.id)}>删除</button></>}
+				{categoryManagedMenuIDs?.has(row.id) ? <span className="category-derived-note">请到“配件分类”维护</span> : <><button type="button" onClick={() => onEdit(row)}>编辑</button>{onDelete && <button type="button" onClick={() => onDelete(row.id)}>删除</button>}</>}
             </td>
           </tr>
         ))}
@@ -606,6 +730,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
       if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "afterSalesService"].includes(key)) return "生产与服务";
       if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
       if (["websiteUrl", "phone", "wechat", "contactName"].includes(key)) return "联系方式";
+      if (["seoTitle", "seoDescription", "seoTitleManual", "seoDescriptionManual"].includes(key)) return "SEO 优化建议";
       return "平台状态";
     }
     if (resource === "products") {
@@ -627,11 +752,13 @@ function payloadFromForm(fields: Field[], form: FormState) {
 }
 
 function columnLabel(key: string) {
-  return ({ id: "ID", name: "名称", title: "标题", slug: "标识", province: "地区", sortOrder: "排序", isEnabled: "启用", isVisible: "显示", isRecommended: "推荐" } as Record<string, string>)[key] || key;
+  return ({ id: "ID", name: "名称", title: "标题", slug: "URL 标识", province: "地区", menuType: "展示位置", path: "访问路径", publicationStatus: "发布状态", sortOrder: "排序", isEnabled: "启用", isVisible: "显示", isRecommended: "推荐" } as Record<string, string>)[key] || key;
 }
 
-function formatCell(value: unknown) {
+function formatCell(value: unknown, key = "") {
   if (typeof value === "boolean") return value ? "是" : "否";
+  if (key === "menuType") return ({ top: "顶部导航", auxiliary: "辅助入口", mobile: "移动快捷入口", mobile_bottom: "移动底部" } as Record<string, string>)[String(value)] || String(value || "");
+  if (key === "publicationStatus") return ({ published: "已发布", draft: "草稿", hidden: "已隐藏", archived: "已归档", scheduled: "定时发布" } as Record<string, string>)[String(value)] || String(value || "");
   return String(value ?? "");
 }
 

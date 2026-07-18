@@ -481,6 +481,87 @@ dt { color: var(--text-sub); } dd { margin: 0; }
   }
 }
 
+/* Compact public-facing landmark hero: the market gateway remains the visual
+   anchor, while the search controls read as one deliberate, low-profile bar. */
+.marketplace-hero {
+  min-height: 248px;
+}
+.marketplace-hero::before {
+  background-image:
+    linear-gradient(180deg, rgba(4, 29, 69, .10) 0%, rgba(4, 29, 69, .18) 46%, rgba(4, 24, 58, .72) 100%),
+    linear-gradient(90deg, rgba(4, 31, 77, .28) 0%, rgba(4, 31, 77, .08) 52%, rgba(4, 31, 77, .02) 100%),
+    var(--hero-image);
+  background-position: center 25%;
+}
+.marketplace-hero .hero-copy {
+  min-height: 248px;
+  padding: 14px clamp(18px, 3vw, 38px) 12px;
+}
+.marketplace-hero .hero-copy h1 {
+  border-left-width: 3px;
+  border-radius: 0 8px 8px 0;
+  font-size: clamp(21px, 1.8vw, 28px);
+  line-height: 1.25;
+  max-width: min(560px, 82%);
+  padding: 7px 13px;
+}
+.marketplace-hero .hero-search-panel {
+  border-radius: 11px;
+  box-shadow: 0 10px 26px rgba(0, 13, 38, .28);
+  max-width: 1040px;
+  padding: 7px 10px 9px;
+}
+.marketplace-hero .search-type-tabs button {
+  min-height: 36px;
+  padding: 6px 13px;
+}
+.marketplace-hero .search-box {
+  border-radius: 0 9px 9px 9px;
+  height: 54px;
+  min-height: 54px;
+  padding: 6px 6px 6px 15px;
+}
+.marketplace-hero .search-box button {
+  border-radius: 7px;
+  height: 42px;
+  min-height: 42px;
+  padding: 0 17px;
+  width: 116px;
+}
+.marketplace-hero .hot-keywords {
+  gap: 7px;
+  margin: 8px 2px 0;
+}
+.marketplace-hero .hot-keywords button {
+  height: 28px;
+  padding: 0 11px;
+}
+
+@media (max-width: 900px) {
+  .marketplace-hero .hero-copy {
+    min-height: auto;
+    padding: 12px 14px;
+  }
+  .marketplace-hero .hero-copy h1 {
+    font-size: clamp(20px, 5.6vw, 25px);
+    max-width: 100%;
+    padding: 7px 11px;
+  }
+  .marketplace-hero .hero-search-panel {
+    margin-top: 10px;
+    padding: 7px;
+  }
+  .marketplace-hero .search-box {
+    height: 52px;
+    min-height: 52px;
+  }
+  .marketplace-hero .search-box button {
+    height: 40px;
+    min-height: 40px;
+    width: 96px;
+  }
+}
+
 @media (max-width: 520px) {
   .marketplace-hero .hero-copy {
     padding: 20px 18px;
@@ -546,9 +627,83 @@ dt { color: var(--text-sub); } dd { margin: 0; }
   .footer-directory {
     grid-template-columns: 1fr;
   }
-  .footer-legal {
+.footer-legal {
     flex-direction: column;
     gap: 7px;
     text-align: center;
+  }
+}
+
+/* Dalu Village marketplace landmark hero: reserve the upper image area for
+   the gateway sign and keep all search controls on a legible lower panel. */
+.marketplace-hero {
+  min-height: 414px;
+}
+.marketplace-hero::before {
+  background-image:
+    linear-gradient(180deg, rgba(5, 29, 71, .16) 0%, rgba(5, 29, 71, .25) 44%, rgba(4, 24, 58, .78) 100%),
+    linear-gradient(90deg, rgba(4, 31, 77, .4) 0%, rgba(4, 31, 77, .12) 48%, rgba(4, 31, 77, .04) 100%),
+    var(--hero-image);
+  background-position: center 27%;
+  opacity: 1;
+}
+.marketplace-hero .hero-copy {
+  display: flex;
+  flex-direction: column;
+  min-height: 414px;
+  padding: 20px 38px 22px;
+}
+.marketplace-hero .hero-copy h1 {
+  align-self: flex-start;
+  background: rgba(4, 28, 69, .72);
+  border-left: 4px solid #d87a2b;
+  border-radius: 0 10px 10px 0;
+  box-shadow: 0 7px 22px rgba(0, 15, 40, .2);
+  font-size: clamp(25px, 2.1vw, 34px);
+  margin: 0;
+  max-width: min(650px, 78%);
+  padding: 10px 18px;
+  text-align: left;
+}
+.marketplace-hero .hero-search-panel {
+  background: rgba(3, 25, 61, .84);
+  backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 255, 255, .18);
+  border-radius: 14px;
+  box-shadow: 0 14px 34px rgba(0, 13, 38, .3);
+  margin: auto auto 0;
+  max-width: 1040px;
+  padding: 10px 12px 12px;
+  width: min(96%, 1040px);
+}
+.marketplace-hero .search-type-tabs {
+  margin: 0;
+}
+.marketplace-hero .hot-keywords {
+  margin: 10px 2px 0;
+}
+
+@media (max-width: 900px) {
+  .marketplace-hero {
+    min-height: auto;
+  }
+  .marketplace-hero::before {
+    background-position: center 24%;
+  }
+  .marketplace-hero .hero-copy {
+    min-height: auto;
+    padding: 16px 14px;
+  }
+  .marketplace-hero .hero-copy h1 {
+    font-size: clamp(23px, 6vw, 29px);
+    max-width: 100%;
+    padding: 9px 13px;
+  }
+  .marketplace-hero .hero-search-panel {
+    background: rgba(3, 25, 61, .9);
+    border-radius: 11px;
+    margin-top: 18px;
+    padding: 8px;
+    width: 100%;
   }
 }

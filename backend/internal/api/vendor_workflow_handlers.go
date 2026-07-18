@@ -9,6 +9,7 @@ import (
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -58,6 +59,7 @@ func (h AdminHandler) SubmitVendorProfile(c *gin.Context) {
 		return
 	}
 	applyVendorEditableFields(&current, proposed)
+	service.ApplyVendorSEO(&current)
 	if proposed.Media != nil {
 		media, mediaErr := sanitizeVendorMedia(proposed.Media)
 		if mediaErr != nil {
@@ -162,6 +164,7 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 				return errSubmissionConflict
 			}
 			applyVendorEditableFields(&vendor, draft)
+			service.ApplyVendorSEO(&vendor)
 			vendor.ReviewStatus = "verified"
 			if vendor.PublicationStatus == "" || vendor.PublicationStatus == "draft" {
 				vendor.PublicationStatus = "published"
@@ -394,8 +397,8 @@ func (h AdminHandler) UpdateCMSUser(c *gin.Context) {
 		return
 	}
 	req.Username = strings.TrimSpace(req.Username)
-	if req.Username == "" || (req.Role != "admin" && req.Role != "vendor" && req.Role != "user") {
-		Fail(c, http.StatusBadRequest, 400, "用户名不能为空，角色只能是 admin、vendor 或 user")
+	if req.Username == "" || !isAccountRole(req.Role) {
+		Fail(c, http.StatusBadRequest, 400, "用户名不能为空，角色必须是 admin、editor、reviewer 或 vendor")
 		return
 	}
 	if req.Role == "vendor" && (req.VendorID == nil || *req.VendorID == 0 || !recordExists[model.Vendor](h.DB, *req.VendorID)) {
@@ -403,7 +406,7 @@ func (h AdminHandler) UpdateCMSUser(c *gin.Context) {
 		return
 	}
 	if req.Role != "vendor" && req.VendorID != nil {
-		Fail(c, http.StatusBadRequest, 400, "普通用户和管理员不能绑定公司")
+		Fail(c, http.StatusBadRequest, 400, "非厂商账号不能绑定公司")
 		return
 	}
 	var user model.AdminUser
@@ -437,6 +440,10 @@ func (h AdminHandler) UpdateCMSUser(c *gin.Context) {
 	if err := h.DB.Save(&user).Error; err != nil {
 		Fail(c, http.StatusConflict, 409, "账号保存失败，用户名可能已存在")
 		return
+	}
+	if !user.IsEnabled || req.Password != "" {
+		now := time.Now()
+		h.DB.Model(&model.AuthSession{}).Where("user_id = ? AND revoked_at IS NULL", user.ID).Update("revoked_at", &now)
 	}
 	h.DB.Preload("Vendor").First(&user, user.ID)
 	logOperation(h.DB, c.GetString("username"), "update", "users", user.ID)

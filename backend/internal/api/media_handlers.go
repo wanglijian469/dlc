@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
@@ -98,7 +99,7 @@ func (h AdminHandler) SecureUpload(c *gin.Context) {
 	if id := c.GetUint("vendorId"); id > 0 {
 		vendorID = &id
 	}
-	asset := model.MediaAsset{OwnerUsername: c.GetString("username"), VendorID: vendorID, StorageKey: storageKey, OriginalName: filepath.Base(file.Filename), MIME: "image/png", Size: size, Width: width, Height: height, SHA256: hex.EncodeToString(hash.Sum(nil)), Status: status}
+	asset := model.MediaAsset{OwnerUsername: c.GetString("username"), VendorID: vendorID, StorageKey: storageKey, OriginalName: filepath.Base(file.Filename), MIME: "image/png", Size: size, Width: width, Height: height, SHA256: hex.EncodeToString(hash.Sum(nil)), AltText: strings.TrimSpace(c.PostForm("altText")), Caption: strings.TrimSpace(c.PostForm("caption")), Status: status}
 	if err := h.DB.Create(&asset).Error; err != nil {
 		_ = os.Remove(path)
 		Fail(c, 500, 500, "登记上传文件失败")
@@ -132,6 +133,33 @@ func (h AdminHandler) DeleteMedia(c *gin.Context) {
 		return
 	}
 	OK(c, gin.H{"deleted": true})
+}
+
+func (h AdminHandler) UpdateMediaMetadata(c *gin.Context) {
+	asset, ok := h.authorizedAsset(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		AltText string `json:"altText"`
+		Caption string `json:"caption"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		Fail(c, http.StatusBadRequest, 400, "媒体说明格式不正确")
+		return
+	}
+	req.AltText, req.Caption = strings.TrimSpace(req.AltText), strings.TrimSpace(req.Caption)
+	if len([]rune(req.AltText)) > 255 || len([]rune(req.Caption)) > 500 {
+		Fail(c, http.StatusBadRequest, 400, "图片替代文本或图注过长")
+		return
+	}
+	if err := h.DB.Model(&asset).Updates(map[string]any{"alt_text": req.AltText, "caption": req.Caption}).Error; err != nil {
+		Fail(c, 500, 500, "媒体说明保存失败")
+		return
+	}
+	logOperation(h.DB, c.GetString("username"), "update-metadata", "media-assets", asset.ID)
+	h.DB.First(&asset, asset.ID)
+	OK(c, asset)
 }
 
 func (h AdminHandler) authorizedAsset(c *gin.Context) (model.MediaAsset, bool) {
@@ -181,13 +209,13 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 		return
 	}
 	var references int64
-	h.DB.Model(&model.Vendor{}).Where("(logo_asset_id = ? OR cover_asset_id = ?) AND is_visible = ? AND publication_status = ?", asset.ID, asset.ID, true, "published").Count(&references)
+	h.DB.Model(&model.Vendor{}).Where("(logo_asset_id = ? OR cover_asset_id = ?) AND is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", asset.ID, asset.ID, true, "published", time.Now()).Count(&references)
 	if references == 0 {
 		h.DB.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.asset_id = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", asset.ID, true, "published").Count(&references)
 	}
 	url := fmt.Sprintf("/api/media/%d", asset.ID)
 	if references == 0 {
-		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%").Count(&references)
+		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?) AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= ?))", "published", time.Now(), url, "%"+url+"%", time.Now()).Count(&references)
 		if references == 0 {
 			h.DB.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&references)
 		}

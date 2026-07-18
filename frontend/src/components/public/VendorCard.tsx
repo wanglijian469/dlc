@@ -28,7 +28,7 @@ export function VendorCard({ vendor, compact = false, directory = false }: Vendo
         <div className="tag-row service-tags">{vendor.tags?.slice(0, compact ? 2 : 3).map((tag) => <span className="tag-green" key={tag.id}>{tag.name}</span>)}</div>
       </div>
       <div className="card-actions vendor-card-actions">
-        <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>查看详情</Link>
+        <Link className="primary-btn small" to={`/vendors/${vendor.slug || vendor.id}`}>查看详情</Link>
         <Link className="outline-btn small" to={`/products?vendorId=${vendor.id}`}>查看产品</Link>
         {vendor.websiteUrl
           ? <a aria-label={`${vendor.name} 访问官网`} className="outline-btn small website-action" href={vendor.websiteUrl} rel="noreferrer" target="_blank"><ExternalLink size={14} />访问官网</a>

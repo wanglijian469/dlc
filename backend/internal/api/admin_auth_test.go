@@ -3,11 +3,33 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"github.com/gin-gonic/gin"
 )
+
+func TestLoginMessagesAreReadableChinese(t *testing.T) {
+	if loginInvalidCredentialsMessage != "用户名或密码错误" {
+		t.Fatalf("invalid credentials message = %q", loginInvalidCredentialsMessage)
+	}
+	if loginSessionFailureMessage != "登录失败" {
+		t.Fatalf("session failure message = %q", loginSessionFailureMessage)
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	router.POST("/api/admin/login", (AdminHandler{}).StaffLogin)
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/admin/login", strings.NewReader("{"))
+	request.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), loginInvalidRequestMessage) {
+		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
+	}
+}
 
 func TestAdminAuthMiddlewareRequiresToken(t *testing.T) {
 	gin.SetMode(gin.TestMode)

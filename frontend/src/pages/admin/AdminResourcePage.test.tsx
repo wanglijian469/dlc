@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createResource, deleteResource, listConfigs, listResource, listResourcePage, updateResource } from "../../api/admin";
+import { createResource, deleteResource, listConfigs, listResource, listResourcePage, suggestVendorSEO, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
 
 vi.mock("../../api/admin", () => ({
@@ -14,6 +14,7 @@ vi.mock("../../api/admin", () => ({
   updateConfig: vi.fn(),
   updateResource: vi.fn(),
   uploadFile: vi.fn(),
+  suggestVendorSEO: vi.fn(),
 }));
 
 const mockedCreateResource = vi.mocked(createResource);
@@ -21,6 +22,7 @@ const mockedListConfigs = vi.mocked(listConfigs);
 const mockedListResource = vi.mocked(listResource);
 const mockedListResourcePage = vi.mocked(listResourcePage);
 const mockedUpdateResource = vi.mocked(updateResource);
+const mockedSuggestVendorSEO = vi.mocked(suggestVendorSEO);
 
 function renderAdmin(path: string) {
   return render(
@@ -61,6 +63,11 @@ describe("AdminResourcePage CMS forms", () => {
     });
     mockedCreateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedUpdateResource.mockResolvedValue({ id: 1, name: "测试记录" });
+    mockedSuggestVendorSEO.mockImplementation(async (vendor) => ({
+      seoTitle: `${vendor.shortName || vendor.name || "厂商"}｜链条、齿轮厂家`,
+      seoDescription: `${vendor.name || "该厂商"}主营链条、齿轮。查看企业资料、产品信息与联系方式。`,
+      sourceFields: ["厂商名称", "主营产品"],
+    }));
     vi.mocked(deleteResource).mockResolvedValue({ deleted: true });
   });
 
@@ -132,6 +139,33 @@ describe("AdminResourcePage CMS forms", () => {
         expect.objectContaining({ name: "浙江汉丰农机有限公司", websiteUrl: "https://vendor.example.com", tagIds: [1] }),
       ),
     );
+  });
+
+  it("generates vendor SEO suggestions and preserves manual overrides", async () => {
+    renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
+
+    fireEvent.change(await screen.findByLabelText("厂商名称"), { target: { value: "河北冀农农机具有限公司" } });
+    fireEvent.change(screen.getByLabelText("主营产品"), { target: { value: "旋耕机链条、齿轮" } });
+
+    await waitFor(() => expect(mockedSuggestVendorSEO).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByLabelText("SEO 标题")).toHaveValue("河北冀农农机具有限公司｜链条、齿轮厂家"));
+    expect(screen.getAllByText("自动生成").length).toBe(2);
+    expect(screen.getByText("建议依据：厂商名称、主营产品")).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText("SEO 标题"), { target: { value: "人工优化标题" } });
+    expect(screen.getByText("人工设置")).toBeInTheDocument();
+    const titleField = screen.getByLabelText("SEO 标题").closest("label") as HTMLLabelElement;
+    fireEvent.click(within(titleField).getByRole("button", { name: "恢复自动生成" }));
+    expect(screen.getByLabelText("SEO 标题")).toHaveValue("河北冀农农机具有限公司｜链条、齿轮厂家");
+
+    const form = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
+    await waitFor(() => expect(mockedCreateResource).toHaveBeenCalledWith("vendors", expect.objectContaining({
+      seoTitleManual: false,
+      seoDescriptionManual: false,
+      seoTitle: "河北冀农农机具有限公司｜链条、齿轮厂家",
+    })));
   });
 
   it("publishes a vendor when the front display checkbox is selected", async () => {
@@ -217,7 +251,7 @@ describe("AdminResourcePage CMS forms", () => {
     );
   });
 
-  it("marks category-generated menu anchors as read-only", async () => {
+  it("keeps category-generated and legacy sidebar anchors out of the quick-navigation list", async () => {
     mockedListResource.mockImplementation((resource) => {
       if (resource === "menus") return Promise.resolve([
         { id: 10, name: "播种施肥配件", categoryId: 5, menuType: "sidebar", path: "/products?categoryId=5" },
@@ -229,8 +263,10 @@ describe("AdminResourcePage CMS forms", () => {
     renderAdmin("/admin/menus");
 
     expect(await screen.findByText("分类导航已自动生成")).toBeInTheDocument();
-    expect(screen.getByText("分类生成")).toBeInTheDocument();
-    expect(screen.getByText("请到“配件分类”维护")).toBeInTheDocument();
+    expect(screen.queryByText("播种施肥配件")).not.toBeInTheDocument();
+    expect(screen.getByText("全部分类")).toBeInTheDocument();
+    expect(screen.getByText("移动快捷入口")).toBeInTheDocument();
+    expect(screen.getByText("/products")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "编辑" })).toBeInTheDocument();
   });
 });

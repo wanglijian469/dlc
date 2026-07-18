@@ -5,6 +5,15 @@ import { HeroSearch } from "./HeroSearch";
 
 function Location() { const location = useLocation(); return <output aria-label="current-location">{location.pathname}{location.search}</output>; }
 describe("HeroSearch", () => {
+  it("uses the CMS banner image and falls back to the marketplace image", () => {
+    const { container, rerender, unmount } = render(<MemoryRouter><HeroSearch banner={{ title: "市场入口", backgroundImage: "/api/media/123" }} /></MemoryRouter>);
+    expect(container.querySelector(".hero-search")).toHaveStyle({ "--hero-image": "url(/api/media/123)" });
+
+    rerender(<MemoryRouter><HeroSearch banner={{ title: "市场入口" }} /></MemoryRouter>);
+    expect(container.querySelector(".hero-search")).toHaveStyle({ "--hero-image": "url(/images/industry/hero-marketplace.jpg)" });
+    unmount();
+  });
+
   it("routes directly to product results and stores search history", () => {
     render(<MemoryRouter><HeroSearch banner={{ title: "快速找厂找货", subtitle: "不再展示的副标题", hotKeywords: ["齿轮"] }} /><Location /></MemoryRouter>);
     expect(screen.queryByText("不再展示的副标题")).not.toBeInTheDocument();

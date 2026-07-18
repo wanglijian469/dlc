@@ -1,13 +1,13 @@
 ﻿import { adminClient, publicClient } from "./client";
 import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorProductRecord } from "../types/api";
 
-export type AccountRole = "admin" | "vendor" | "user";
+export type AccountRole = "admin" | "editor" | "reviewer" | "vendor";
 
 export interface LoginResponse {
-  token: string;
   username: string;
   role: AccountRole;
   vendorId?: number;
+  csrfToken?: string;
 }
 
 export interface CMSUser {
@@ -39,12 +39,34 @@ export interface VendorProfileResponse {
   submission: VendorSubmission | null;
 }
 
+export interface VendorSEOSuggestion {
+  seoTitle: string;
+  seoDescription: string;
+  sourceFields: string[];
+}
+
+export function suggestVendorSEO(payload: Partial<Vendor>) {
+  return adminClient.post<never, VendorSEOSuggestion>("/api/admin/seo-suggestions/vendor", payload);
+}
+
 export function login(username: string, password: string) {
+  return publicClient.post<never, LoginResponse>("/api/auth/login", { username, password });
+}
+
+export function staffLogin(username: string, password: string) {
   return publicClient.post<never, LoginResponse>("/api/admin/login", { username, password });
 }
 
-export function register(payload: { username: string; password: string; role: "user" | "vendor"; companyName?: string }) {
-  return publicClient.post<never, LoginResponse>("/api/admin/register", payload);
+export function register(payload: { username: string; password: string; role: "vendor"; companyName: string }) {
+  return publicClient.post<never, LoginResponse>("/api/auth/register", payload);
+}
+
+export function getCurrentSession() {
+  return adminClient.get<never, LoginResponse>("/api/auth/session");
+}
+
+export function logoutSession() {
+  return adminClient.post<never, { loggedOut: boolean }>("/api/auth/logout");
 }
 
 export function getDashboardStats() {
@@ -67,26 +89,84 @@ export function getAnalyticsSummary(days: 7 | 30 | 90) {
   return adminClient.get<never, AnalyticsSummary>("/api/admin/analytics", { params: { days } });
 }
 
-export interface OperationLog { id: number; username: string; action: string; resource: string; recordId: number; createdAt: string }
+export interface SEOStatus {
+  issues: { missingTitle: number; missingDescription: number; missingImage: number; duplicateTitles: number; duplicateDescriptions: number; drafts: number; inReview: number; redirects: number; recent404: number; zeroResultSearches: number };
+  sitemap: { index: string; sections: string[] };
+  baiduSubmission: { enabled: boolean; configured: boolean };
+}
+
+export interface ContentRevision {
+  id: number;
+  resourceType: "vendor" | "product" | "category" | "page" | "article";
+  resourceId: number;
+  version: number;
+  baseVersion: number;
+  status: "draft" | "in_review" | "scheduled" | "published" | "rejected" | "archived";
+  snapshot: string;
+  authorUsername: string;
+  reviewer?: string;
+  reviewNote?: string;
+  scheduledAt?: string;
+  publishedAt?: string;
+  updatedAt: string;
+}
+
+export function getSEOStatus() { return adminClient.get<never, SEOStatus>("/api/admin/seo-status"); }
+export function submitBaiduURLs() { return adminClient.post<never, { submitted: number; response: string }>("/api/admin/seo-submit/baidu"); }
+export function listRevisions(params: { page: number; pageSize: number; status?: string; resourceType?: string; resourceId?: number }) { return adminClient.get<never, PageResult<ContentRevision>>("/api/admin/revisions", { params }); }
+export function saveRevision(payload: { resourceType: ContentRevision["resourceType"]; resourceId: number; baseVersion: number; snapshot: unknown }) { return adminClient.post<never, ContentRevision>("/api/admin/revisions", payload); }
+export function submitRevision(id: number) { return adminClient.post<never, ContentRevision>(`/api/admin/revisions/${id}/submit`); }
+export function approveRevision(id: number, note = "", scheduledAt?: string) { return adminClient.post<never, ContentRevision>(`/api/admin/revisions/${id}/approve`, { note, scheduledAt }); }
+export function rejectRevision(id: number, note: string) { return adminClient.post<never, ContentRevision>(`/api/admin/revisions/${id}/reject`, { note }); }
+export function archiveRevision(id: number) { return adminClient.post<never, { archived: boolean }>(`/api/admin/revisions/${id}/archive`); }
+export function previewRevision(id: number) { return adminClient.get<never, { revision: ContentRevision; snapshot: unknown; baseSnapshot: unknown }>(`/api/admin/revisions/${id}/preview`); }
+
+export interface OperationLog { id: number; username: string; action: string; resource: string; recordId: number; reason?: string; createdAt: string }
 export function listOperationLogs(params: { page: number; pageSize: number; search?: string }) { return adminClient.get<never, PageResult<OperationLog>>("/api/admin/operation-logs", { params }); }
 
 export type ResourceName = "menus" | "vendors" | "tags" | "categories" | "products" | "banners" | "pages" | "friend-links";
 export type ResourceRecord = (Menu | Vendor | Tag | Category | Product | Banner | ContentPageRecord | FriendLink) & { id: number };
 
+const editorialResources = new Set<ResourceName>(["vendors", "products", "categories", "pages", "tags"]);
+
+function resourceListPath(resource: ResourceName) {
+  const role = typeof window === "undefined" ? "admin" : window.localStorage.getItem("cms_role");
+  return role && role !== "admin" && editorialResources.has(resource)
+    ? `/api/admin/editorial/${resource}`
+    : `/api/admin/${resource}`;
+}
+
 export function listResource<T extends ResourceRecord>(resource: ResourceName) {
-  return adminClient.get<never, T[]>(`/api/admin/${resource}`);
+  return adminClient.get<never, T[]>(resourceListPath(resource));
 }
 
 export function listResourcePage<T extends ResourceRecord>(resource: "vendors" | "products", params: { page: number; pageSize: number; search?: string; status?: string; publicationStatus?: string; province?: string; vendorId?: number; categoryId?: number }) {
-  return adminClient.get<never, PageResult<T>>(`/api/admin/${resource}`, { params });
+  return adminClient.get<never, PageResult<T>>(resourceListPath(resource), { params });
 }
 
 export function createResource<T extends ResourceRecord>(resource: ResourceName, payload: Partial<T>) {
-  return adminClient.post<never, T>(`/api/admin/${resource}`, payload);
+  return adminClient.post<never, T>(`/api/admin/${resource}`, resourceRequestBody(payload), emergencyPublishConfig(resource, payload));
 }
 
 export function updateResource<T extends ResourceRecord>(resource: ResourceName, id: number, payload: Partial<T>) {
-  return adminClient.put<never, T>(`/api/admin/${resource}/${id}`, payload);
+  return adminClient.put<never, T>(`/api/admin/${resource}/${id}`, resourceRequestBody(payload), emergencyPublishConfig(resource, payload));
+}
+
+function emergencyPublishConfig(resource: ResourceName, payload: object) {
+  const value = payload as Record<string, unknown>;
+  const publishing = resource === "vendors" ? value.publicationStatus === "published" || value.isVisible === true
+    : resource === "products" ? value.publicationStatus === "published" || value.status === 1
+    : resource === "categories" || resource === "pages" ? value.isEnabled === true
+    : false;
+  if (!publishing) return undefined;
+  const reason = String(value.publishReason || "").trim();
+  if (!reason) throw new Error("发布到前台前，请填写发布说明");
+  return { headers: { "X-Publish-Reason": encodeURIComponent(reason) } };
+}
+
+function resourceRequestBody(payload: object) {
+  const { publishReason: _publishReason, ...body } = payload as Record<string, unknown>;
+  return body;
 }
 
 export function deleteResource(resource: ResourceName, id: number) {
@@ -101,9 +181,11 @@ export function updateConfig(key: string, payload: Partial<SiteConfig>) {
   return adminClient.put<never, SiteConfig>(`/api/admin/configs/${key}`, payload);
 }
 
-export function uploadFile(file: File) {
+export function uploadFile(file: File, metadata: { altText?: string; caption?: string } = {}) {
   const form = new FormData();
   form.append("file", file);
+  if (metadata.altText) form.append("altText", metadata.altText);
+  if (metadata.caption) form.append("caption", metadata.caption);
   return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/uploads", form, { headers: { "Content-Type": "multipart/form-data" } });
 }
 

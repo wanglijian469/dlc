@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
 	"dalu-nongji-parts/backend/internal/service"
@@ -57,7 +58,7 @@ func (h PublicHandler) Menus(c *gin.Context) {
 
 func (h PublicHandler) Page(c *gin.Context) {
 	var page model.ContentPage
-	if err := h.DB.Where("slug = ? AND page_type = ? AND is_enabled = ?", c.Param("slug"), "page", true).First(&page).Error; err != nil {
+	if err := publishedPageQuery(h.DB, "page").Where("slug = ?", c.Param("slug")).First(&page).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "页面不存在")
 		return
 	}
@@ -67,7 +68,7 @@ func (h PublicHandler) Page(c *gin.Context) {
 func (h PublicHandler) Articles(c *gin.Context) {
 	var pages []model.ContentPage
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.ContentPage{}).Where("page_type = ? AND is_enabled = ?", "article", true)
+	query := publishedPageQuery(h.DB, "article")
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("title LIKE ? OR summary LIKE ? OR seo_keywords LIKE ?", like, like, like)
@@ -82,7 +83,7 @@ func (h PublicHandler) Articles(c *gin.Context) {
 
 func (h PublicHandler) Article(c *gin.Context) {
 	var page model.ContentPage
-	if err := h.DB.Where("slug = ? AND page_type = ? AND is_enabled = ?", c.Param("slug"), "article", true).First(&page).Error; err != nil {
+	if err := publishedPageQuery(h.DB, "article").Where("slug = ?", c.Param("slug")).First(&page).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "行业文章不存在")
 		return
 	}
@@ -98,7 +99,7 @@ func (h PublicHandler) FriendLinks(c *gin.Context) {
 func (h PublicHandler) Vendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ?", true, "published")
+	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ?", like, like, like)
@@ -134,7 +135,7 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 func (h PublicHandler) ProcessingVendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true)
+	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("provides_processing = ?", true)
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ? OR processing_services LIKE ? OR processing_materials LIKE ? OR processing_equipment LIKE ? OR processing_capacity LIKE ? OR processing_regions LIKE ? OR processing_notes LIKE ?", like, like, like, like, like, like, like, like, like)
@@ -172,7 +173,7 @@ func (h PublicHandler) ProcessingFilterOptions(c *gin.Context) {
 
 func (h PublicHandler) RecommendedVendors(c *gin.Context) {
 	var vendors []model.Vendor
-	h.DB.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND is_recommended = ?", true, "published", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
+	publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
 	if !c.GetBool("authenticated") {
 		redactVendorSlice(vendors)
 	}
@@ -181,8 +182,23 @@ func (h PublicHandler) RecommendedVendors(c *gin.Context) {
 
 func (h PublicHandler) VendorDetail(c *gin.Context) {
 	var vendor model.Vendor
-	if err := h.DB.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "id = ? AND is_visible = ? AND publication_status = ?", c.Param("id"), true, "published").Error; err != nil {
+	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "id = ?", c.Param("id")).Error; err != nil {
 		Fail(c, 404, 404, "厂商不存在")
+		return
+	}
+	for _, tag := range vendor.Tags {
+		vendor.TagIDs = append(vendor.TagIDs, tag.ID)
+	}
+	if !c.GetBool("authenticated") {
+		redactVendor(&vendor)
+	}
+	OK(c, vendor)
+}
+
+func (h PublicHandler) VendorBySlug(c *gin.Context) {
+	var vendor model.Vendor
+	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "slug = ?", c.Param("slug")).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "厂商不存在")
 		return
 	}
 	for _, tag := range vendor.Tags {
@@ -204,9 +220,18 @@ func (h PublicHandler) Products(c *gin.Context) {
 	}
 	if categoryID := queryUint(c, "categoryId"); categoryID > 0 {
 		query = query.Where("products.category_id IN ?", productCategoryIDs(h.DB, categoryID))
+	} else if categorySlug := strings.TrimSpace(c.Query("categorySlug")); categorySlug != "" {
+		var category model.Category
+		if publishedCategoryQuery(h.DB).First(&category, "slug = ?", categorySlug).Error != nil {
+			Fail(c, http.StatusNotFound, 404, "产品分类不存在")
+			return
+		}
+		query = query.Where("products.category_id IN ?", productCategoryIDs(h.DB, category.ID))
 	}
 	if vendorID := queryUint(c, "vendorId"); vendorID > 0 {
 		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendorID)
+	} else if vendorSlug := strings.TrimSpace(c.Query("vendorId")); vendorSlug != "" {
+		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors filter_vendor ON filter_vendor.id = ps.vendor_id WHERE ps.product_id = products.id AND filter_vendor.slug = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendorSlug)
 	}
 	if c.Query("hot") == "true" {
 		query = query.Where("products.is_hot = ?", true)
@@ -258,9 +283,35 @@ func (h PublicHandler) ProductDetail(c *gin.Context) {
 	OK(c, product)
 }
 
+func (h PublicHandler) ProductBySlug(c *gin.Context) {
+	var product model.Product
+	if err := visibleProductQuery(h.DB).Preload("Category").First(&product, "products.slug = ?", c.Param("slug")).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "产品不存在")
+		return
+	}
+	rows := []model.Product{product}
+	enrichProductSummaries(h.DB, rows, 0)
+	OK(c, rows[0])
+}
+
+func (h PublicHandler) CategoryBySlug(c *gin.Context) {
+	var category model.Category
+	if err := publishedCategoryQuery(h.DB).First(&category, "slug = ?", c.Param("slug")).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "分类不存在")
+		return
+	}
+	OK(c, category)
+}
+
 func (h PublicHandler) ProductSuppliers(c *gin.Context) {
 	var product model.Product
-	if err := visibleProductQuery(h.DB).First(&product, "products.id = ?", c.Param("id")).Error; err != nil {
+	productQuery := visibleProductQuery(h.DB)
+	if _, err := strconv.ParseUint(c.Param("id"), 10, 64); err == nil {
+		productQuery = productQuery.Where("products.id = ?", c.Param("id"))
+	} else {
+		productQuery = productQuery.Where("products.slug = ?", c.Param("id"))
+	}
+	if err := productQuery.First(&product).Error; err != nil {
 		Fail(c, 404, 404, "产品不存在")
 		return
 	}
@@ -291,7 +342,7 @@ func (h PublicHandler) Search(c *gin.Context) {
 	var categories []model.Category
 	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, "published", like, like, like).Order("is_recommended desc, sort_order asc, id asc")
 	productQuery := visibleProductQuery(h.DB).Preload("Category").Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
-	categoryQuery := h.DB.Model(&model.Category{}).Where("is_enabled = ? AND name LIKE ?", true, like).Order("sort_order asc, id asc")
+	categoryQuery := publishedCategoryQuery(h.DB).Where("name LIKE ?", like).Order("sort_order asc, id asc")
 	vendorResult, err := paginate(vendorQuery, &vendors, page, pageSize)
 	if err != nil {
 		Fail(c, 500, 500, "搜索失败")
@@ -358,9 +409,21 @@ func (h PublicHandler) FilterOptions(c *gin.Context) {
 	var categories []model.Category
 	var tags []model.Tag
 	h.DB.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND province <> ''", true, "published").Distinct().Order("province asc").Pluck("province", &provinces)
-	h.DB.Where("is_enabled = ?", true).Order("sort_order asc, id asc").Find(&categories)
+	publishedCategoryQuery(h.DB).Order("sort_order asc, id asc").Find(&categories)
 	h.DB.Where("tag_type = ?", "vendor").Order("sort_order asc, id asc").Find(&tags)
 	OK(c, gin.H{"provinces": provinces, "categories": categories, "serviceTags": tags})
+}
+
+func publishedPageQuery(db *gorm.DB, pageType string) *gorm.DB {
+	return db.Model(&model.ContentPage{}).Where("page_type = ? AND is_enabled = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", pageType, true, "published", time.Now())
+}
+
+func publishedVendorQuery(db *gorm.DB) *gorm.DB {
+	return db.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", true, "published", time.Now())
+}
+
+func publishedCategoryQuery(db *gorm.DB) *gorm.DB {
+	return db.Model(&model.Category{}).Where("is_enabled = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", true, "published", time.Now())
 }
 
 func paginate(query *gorm.DB, dest interface{}, page int, pageSize int) (PageResult, error) {

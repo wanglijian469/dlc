@@ -14,6 +14,7 @@ type ProductSpec struct {
 
 type Product struct {
 	ID                uint             `gorm:"primaryKey" json:"id"`
+	Slug              string           `gorm:"size:180;uniqueIndex" json:"slug"`
 	Name              string           `gorm:"size:150;not null" json:"name"`
 	Image             string           `gorm:"size:255" json:"image"`
 	CategoryID        uint             `gorm:"index" json:"categoryId"`
@@ -34,6 +35,7 @@ type Product struct {
 	Status            int              `gorm:"default:1" json:"status"`
 	PublicationStatus string           `gorm:"size:20;not null;default:published;index" json:"publicationStatus"`
 	ContentVersion    uint             `gorm:"not null;default:1" json:"contentVersion"`
+	PublishedAt       *time.Time       `gorm:"index" json:"publishedAt,omitempty"`
 	Category          Category         `json:"category,omitempty"`
 	Vendor            *Vendor          `gorm:"constraint:OnUpdate:CASCADE,OnDelete:SET NULL;" json:"vendor,omitempty"`
 	SupplierCount     int64            `gorm:"-" json:"supplierCount"`

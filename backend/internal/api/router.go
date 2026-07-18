@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/config"
@@ -26,10 +27,21 @@ func NewRouter(deps Deps) *gin.Engine {
 		panic("invalid trusted proxy configuration: " + err.Error())
 	}
 	router.Use(gin.Logger(), gin.Recovery())
+	router.Use(func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/assets/") {
+			c.Header("Cache-Control", "public, max-age=31536000, immutable")
+		} else if strings.HasPrefix(path, "/api/media/") || strings.HasPrefix(path, "/uploads/") || strings.HasPrefix(path, "/images/") {
+			c.Header("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800")
+		} else if !strings.HasPrefix(path, "/api/") {
+			c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+		}
+		c.Next()
+	})
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     deps.Config.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token", "X-Publish-Reason"},
 		AllowCredentials: true,
 	}))
 	RegisterHealthRoute(router)
@@ -54,6 +66,7 @@ func RegisterPublicRoutes(router *gin.Engine, db *gorm.DB) {
 func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string) {
 	handler := PublicHandler{DB: db, HomeService: service.HomeService{DB: db}}
 	api := router.Group("/api")
+	api.Use(PublicETag())
 	api.Use(OptionalCMSAuth(db, secret))
 	api.GET("/home", handler.Home)
 	api.GET("/site-meta", handler.SiteMeta)
@@ -67,31 +80,24 @@ func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string
 	api.GET("/processing-filter-options", handler.ProcessingFilterOptions)
 	api.GET("/vendors", handler.Vendors)
 	api.GET("/vendors/recommended", handler.RecommendedVendors)
+	api.GET("/vendors/slug/:slug", handler.VendorBySlug)
 	api.GET("/vendors/:id", handler.VendorDetail)
 	api.GET("/products", handler.Products)
+	api.GET("/products/slug/:slug", handler.ProductBySlug)
 	api.GET("/products/:id", handler.ProductDetail)
 	api.GET("/products/:id/suppliers", handler.ProductSuppliers)
 	api.GET("/search", handler.Search)
 	api.GET("/filter-options", handler.FilterOptions)
+	api.GET("/categories/slug/:slug", handler.CategoryBySlug)
 }
 
 // OptionalCMSAuth enriches public requests when a valid CMS account token is
 // present. Invalid or missing tokens remain anonymous and never block browsing.
 func OptionalCMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		header := c.GetHeader("Authorization")
-		if db == nil || secret == "" || !strings.HasPrefix(header, "Bearer ") {
-			c.Next()
-			return
-		}
-		username, err := auth.ParseToken(strings.TrimPrefix(header, "Bearer "), secret)
-		if err == nil {
-			var user model.AdminUser
-			if db.Where("username = ? AND is_enabled = ?", username, true).First(&user).Error == nil {
-				c.Set("authenticated", true)
-				c.Set("username", username)
-				c.Set("role", user.Role)
-			}
+		if user, ok := authenticateRequest(c, db, secret); ok {
+			c.Set("authenticated", true)
+			setUserContext(c, user)
 		}
 		c.Next()
 	}
@@ -99,19 +105,54 @@ func OptionalCMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 
 func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	handler := AdminHandler{DB: db, Config: cfg}
+	authAPI := router.Group("/api/auth")
+	authAPI.POST("/login", handler.Login)
+	authAPI.POST("/register", handler.Register)
+	authProtected := authAPI.Group("")
+	authProtected.Use(CMSAuth(db, cfg.AuthSecret), RequireCSRF())
+	authProtected.GET("/session", handler.CurrentSession)
+	authProtected.POST("/logout", handler.Logout)
+
 	admin := router.Group("/api/admin")
-	admin.POST("/login", handler.Login)
-	admin.POST("/register", handler.Register)
+	admin.POST("/login", handler.StaffLogin)
 	protected := admin.Group("")
 	protected.Use(CMSAuth(db, cfg.AuthSecret))
+	protected.Use(RequireCSRF())
 	protected.GET("/profile", handler.Profile)
+
+	workflowReaders := protected.Group("")
+	workflowReaders.Use(RequireAnyRole("admin", "editor", "reviewer"))
+	workflowReaders.GET("/dashboard", handler.DashboardStats)
+	workflowReaders.GET("/revisions", handler.ListRevisions)
+	workflowReaders.GET("/revisions/:id/preview", handler.PreviewRevision)
+	workflowReaders.GET("/editorial/vendors", handler.ListVendors)
+	workflowReaders.GET("/editorial/products", handler.ListProducts)
+	workflowReaders.GET("/editorial/categories", handler.ListCategories)
+	workflowReaders.GET("/editorial/pages", handler.ListPages)
+	workflowReaders.GET("/editorial/tags", handler.ListTags)
+
+	workflowEditors := protected.Group("")
+	workflowEditors.Use(RequireAnyRole("admin", "editor"))
+	workflowEditors.POST("/seo-suggestions/vendor", handler.SuggestVendorSEO)
+	workflowEditors.POST("/revisions", handler.SaveRevision)
+	workflowEditors.POST("/revisions/:id/submit", handler.SubmitRevision)
+
+	workflowReviewers := protected.Group("")
+	workflowReviewers.Use(RequireAnyRole("admin", "reviewer"))
+	workflowReviewers.POST("/revisions/:id/approve", handler.ApproveRevision)
+	workflowReviewers.POST("/revisions/:id/reject", handler.RejectRevision)
+	workflowReviewers.POST("/revisions/:id/archive", handler.ArchiveRevisionResource)
+
+	mediaUsers := protected.Group("")
+	mediaUsers.Use(RequireAnyRole("admin", "editor", "reviewer", "vendor"))
+	mediaUsers.POST("/uploads", handler.SecureUpload)
+	mediaUsers.POST("/remote-images", handler.DownloadRemoteImage)
+	mediaUsers.GET("/media/:id", handler.PreviewMedia)
+	mediaUsers.PUT("/media/:id/metadata", handler.UpdateMediaMetadata)
+	mediaUsers.DELETE("/media/:id", handler.DeleteMedia)
 
 	cmsOnly := protected.Group("")
 	cmsOnly.Use(RequireAnyRole("admin", "vendor"))
-	cmsOnly.POST("/uploads", handler.SecureUpload)
-	cmsOnly.POST("/remote-images", handler.DownloadRemoteImage)
-	cmsOnly.GET("/media/:id", handler.PreviewMedia)
-	cmsOnly.DELETE("/media/:id", handler.DeleteMedia)
 	cmsOnly.GET("/vendor-profile", handler.GetVendorProfile)
 	cmsOnly.PUT("/vendor-profile", handler.SubmitVendorProfile)
 	cmsOnly.GET("/vendor-products", handler.ListOwnProducts)
@@ -123,8 +164,9 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 
 	adminOnly := protected.Group("")
 	adminOnly.Use(RequireRole("admin"))
-	adminOnly.GET("/dashboard", handler.DashboardStats)
 	adminOnly.GET("/analytics", AnalyticsHandler{DB: db, Config: cfg}.Summary)
+	adminOnly.GET("/seo-status", handler.SEOConsoleHealth)
+	adminOnly.POST("/seo-submit/baidu", handler.SubmitBaiduURLs)
 	adminOnly.GET("/operation-logs", handler.ListOperationLogs)
 	adminOnly.POST("/imports/:resource", handler.ImportWorkbook)
 	adminOnly.GET("/menus", handler.ListMenus)
@@ -198,6 +240,17 @@ func AdminAuth(secret string) gin.HandlerFunc {
 // Keeping AdminAuth separate preserves the small stateless middleware used by tests.
 func CMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		if db != nil {
+			user, ok := authenticateRequest(c, db, secret)
+			if !ok {
+				Fail(c, http.StatusUnauthorized, 401, "未登录、会话已过期或账号已停用")
+				c.Abort()
+				return
+			}
+			setUserContext(c, user)
+			c.Next()
+			return
+		}
 		header := c.GetHeader("Authorization")
 		if !strings.HasPrefix(header, "Bearer ") {
 			Fail(c, http.StatusUnauthorized, 401, "未登录或登录已过期")
@@ -231,6 +284,19 @@ func CMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 			c.Set("vendorId", *user.VendorID)
 		}
 		c.Next()
+	}
+}
+
+func setUserContext(c *gin.Context, user model.AdminUser) {
+	role := strings.TrimSpace(user.Role)
+	if role == "" {
+		role = "admin"
+	}
+	c.Set("username", user.Username)
+	c.Set("role", role)
+	c.Set("userId", user.ID)
+	if user.VendorID != nil {
+		c.Set("vendorId", *user.VendorID)
 	}
 }
 
@@ -274,7 +340,7 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 			}
 			url := "/uploads/" + name
 			var count int64
-			db.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND (logo = ? OR cover_image = ?)", true, "published", url, url).Count(&count)
+			db.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?) AND (logo = ? OR cover_image = ?)", true, "published", time.Now(), url, url).Count(&count)
 			if count == 0 {
 				db.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.url = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", url, true, "published").Count(&count)
 			}

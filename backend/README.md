@@ -14,6 +14,7 @@ go run ./cmd/server
 - `GET /api/home`
 - `GET /api/vendors`
 - `GET /api/products`
-- `POST /api/admin/login`
-- `POST /api/admin/register`
+- `POST /api/auth/login`（仅厂商账号）
+- `POST /api/auth/register`（仅厂商入驻）
+- `POST /api/admin/login`（仅管理员、编辑、审核员）
 - `GET/POST/PUT/DELETE /api/admin/*`

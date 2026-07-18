@@ -27,7 +27,7 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 	}
 
 	for _, want := range []string{
-		"POST /api/admin/register",
+		"POST /api/auth/register",
 		"GET /api/site-meta",
 		"GET /api/pages/:slug",
 		"GET /api/products/:id",
@@ -59,6 +59,9 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 		if !routes[want] {
 			t.Fatalf("route %q not registered; routes=%v", want, routes)
 		}
+	}
+	if routes["POST /api/admin/register"] {
+		t.Fatal("retired public registration route remains registered")
 	}
 }
 

@@ -10,7 +10,7 @@ import { RecommendedVendors } from "../components/public/RecommendedVendors";
 import { SidebarNav } from "../components/public/SidebarNav";
 import { StatsFooter } from "../components/public/StatsFooter";
 import { ProcessingSection } from "../components/public/HomeMarketplaceSections";
-import type { HomeModule, HomePayload } from "../types/api";
+import type { HomeModule, HomePayload, Vendor } from "../types/api";
 
 export function HomePage() {
   const [home, setHome] = useState<HomePayload | null>(null);
@@ -19,7 +19,33 @@ export function HomePage() {
   useEffect(load, []);
   if (error) return <div className="state-page"><p>{error}</p><button className="primary-btn" onClick={load}>重试</button></div>;
   if (!home) return <HomeSkeleton />;
-  return <HomeView home={home} />;
+  return <HomeView home={dedupeHome(home)} />;
+}
+
+export function dedupeHome(home: HomePayload): HomePayload {
+  const generalVendorIDs = new Set<number>();
+  const uniqueGeneralVendor = (vendors: Vendor[]) => vendors.filter((vendor) => {
+    if (generalVendorIDs.has(vendor.id)) return false;
+    generalVendorIDs.add(vendor.id);
+    return true;
+  });
+  const uniqueProcessingVendors = (vendors: Vendor[]) => {
+    const processingVendorIDs = new Set<number>();
+    return vendors.filter((vendor) => {
+      if (processingVendorIDs.has(vendor.id)) return false;
+      processingVendorIDs.add(vendor.id);
+      return true;
+    });
+  };
+  return {
+    ...home,
+    // Processing is a capability-specific directory: its vendors may also
+    // appear in the general supplier areas. Only the two general areas share
+    // a de-duplication set.
+    recommendedVendors: uniqueGeneralVendor(home.recommendedVendors),
+    moreVendors: uniqueGeneralVendor(home.moreVendors),
+    processingVendors: uniqueProcessingVendors(home.processingVendors || []),
+  };
 }
 
 export function HomeView({ home }: { home: HomePayload }) {

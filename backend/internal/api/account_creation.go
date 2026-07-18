@@ -7,6 +7,7 @@ import (
 
 	"dalu-nongji-parts/backend/internal/auth"
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -44,7 +45,7 @@ func normalizeAccountCreateInput(input accountCreateInput) (accountCreateInput, 
 	if input.Username == "" || len(input.Password) < 6 {
 		return input, errInvalidAccountInput
 	}
-	if input.Role != "admin" && input.Role != "vendor" && input.Role != "user" {
+	if !isAccountRole(input.Role) {
 		return input, errInvalidAccountInput
 	}
 	if input.Role != "vendor" {
@@ -59,6 +60,15 @@ func normalizeAccountCreateInput(input accountCreateInput) (accountCreateInput, 
 		return input, errInvalidAccountInput
 	}
 	return input, nil
+}
+
+func isAccountRole(role string) bool {
+	switch role {
+	case "admin", "editor", "reviewer", "vendor":
+		return true
+	default:
+		return false
+	}
 }
 
 func createAccount(db *gorm.DB, input accountCreateInput) (model.AdminUser, error) {
@@ -101,6 +111,7 @@ func createAccount(db *gorm.DB, input accountCreateInput) (model.AdminUser, erro
 				ContentVersion:    1,
 				IsVisible:         false,
 			}
+			service.ApplyVendorSEO(&vendor)
 			if err := tx.Create(&vendor).Error; err != nil {
 				return err
 			}
@@ -150,8 +161,8 @@ func (h AdminHandler) Register(c *gin.Context) {
 		Fail(c, http.StatusBadRequest, 400, "注册信息格式不正确")
 		return
 	}
-	if req.Role != "user" && req.Role != "vendor" {
-		Fail(c, http.StatusBadRequest, 400, "公开注册仅支持普通用户或厂商用户")
+	if req.Role != "vendor" {
+		Fail(c, http.StatusBadRequest, 400, "平台仅支持厂商入驻")
 		return
 	}
 	user, err := createAccount(h.DB, accountCreateInput{
@@ -166,13 +177,13 @@ func (h AdminHandler) Register(c *gin.Context) {
 		writeAccountCreateError(c, err)
 		return
 	}
-	token, err := auth.IssueToken(user.Username, h.Config.AuthSecret)
+	csrf, err := h.startSession(c, user)
 	if err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "注册成功，但登录凭证生成失败")
 		return
 	}
 	logOperation(h.DB, user.Username, "register", "users", user.ID)
-	OK(c, gin.H{"token": token, "username": user.Username, "role": user.Role, "vendorId": user.VendorID})
+	OK(c, gin.H{"username": user.Username, "role": user.Role, "vendorId": user.VendorID, "csrfToken": csrf})
 }
 
 func writeAccountCreateError(c *gin.Context, err error) {

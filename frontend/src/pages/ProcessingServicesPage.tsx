@@ -4,6 +4,8 @@ import { getProcessingFilterOptions, listProcessingVendors, type VendorListParam
 import { PageFrame } from "../components/public/PageFrame";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { FilterOptions, PageResult, Tag, Vendor } from "../types/api";
+import { SlidersHorizontal, X } from "lucide-react";
+import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
 
 const pageSize = 12;
 
@@ -17,6 +19,7 @@ export function ProcessingServicesPage() {
   const [result, setResult] = useState<PageResult<Vendor> | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const query = useMemo<VendorListParams>(
     () => ({
@@ -58,11 +61,15 @@ export function ProcessingServicesPage() {
   const total = result?.total || 0;
   const currentPage = result?.page || 1;
   const canLoadMore = result ? currentPage * result.pageSize < result.total : false;
+  const activeFilters = [keyword.trim(), province, tagId ? filters.serviceTags.find((tag) => String(tag.id) === tagId)?.name : ""].filter(Boolean) as string[];
+  const clearFilters = () => { setKeyword(""); setProvince(""); setTagId(""); setSort("recommended"); setParams(new URLSearchParams()); };
 
   return (
     <PageFrame title="加工服务" subtitle="展示提供加工服务的厂商能力，帮助厂商承接匹配的加工订单机会">
-      <form className="filter-bar" onSubmit={submit}>
-        <input value={keyword} placeholder="搜索厂商、加工能力、材料、设备" onChange={(event) => setKeyword(event.target.value)} />
+      <MobileDirectorySearch value={keyword} placeholder="搜索厂商、加工能力、材料、设备" onChange={setKeyword} onSubmit={submit} />
+      <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选加工服务{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
+      <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
+        <input className="filter-keyword" value={keyword} placeholder="搜索厂商、加工能力、材料、设备" onChange={(event) => setKeyword(event.target.value)} />
         <select value={province} onChange={(event) => setProvince(event.target.value)}>
           <option value="">全部地区</option>
           {filters.provinces.map((item) => (
@@ -87,6 +94,7 @@ export function ProcessingServicesPage() {
           搜索
         </button>
       </form>
+      {activeFilters.length > 0 && <div className="active-filter-row">{activeFilters.map((item) => <span key={item}>{item}</span>)}<button type="button" onClick={clearFilters}><X size={14} />清除筛选</button></div>}
       {loading && <LoadingState />}
       {error && <ErrorState text={error} onRetry={load} />}
       {!loading && !error && result && (
@@ -146,10 +154,10 @@ function ProcessingVendorCard({ vendor }: { vendor: Vendor }) {
         {vendor.processingCapacity && <p className="vendor-line">产能/交期：{vendor.processingCapacity}</p>}
       </div>
       <div className="card-actions">
-        <Link className="primary-btn small" to={`/vendors/${vendor.id}`}>
+        <Link className="primary-btn small" to={`/vendors/${vendor.slug || vendor.id}`}>
           查看厂商
         </Link>
-        <Link className="outline-btn small" to={`/vendors/${vendor.id}`}>
+        <Link className="outline-btn small" to={`/vendors/${vendor.slug || vendor.id}`}>
           对接加工
         </Link>
       </div>

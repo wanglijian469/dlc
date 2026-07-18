@@ -64,6 +64,7 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 
 func AutoMigrate(db *gorm.DB) error {
 	if err := db.AutoMigrate(
+		&model.SchemaMigration{},
 		&model.Menu{},
 		&model.Tag{},
 		&model.Vendor{},
@@ -82,6 +83,9 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.AdminUser{},
 		&model.VendorSubmission{},
 		&model.AnalyticsEvent{},
+		&model.SEORedirect{},
+		&model.AuthSession{},
+		&model.ContentRevision{},
 	); err != nil {
 		return err
 	}
@@ -119,6 +123,52 @@ func AutoMigrate(db *gorm.DB) error {
 		return err
 	}
 	return ensureStructuredContent(db)
+}
+
+const CurrentSchemaVersion uint = 5
+
+// Migrate is invoked explicitly by cmd/initdb in production. Development may
+// opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
+func Migrate(db *gorm.DB) error {
+	if err := db.AutoMigrate(&model.SchemaMigration{}); err != nil {
+		return err
+	}
+	var latest uint
+	if err := db.Model(&model.SchemaMigration{}).Select("COALESCE(MAX(version), 0)").Scan(&latest).Error; err != nil {
+		return err
+	}
+	if latest >= CurrentSchemaVersion {
+		return nil
+	}
+	if err := AutoMigrate(db); err != nil {
+		return err
+	}
+	if latest < 5 {
+		if err := InitializeVendorSEO(db); err != nil {
+			return err
+		}
+	}
+	if err := BackfillPlatformData(db); err != nil {
+		return err
+	}
+	if err := PurgeOrdinaryAccounts(db); err != nil {
+		return err
+	}
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-seo-auto-suggestions", AppliedAt: time.Now()}).Error
+}
+
+func CheckMigrations(db *gorm.DB) error {
+	if !db.Migrator().HasTable(&model.SchemaMigration{}) {
+		return fmt.Errorf("database migrations are pending; run cmd/initdb before starting production")
+	}
+	var latest uint
+	if err := db.Model(&model.SchemaMigration{}).Select("COALESCE(MAX(version), 0)").Scan(&latest).Error; err != nil {
+		return err
+	}
+	if latest < CurrentSchemaVersion {
+		return fmt.Errorf("database schema is version %d, require %d; run cmd/initdb", latest, CurrentSchemaVersion)
+	}
+	return nil
 }
 
 func ensureAnalyticsDedupeIndex(db *gorm.DB) error {

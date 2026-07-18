@@ -24,10 +24,17 @@ type Config struct {
 	TrustedProxyCIDRs []string
 	GeoIPDBPath       string
 	SeedDemoData      bool
+	RunMigrations     bool
+	BaiduPushToken    string
 }
 
 func Load() Config {
 	seedDemo, _ := strconv.ParseBool(env("SEED_DEMO_DATA", "false"))
+	runMigrations, _ := strconv.ParseBool(env("RUN_MIGRATIONS", ""))
+	environment := env("APP_ENV", "development")
+	if os.Getenv("RUN_MIGRATIONS") == "" {
+		runMigrations = !strings.EqualFold(environment, "production")
+	}
 	origins := strings.Split(env("CORS_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"), ",")
 	trustedProxies := strings.Split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1,::1"), ",")
 	return Config{
@@ -42,11 +49,13 @@ func Load() Config {
 		AuthSecret:        env("AUTH_SECRET", "dev-secret-change-me"),
 		PublicDir:         env("PUBLIC_DIR", ""),
 		MediaDir:          env("MEDIA_DIR", "media_storage"),
-		Environment:       env("APP_ENV", "development"),
+		Environment:       environment,
 		AllowedOrigins:    origins,
 		TrustedProxyCIDRs: trustedProxies,
 		GeoIPDBPath:       env("GEOIP_DB_PATH", ""),
 		SeedDemoData:      seedDemo,
+		RunMigrations:     runMigrations,
+		BaiduPushToken:    env("BAIDU_PUSH_TOKEN", ""),
 	}
 }
 
@@ -57,6 +66,9 @@ func (c Config) Validate() error {
 		}
 		if len(c.AllowedOrigins) == 0 || (len(c.AllowedOrigins) == 1 && strings.TrimSpace(c.AllowedOrigins[0]) == "") {
 			return fmt.Errorf("production requires CORS_ALLOWED_ORIGINS")
+		}
+		if strings.TrimSpace(c.PublicDir) == "" {
+			return fmt.Errorf("production requires PUBLIC_DIR")
 		}
 	}
 	return nil

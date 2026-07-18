@@ -8,7 +8,7 @@ const fallbackItems: Menu[] = [
   { id: 2, name: "分类", path: "/products", icon: "grid" },
   { id: 3, name: "厂商", path: "/vendors", icon: "factory" },
   { id: 4, name: "加工服务", path: "/service", icon: "settings" },
-  { id: 5, name: "我的", path: "/admin/login", icon: "user" },
+  { id: 5, name: "厂商", path: "/account/login", icon: "user" },
 ];
 
 export function MobileBottomNav({ menus }: { menus?: Menu[] }) {
@@ -20,10 +20,11 @@ export function MobileBottomNav({ menus }: { menus?: Menu[] }) {
         const Icon = iconMap[(item.icon || "") as keyof typeof iconMap] || Grid2X2;
         const path = item.path || "/";
         const active = path === "/" ? location.pathname === "/" : location.pathname.startsWith(path);
+        const label = path === "/account/login" || path === "/admin/vendor-profile" ? "厂商中心" : item.name;
         return (
           <Link className={active ? "active" : ""} key={item.id || item.name} to={path}>
             <Icon size={20} />
-            <span>{item.name}</span>
+            <span>{label}</span>
           </Link>
         );
       })}

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
+	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -210,6 +211,7 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 				}
 			}
 			applyVendorImport(&vendor, row)
+			service.ApplyVendorSEO(&vendor)
 			if row.LogoAssetID != nil {
 				vendor.LogoAssetID = row.LogoAssetID
 			}

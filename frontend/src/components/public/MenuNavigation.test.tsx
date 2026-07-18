@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it } from "vitest";
 import type { Menu } from "../../types/api";
 import { MobileCategoryGrid } from "./MobileCategoryGrid";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { SidebarNav } from "./SidebarNav";
 
 const menus: Menu[] = [
@@ -18,10 +19,20 @@ afterEach(cleanup);
 describe("menu navigation", () => {
   it("renders semantic SVG icons", () => { const { container } = renderSidebar(); expect(container.querySelectorAll(".menu-icon svg")).toHaveLength(2); });
   it("renders mobile category icons", () => { const { container } = render(<MemoryRouter><MobileCategoryGrid menus={[{ id: 1, name: "液压系统", icon: "droplets", path: "/products" }]} /></MemoryRouter>); expect(container.querySelectorAll(".mobile-category-grid svg")).toHaveLength(1); });
-  it("does not hide category roots after the first ten items", () => {
+  it("shows seven common categories plus the all-categories entry", () => {
     const manyMenus = Array.from({ length: 11 }, (_, index) => ({ id: index + 1, name: `分类 ${index + 1}`, path: `/products?categoryId=${index + 1}` }));
     const { container } = render(<MemoryRouter><MobileCategoryGrid menus={manyMenus} /></MemoryRouter>);
-    expect(container.querySelectorAll(".mobile-category-grid a")).toHaveLength(11);
+    expect(container.querySelectorAll(".mobile-category-grid a")).toHaveLength(8);
+    expect(screen.getByRole("link", { name: "全部分类" })).toHaveAttribute("href", "/products");
+  });
+  it("labels the account destination as vendor center", () => {
+    render(<MemoryRouter><MobileBottomNav menus={[
+      { id: 1, name: "首页", path: "/", icon: "home" },
+      { id: 2, name: "厂商", path: "/vendors", icon: "factory" },
+      { id: 3, name: "厂商", path: "/account/login", icon: "user" },
+    ]} /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "厂商" })).toHaveAttribute("href", "/vendors");
+    expect(screen.getByRole("link", { name: "厂商中心" })).toHaveAttribute("href", "/account/login");
   });
   it("honors isDefaultOpen and toggles the whole parent row", () => {
     renderSidebar(); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();

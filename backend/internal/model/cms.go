@@ -36,6 +36,8 @@ type ContentPage struct {
 	RelatedProductID  *uint          `gorm:"index" json:"relatedProductId,omitempty"`
 	RelatedVendorID   *uint          `gorm:"index" json:"relatedVendorId,omitempty"`
 	IsEnabled         bool           `gorm:"default:true;index" json:"isEnabled"`
+	PublicationStatus string         `gorm:"size:20;not null;default:published;index" json:"publicationStatus"`
+	ContentVersion    uint           `gorm:"not null;default:1" json:"contentVersion"`
 	SortOrder         int            `gorm:"default:0" json:"sortOrder"`
 	CreatedAt         time.Time      `json:"createdAt"`
 	UpdatedAt         time.Time      `json:"updatedAt"`
@@ -79,5 +81,6 @@ type OperationLog struct {
 	Action    string    `gorm:"size:50;not null" json:"action"`
 	Resource  string    `gorm:"size:100;not null;index" json:"resource"`
 	RecordID  uint      `gorm:"index" json:"recordId"`
+	Reason    string    `gorm:"size:1000" json:"reason,omitempty"`
 	CreatedAt time.Time `json:"createdAt"`
 }

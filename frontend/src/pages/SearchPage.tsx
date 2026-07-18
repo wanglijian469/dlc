@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { search } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
@@ -6,6 +6,7 @@ import { Pagination } from "../components/public/Pagination";
 import { EmptyState, ErrorState, LoadingState } from "../components/public/StateViews";
 import type { Category, Product, SearchPayload, Vendor } from "../types/api";
 import { trackAnalytics } from "../analytics";
+import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
 
 function regionOf(vendor?: Vendor) {
   return [vendor?.province, vendor?.city].filter(Boolean).join(" · ");
@@ -13,7 +14,7 @@ function regionOf(vendor?: Vendor) {
 
 function VendorSearchCard({ vendor }: { vendor: Vendor }) {
   return (
-    <Link className="search-card vendor-search-card" to={`/vendors/${vendor.id}`}>
+    <Link className="search-card vendor-search-card" to={`/vendors/${vendor.slug || vendor.id}`}>
       <div className="search-card-head">
         <strong>{vendor.name}</strong>
         {vendor.isVerified && <span className="tag-blue">平台认证</span>}
@@ -36,8 +37,8 @@ function ProductSearchCard({ product }: { product: Product }) {
       <p>支持供应商：{product.supplierCount || 0} 家</p>
       {product.supplierRegions?.length ? <p>供应地区：{product.supplierRegions.join(" · ")}</p> : null}
       <div className="card-actions">
-		<Link className="outline-btn small" to={`/products/${product.id}`}>产品详情</Link>
-        <Link className="primary-btn small" to={`/products/${product.id}#suppliers`}>查看供应商</Link>
+		<Link className="outline-btn small" to={`/products/${product.slug || product.id}`}>产品详情</Link>
+        <Link className="primary-btn small" to={`/products/${product.slug || product.id}#suppliers`}>查看供应商</Link>
       </div>
     </div>
   );
@@ -45,7 +46,7 @@ function ProductSearchCard({ product }: { product: Product }) {
 
 function CategorySearchCard({ category }: { category: Category }) {
   return (
-    <Link className="search-card category-search-card" to={`/products?categoryId=${category.id}`}>
+    <Link className="search-card category-search-card" to={category.slug ? `/products/category/${category.slug}` : `/products?categoryId=${category.id}`}>
       <div className="search-card-head">
         <strong>{category.name}</strong>
         <span className="tag-blue">分类入口</span>
@@ -58,6 +59,7 @@ function CategorySearchCard({ category }: { category: Category }) {
 export function SearchPage() {
   const [params, setParams] = useSearchParams();
   const keyword = params.get("keyword") || "";
+  const [queryText, setQueryText] = useState(keyword);
   const active = (params.get("type") || "vendors") as "vendors" | "products" | "categories";
   const [result, setResult] = useState<SearchPayload | null>(null);
   const [loading, setLoading] = useState(Boolean(keyword));
@@ -75,14 +77,30 @@ export function SearchPage() {
   };
 
   useEffect(() => { setPage(1); }, [keyword]);
+  useEffect(() => { setQueryText(keyword); }, [keyword]);
   useEffect(load, [keyword, page]);
   useEffect(() => { if (keyword) trackAnalytics({ eventType: "search_submit", path: "/search" }); }, [keyword]);
+  useEffect(() => {
+    if (keyword && result && result.vendors.total + result.products.total + result.categories.total === 0) {
+      trackAnalytics({ eventType: "search_zero_results", path: "/search" });
+    }
+  }, [keyword, result]);
 
   const total = result?.[active].total || 0;
   const selectType = (type: typeof active) => { const next = new URLSearchParams(params); next.set("type", type); next.set("page", "1"); setPage(1); setParams(next); };
+  const submitMobileSearch = (event: FormEvent) => {
+    event.preventDefault();
+    const next = new URLSearchParams(params);
+    const value = queryText.trim();
+    if (value) next.set("keyword", value); else next.delete("keyword");
+    next.set("page", "1");
+    setPage(1);
+    setParams(next);
+  };
 
   return (
     <PageFrame title={`搜索：${keyword || "请输入关键词"}`} subtitle="同时检索厂商、配件产品和分类">
+      <MobileDirectorySearch value={queryText} placeholder="搜索配件、型号或厂商" onChange={setQueryText} onSubmit={submitMobileSearch} />
       {!keyword && <EmptyState text="请输入配件名称、农机型号或厂商名称进行搜索" />}
       {loading && <LoadingState text="正在搜索..." />}
       {error && <ErrorState text={error} onRetry={load} />}

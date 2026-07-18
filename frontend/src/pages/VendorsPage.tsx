@@ -9,6 +9,7 @@ import { SlidersHorizontal, X } from "lucide-react";
 import { Pagination } from "../components/public/Pagination";
 import { useSite } from "../contexts/SiteContext";
 import { getMenuLabel } from "../utils/navigation";
+import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
 
 const pageSize = 12;
 
@@ -70,9 +71,10 @@ export function VendorsPage() {
 
   return (
     <PageFrame title={pageTitle} subtitle="按地区、服务标签和关键词筛选源头农机配件厂商">
+      <MobileDirectorySearch value={keyword} placeholder="搜索厂商名称、主营产品" onChange={setKeyword} onSubmit={submit} />
       <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选与排序{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
       <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
-        <input value={keyword} placeholder="搜索厂商名称、主营产品" onChange={(event) => setKeyword(event.target.value)} />
+        <input className="filter-keyword" value={keyword} placeholder="搜索厂商名称、主营产品" onChange={(event) => setKeyword(event.target.value)} />
         <select value={province} onChange={(event) => setProvince(event.target.value)}>
           <option value="">全部地区</option>
           {filters.provinces.map((item) => (

@@ -6,6 +6,7 @@ import { SiteProvider } from "./contexts/SiteContext";
 import "./styles/global.css";
 import "./styles/upgrade.css";
 import "./styles/admin-upgrade.css";
+import "./styles/mobile-public.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
@@ -14,3 +15,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </BrowserRouter>
   </React.StrictMode>,
 );
+
+// Gin emits an equivalent semantic document for crawlers and no-JavaScript
+// visitors. Remove it only after React has mounted successfully so a failed
+// bundle still leaves useful content on screen.
+window.requestAnimationFrame(() => {
+  window.requestAnimationFrame(() => document.getElementById("seo-fallback")?.remove());
+});

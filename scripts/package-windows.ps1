@@ -29,6 +29,8 @@ try {
   New-Item -ItemType Directory -Force $env:GOTMPDIR | Out-Null
   go build -trimpath -ldflags "-s -w" -o (Join-Path $PackageRoot "server.exe") ./cmd/server
   if ($LASTEXITCODE -ne 0) { throw "Backend build failed with exit code $LASTEXITCODE" }
+  go build -trimpath -ldflags "-s -w" -o (Join-Path $PackageRoot "initdb.exe") ./cmd/initdb
+  if ($LASTEXITCODE -ne 0) { throw "Migration build failed with exit code $LASTEXITCODE" }
 } finally { Pop-Location }
 
 Copy-Item -Recurse -Force (Join-Path $Root "frontend\dist\*") (Join-Path $PackageRoot "public")
@@ -41,7 +43,7 @@ Copy-Item -Force (Join-Path $Root "deploy\config\.env.example") (Join-Path $Pack
 [System.IO.File]::WriteAllText((Join-Path $PackageRoot "default.env"), [System.IO.File]::ReadAllText((Join-Path $Root "deploy\config\.env.example")))
 Copy-Item -Force (Join-Path $Root "deploy\DEPLOY.md") (Join-Path $PackageRoot "DEPLOY.md")
 Copy-Item -Force (Join-Path $Root "deploy\README.txt") (Join-Path $PackageRoot "README.txt")
-Copy-Item -Force (Join-Path $Root "deploy\config\nginx.conf.example") (Join-Path $PackageRoot "config\nginx.conf.example")
+Copy-Item -Force (Join-Path $Root "deploy\GATEWAY_GIN.md") (Join-Path $PackageRoot "GATEWAY_GIN.md")
 Copy-Item -Recurse -Force (Join-Path $Root "deploy\scripts\*") (Join-Path $PackageRoot "scripts")
 
 if ($IncludeMedia -and (Test-Path (Join-Path $Root "media_storage"))) {

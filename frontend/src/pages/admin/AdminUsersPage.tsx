@@ -18,7 +18,7 @@ type UserForm = {
   isEnabled: boolean;
 };
 
-const emptyForm: UserForm = { username: "", password: "", role: "user", vendorId: 0, companyMode: "existing", companyName: "", isEnabled: true };
+const emptyForm: UserForm = { username: "", password: "", role: "vendor", vendorId: 0, companyMode: "existing", companyName: "", isEnabled: true };
 
 export function AdminUsersPage() {
   const [users, setUsers] = useState<CMSUser[]>([]);
@@ -78,8 +78,9 @@ export function AdminUsersPage() {
         <input placeholder="搜索用户名" value={search} onChange={(event) => { setSearch(event.target.value); setPage(1); }} />
         <select aria-label="账号角色筛选" value={roleFilter} onChange={(event) => { setRoleFilter(event.target.value); setPage(1); }}>
           <option value="">全部角色</option>
-          <option value="user">普通用户</option>
           <option value="vendor">厂商用户</option>
+          <option value="editor">内容编辑</option>
+          <option value="reviewer">内容审核</option>
           <option value="admin">管理员</option>
         </select>
         <span>共 {total} 个账号</span>
@@ -117,8 +118,9 @@ export function AdminUsersPage() {
                 <label>{editingId ? "新密码（留空则不修改）" : "初始密码（至少 6 位）"}<input minLength={form.password ? 6 : undefined} required={!editingId} type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} /></label>
                 <label>账号角色
                   <select value={form.role} onChange={(event) => setForm({ ...form, role: event.target.value as AccountRole, vendorId: 0, companyName: "" })}>
-                    <option value="user">普通用户</option>
                     <option value="vendor">厂商用户</option>
+                    <option value="editor">内容编辑</option>
+                    <option value="reviewer">内容审核</option>
                     <option value="admin">管理员</option>
                   </select>
                 </label>
@@ -156,6 +158,8 @@ export function AdminUsersPage() {
 
 function roleLabel(role: AccountRole) {
   if (role === "admin") return "管理员";
+  if (role === "editor") return "内容编辑";
+  if (role === "reviewer") return "内容审核";
   if (role === "vendor") return "厂商用户";
-  return "普通用户";
+  return "未知角色";
 }

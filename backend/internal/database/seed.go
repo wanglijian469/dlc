@@ -212,7 +212,7 @@ func defaultMenus() []SeedMenu {
 		{Key: "bottom-products", Name: "分类", Icon: "grid", MenuType: "mobile_bottom", Path: "/products", SortOrder: 2},
 		{Key: "bottom-vendors", Name: "厂商", Icon: "factory", MenuType: "mobile_bottom", Path: "/vendors", SortOrder: 3},
 		{Key: "bottom-service", Name: "加工服务", Icon: "settings", MenuType: "mobile_bottom", Path: "/service", SortOrder: 4},
-		{Key: "bottom-account", Name: "我的", Icon: "user", MenuType: "mobile_bottom", Path: "/admin/login", SortOrder: 5},
+		{Key: "bottom-account", Name: "厂商", Icon: "user", MenuType: "mobile_bottom", Path: "/account/login", SortOrder: 5},
 	}
 	childNames := map[string][]string{
 		"wearing":      {"刀片刀杆", "滤芯套件", "皮带张紧轮", "密封油封", "螺栓销轴"},

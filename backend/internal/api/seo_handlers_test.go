@@ -50,7 +50,7 @@ func TestInjectSEOHTMLUsesCanonicalMetadataAndNoIndex(t *testing.T) {
 		"<link rel=\"canonical\" href=\"https://parts.example.cn/products?categoryId=8\">",
 		"<meta name=\"robots\" content=\"noindex,follow\">",
 		"application/ld+json",
-		"<noscript><main>",
+		"<main id=\"seo-fallback\" data-server-rendered=\"true\">",
 		"<h1>旋耕机配件</h1>",
 	} {
 		if !strings.Contains(html, want) {
@@ -78,6 +78,15 @@ func TestSEOHelperNormalizesCanonicalPathsAndDescriptions(t *testing.T) {
 	}
 }
 
+func TestAppendSiteNameAvoidsDuplicateBrand(t *testing.T) {
+	if got := appendSiteName("河北冀农｜旋耕机配件厂家", "大陆农机配件"); got != "河北冀农｜旋耕机配件厂家｜大陆农机配件" {
+		t.Fatalf("appended title = %q", got)
+	}
+	if got := appendSiteName("河北冀农｜大陆农机配件", "大陆农机配件"); got != "河北冀农｜大陆农机配件" {
+		t.Fatalf("duplicate brand title = %q", got)
+	}
+}
+
 func TestStaticSPAResponseAddsNoIndexForSearchURL(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	publicDir := t.TempDir()
@@ -95,7 +104,7 @@ func TestStaticSPAResponseAddsNoIndexForSearchURL(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	for _, want := range []string{"<meta name=\"robots\" content=\"noindex,follow\">", "<link rel=\"canonical\" href=\"http://parts.example.cn/search\">", "<noscript><main>"} {
+	for _, want := range []string{"<meta name=\"robots\" content=\"noindex,follow\">", "<link rel=\"canonical\" href=\"http://parts.example.cn/search\">", "<main id=\"seo-fallback\" data-server-rendered=\"true\">"} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("static response missing %q: %s", want, rec.Body.String())
 		}

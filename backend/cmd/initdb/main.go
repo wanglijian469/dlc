@@ -13,11 +13,14 @@ func main() {
 	if err != nil {
 		log.Fatalf("connect database: %v", err)
 	}
-	if err := database.AutoMigrate(db); err != nil {
+	if err := database.Migrate(db); err != nil {
 		log.Fatalf("migrate database: %v", err)
 	}
 	if err := database.SeedDefaults(db, cfg); err != nil {
 		log.Fatalf("seed database: %v", err)
+	}
+	if err := database.BackfillPlatformData(db); err != nil {
+		log.Fatalf("backfill platform data: %v", err)
 	}
 	log.Printf("database initialized: %s:%s/%s", cfg.DBHost, cfg.DBPort, cfg.DBName)
 }

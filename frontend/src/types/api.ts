@@ -39,6 +39,7 @@ export interface VendorMedia {
 
 export interface Vendor {
   id: number;
+  slug?: string;
   name: string;
   shortName?: string;
   logo?: string;
@@ -55,6 +56,8 @@ export interface Vendor {
   description?: string;
   seoTitle?: string;
   seoDescription?: string;
+  seoTitleManual?: boolean;
+  seoDescriptionManual?: boolean;
   establishedYear?: string;
   factoryArea?: string;
   employeeCount?: string;
@@ -78,8 +81,9 @@ export interface Vendor {
   isVerified?: boolean;
   isVisible?: boolean;
 	dataOrigin?: "vendor_submission" | "verified_source" | "admin" | "demo";
-	publicationStatus?: "draft" | "published" | "hidden";
+	publicationStatus?: "draft" | "in_review" | "scheduled" | "published" | "rejected" | "archived" | "hidden";
 	contentVersion?: number;
+	publishedAt?: string;
   sortOrder?: number;
   tags?: Tag[];
   media?: VendorMedia[];
@@ -88,6 +92,7 @@ export interface Vendor {
 
 export interface Category {
   id: number;
+  slug?: string;
   name: string;
   parentId?: number;
   icon?: string;
@@ -95,6 +100,9 @@ export interface Category {
   seoDescription?: string;
   sortOrder?: number;
   isEnabled?: boolean;
+  publicationStatus?: "draft" | "in_review" | "scheduled" | "published" | "rejected" | "archived";
+  contentVersion?: number;
+  publishedAt?: string;
 }
 
 export interface ProductSpec {
@@ -104,6 +112,7 @@ export interface ProductSpec {
 
 export interface Product {
   id: number;
+  slug?: string;
   name: string;
   image?: string;
   categoryId?: number;
@@ -124,8 +133,9 @@ export interface Product {
   isRecommended?: boolean;
   sortOrder?: number;
   status?: number;
-  publicationStatus?: "draft" | "published" | "hidden";
+  publicationStatus?: "draft" | "in_review" | "scheduled" | "published" | "rejected" | "archived" | "hidden";
   contentVersion?: number;
+  publishedAt?: string;
   supplierCount?: number;
   supplierRegions?: string[];
   supplier?: ProductSupplier;

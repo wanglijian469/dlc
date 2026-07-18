@@ -2,6 +2,7 @@ package api
 
 import (
 	"strings"
+	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
 	"gorm.io/gorm"
@@ -15,7 +16,7 @@ const approvedSupplierExists = `EXISTS (
 )`
 
 func visibleProductQuery(db *gorm.DB) *gorm.DB {
-	return db.Model(&model.Product{}).Where("products.publication_status = ?", "published").Where(approvedSupplierExists)
+	return db.Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?)", "published", time.Now()).Where(approvedSupplierExists)
 }
 
 func enrichProductSummaries(db *gorm.DB, products []model.Product, scopedVendorID uint) {

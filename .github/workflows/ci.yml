@@ -1,0 +1,72 @@
+name: quality
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: dl_nongji_parts_ci
+      AUTH_SECRET: ci-only-long-random-secret
+      ADMIN_PASSWORD: ci-admin-password
+      APP_ENV: development
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_DATA: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Versioned migration on real MySQL
+        working-directory: backend
+        run: go run ./cmd/initdb
+      - name: Go tests
+        working-directory: backend
+        run: go test ./...
+      - name: Frontend tests
+        working-directory: frontend
+        run: npm test
+      - name: Build and bundle budget
+        working-directory: frontend
+        run: npm run build && npm run budget
+      - name: Production dependency audit
+        working-directory: frontend
+        run: npm audit --omit=dev
+      - name: Dynamic SEO response smoke test
+        shell: bash
+        run: |
+          cd backend
+          RUN_MIGRATIONS=false PUBLIC_DIR=../frontend/dist HTTP_ADDR=:8080 go run ./cmd/server >../server.log 2>&1 &
+          server_pid=$!
+          trap 'kill $server_pid' EXIT
+          for attempt in {1..30}; do curl -fsS http://127.0.0.1:8080/api/health && break || sleep 1; done
+          curl -fsS http://127.0.0.1:8080/ | grep 'data-server-rendered="true"'
+          test "$(curl -sS -o /dev/null -w '%{http_code}' http://127.0.0.1:8080/vendors/not-exist)" = "404"
+          curl -fsS http://127.0.0.1:8080/sitemap.xml | grep '<sitemapindex'

@@ -30,6 +30,8 @@ var analyticsEvents = map[string]bool{
 	"contact_phone_click":     true,
 	"contact_wechat_copy":     true,
 	"vendor_website_click":    true,
+	"search_zero_results":     true,
+	"not_found":               true,
 }
 
 type AnalyticsHandler struct {
@@ -50,12 +52,18 @@ func (h AnalyticsHandler) RecordEvent(c *gin.Context) {
 		Fail(c, http.StatusBadRequest, 400, "访问统计事件格式不正确")
 		return
 	}
-	path, contentType, contentID, ok := h.resolveTarget(strings.TrimSpace(req.Path), strings.TrimSpace(req.ContentType), req.ContentID)
+	path, contentType, contentID, ok := "", "", uint(0), false
+	if req.EventType == "search_zero_results" || req.EventType == "not_found" {
+		path = strings.TrimSpace(req.Path)
+		ok = path != "" && len(path) <= 255 && strings.HasPrefix(path, "/") && !strings.HasPrefix(path, "//") && !strings.Contains(path, "?")
+	} else {
+		path, contentType, contentID, ok = h.resolveTarget(strings.TrimSpace(req.Path), strings.TrimSpace(req.ContentType), req.ContentID)
+	}
 	if !ok {
 		Fail(c, http.StatusBadRequest, 400, "访问内容不可统计")
 		return
 	}
-	if req.EventType != "page_view" && !isConversionTargetAllowed(req.EventType, path, contentType) {
+	if req.EventType != "page_view" && req.EventType != "search_zero_results" && req.EventType != "not_found" && !isConversionTargetAllowed(req.EventType, path, contentType) {
 		Fail(c, http.StatusBadRequest, 400, "转化事件与页面不匹配")
 		return
 	}
@@ -102,12 +110,33 @@ func (h AnalyticsHandler) resolveTarget(path, contentType string, contentID uint
 		}
 		return path, "vendor", id, true
 	}
+	if slug, ok := slugRoute(path, "/vendors/"); ok {
+		var vendor model.Vendor
+		if publishedVendorQuery(h.DB).First(&vendor, "slug = ?", slug).Error != nil {
+			return "", "", 0, false
+		}
+		return path, "vendor", vendor.ID, true
+	}
+	if slug, ok := slugRoute(path, "/products/category/"); ok {
+		var category model.Category
+		if publishedCategoryQuery(h.DB).First(&category, "slug = ?", slug).Error != nil {
+			return "", "", 0, false
+		}
+		return path, "category", category.ID, true
+	}
 	if id, ok := numericRoute(path, "/products/"); ok {
 		var product model.Product
 		if visibleProductQuery(h.DB).First(&product, id).Error != nil {
 			return "", "", 0, false
 		}
 		return path, "product", id, true
+	}
+	if slug, ok := slugRoute(path, "/products/"); ok {
+		var product model.Product
+		if visibleProductQuery(h.DB).First(&product, "slug = ?", slug).Error != nil {
+			return "", "", 0, false
+		}
+		return path, "product", product.ID, true
 	}
 	if strings.HasPrefix(path, "/guides/") && len(strings.TrimPrefix(path, "/guides/")) > 0 {
 		slug := strings.TrimPrefix(path, "/guides/")
@@ -130,6 +159,17 @@ func numericRoute(path, prefix string) (uint, bool) {
 	}
 	id, err := strconv.ParseUint(raw, 10, 64)
 	return uint(id), err == nil && id > 0
+}
+
+func slugRoute(path, prefix string) (string, bool) {
+	raw := strings.TrimPrefix(path, prefix)
+	if raw == path || raw == "" || strings.Contains(raw, "/") {
+		return "", false
+	}
+	if _, err := strconv.ParseUint(raw, 10, 64); err == nil {
+		return "", false
+	}
+	return raw, true
 }
 
 func isConversionTargetAllowed(eventType, path, contentType string) bool {

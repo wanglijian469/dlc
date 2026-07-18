@@ -2,27 +2,29 @@ import { BarChart3, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImag
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
+import { logoutSession, type AccountRole } from "../../api/admin";
 
 type AdminLink = {
   label: string;
   path: string;
   icon: ComponentType<LucideProps>;
   group: "概览" | "业务内容" | "基础配置" | "系统管理";
-  roles?: Array<"admin" | "vendor">;
+  roles?: AccountRole[];
   subLinks?: Array<{ label: string; path: string }>;
 };
 
 const links: AdminLink[] = [
+  { label: "SEO 工作台", path: "/admin/seo", icon: BarChart3, group: "概览", roles: ["admin"] },
   { label: "控制台", path: "/admin/dashboard", icon: LayoutDashboard, group: "概览" },
-  { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "业务内容" },
+  { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "业务内容", roles: ["admin", "editor"] },
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
-  { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容" },
+  { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容", roles: ["admin", "editor"] },
   { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
-  { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置" },
+  { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置", roles: ["admin", "editor"] },
   { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "基础配置" },
-  { label: "页面与行业文章", path: "/admin/pages", icon: FileText, group: "基础配置" },
+  { label: "页面与行业文章", path: "/admin/pages", icon: FileText, group: "基础配置", roles: ["admin", "editor"] },
   { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "基础配置" },
   { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理", subLinks: [{ label: "站点与页脚", path: "/admin/configs?section=site" }, { label: "首页展示", path: "/admin/configs?section=home" }, { label: "主题样式", path: "/admin/configs?section=theme" }] },
   { label: "CMS 账号", path: "/admin/users", icon: KeyRound, group: "系统管理" },
@@ -40,7 +42,7 @@ function matchesTarget(pathname: string, search: string, target: string) {
 
 export function AdminLayout({ title, children }: { title: string; children: ReactNode }) {
   const location = useLocation();
-  const role = (localStorage.getItem("cms_role") || "admin") as "admin" | "vendor";
+  const role = (localStorage.getItem("cms_role") || "admin") as AccountRole;
   const username = localStorage.getItem("cms_username") || (role === "vendor" ? "厂商用户" : "admin");
   const visibleLinks = links.filter((link) => link.roles ? link.roles.includes(role) : role === "admin");
   const [menuOpen, setMenuOpen] = useState(false);
@@ -97,7 +99,8 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
               返回前台
             </a>
             <button className="outline-btn small" type="button" onClick={() => {
-              localStorage.removeItem("admin_token");
+              void logoutSession().catch(() => undefined);
+              localStorage.removeItem("cms_authenticated");
               localStorage.removeItem("cms_role");
               localStorage.removeItem("cms_username");
               window.location.href = "/admin/login";

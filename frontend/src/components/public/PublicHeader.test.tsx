@@ -15,14 +15,14 @@ describe("PublicHeader", () => {
     expect(screen.getByText("大陆农机供应链")).toBeInTheDocument();
   });
 
-  it("shows the signed-in member and supports logout", () => {
-    localStorage.setItem("admin_token", "token");
-    localStorage.setItem("cms_role", "user");
-    localStorage.setItem("cms_username", "member-a");
+  it("shows the signed-in vendor and supports logout", () => {
+    localStorage.setItem("cms_authenticated", "true");
+    localStorage.setItem("cms_role", "vendor");
+    localStorage.setItem("cms_username", "vendor-a");
     render(<MemoryRouter><PublicHeader menus={[]} siteMeta={meta} /></MemoryRouter>);
-    expect(screen.getByText("member-a")).toBeInTheDocument();
+    expect(screen.getByText("厂商工作台")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "退出" }));
-    expect(localStorage.getItem("admin_token")).toBeNull();
-    expect(screen.getByText("后台登录")).toBeInTheDocument();
+    expect(localStorage.getItem("cms_authenticated")).toBeNull();
+    expect(screen.getByText("厂商登录")).toBeInTheDocument();
   });
 });

@@ -43,7 +43,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         {directoryMode && regions && <p className="product-line">供应地区：{regions}</p>}
         <p className="product-line">价格：{supplier?.priceNote || product.priceNote || "面议 / 批量报价"}</p>
         <div className="card-actions">
-          <Link className="outline-btn small" to={`/products/${product.id}`}>产品详情</Link>
+          <Link className="outline-btn small" to={`/products/${product.slug || product.id}`}>产品详情</Link>
           <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : `/vendors/${vendor.id}`}>供应厂商</Link>
         </div>
       </div>

@@ -29,12 +29,14 @@ export function getFriendLinks() {
   return publicClient.get<never, FriendLink[]>("/api/friend-links");
 }
 
-export function getVendor(id: string) {
-  return publicClient.get<never, Vendor>(`/api/vendors/${id}`);
+export function getVendor(slug: string) {
+  const path = /^\d+$/.test(slug) ? `/api/vendors/${slug}` : `/api/vendors/slug/${encodeURIComponent(slug)}`;
+  return publicClient.get<never, Vendor>(path);
 }
 
-export function getProduct(id: string) {
-  return publicClient.get<never, Product>(`/api/products/${id}`);
+export function getProduct(slug: string) {
+  const path = /^\d+$/.test(slug) ? `/api/products/${slug}` : `/api/products/slug/${encodeURIComponent(slug)}`;
+  return publicClient.get<never, Product>(path);
 }
 
 export function getProductSuppliers(id: string) {
@@ -54,6 +56,7 @@ export interface VendorListParams {
 export interface ProductListParams {
   keyword?: string;
   categoryId?: number | string;
+  categorySlug?: string;
   vendorId?: number | string;
   hot?: boolean;
   recommended?: boolean;

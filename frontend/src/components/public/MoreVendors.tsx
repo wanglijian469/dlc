@@ -4,7 +4,7 @@ import { VendorCard } from "./VendorCard";
 
 export function MoreVendors({ vendors, homeSections }: { vendors: Vendor[]; homeSections?: HomeSections }) {
   return (
-    <section className="section-block">
+    <section className="section-block home-scroll-section">
       <div className="section-title filters">
         <h2>{homeSections?.moreTitle || "更多厂商"}</h2>
         <div>
@@ -15,7 +15,7 @@ export function MoreVendors({ vendors, homeSections }: { vendors: Vendor[]; home
         </div>
       </div>
       {vendors.length ? (
-        <div className="vendor-grid">
+        <div className="vendor-grid home-card-rail">
           {vendors.map((vendor) => (
             <VendorCard key={vendor.id} compact vendor={vendor} />
           ))}

@@ -228,7 +228,11 @@ func categoryAsMenu(category model.Category, existing *model.Menu, parentID uint
 	menu.Name = strings.TrimSpace(category.Name)
 	menu.ParentID = parentID
 	menu.Icon = category.Icon
-	menu.Path = fmt.Sprintf("/products?categoryId=%d", category.ID)
+	if strings.TrimSpace(category.Slug) != "" {
+		menu.Path = "/products/category/" + category.Slug
+	} else {
+		menu.Path = fmt.Sprintf("/products?categoryId=%d", category.ID)
+	}
 	menu.SortOrder = category.SortOrder
 	menu.IsEnabled = true
 	menu.MenuType = "sidebar"
@@ -433,14 +437,14 @@ func (s HomeService) GetHome(ctx context.Context) (HomePayload, error) {
 	}
 	normalizeHomeModules(&payload.Modules)
 	if moduleVisible(payload.Modules, "recommendedVendors") {
-		s.DB.WithContext(ctx).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND is_recommended = ?", true, "published", true).Order("sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "recommendedVendors", 5)).Find(&payload.RecommendedVendors)
+		publicVendorQuery(s.DB.WithContext(ctx)).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", true).Order("sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "recommendedVendors", 5)).Find(&payload.RecommendedVendors)
 	}
 	if moduleVisible(payload.Modules, "moreVendors") {
-		s.DB.WithContext(ctx).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND is_recommended = ?", true, "published", false).Order("sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "moreVendors", 10)).Find(&payload.MoreVendors)
+		publicVendorQuery(s.DB.WithContext(ctx)).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", false).Order("sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "moreVendors", 10)).Find(&payload.MoreVendors)
 	}
 	payload.Stats = s.actualStats(ctx)
 	if moduleVisible(payload.Modules, "processingServices") {
-		s.DB.WithContext(ctx).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true).Order("is_recommended desc, sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "processingServices", 4)).Find(&payload.ProcessingVendors)
+		publicVendorQuery(s.DB.WithContext(ctx)).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("provides_processing = ?", true).Order("is_recommended desc, sort_order asc, id asc").Limit(moduleLimit(payload.Modules, "processingServices", 4)).Find(&payload.ProcessingVendors)
 	}
 	return payload, nil
 }
@@ -487,10 +491,10 @@ func moduleVisible(modules []HomeModule, typ string) bool {
 
 func (s HomeService) actualStats(ctx context.Context) []StatItem {
 	var vendors, products, processing, provinces int64
-	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ?", true, "published").Count(&vendors)
-	s.DB.WithContext(ctx).Model(&model.Product{}).Where("products.publication_status = ?", "published").Where("EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id AND v.deleted_at IS NULL WHERE ps.product_id = products.id AND ps.deleted_at IS NULL AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')").Count(&products)
-	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND provides_processing = ?", true, "published", true).Count(&processing)
-	s.DB.WithContext(ctx).Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND province <> ''", true, "published").Distinct("province").Count(&provinces)
+	publicVendorQuery(s.DB.WithContext(ctx)).Count(&vendors)
+	s.DB.WithContext(ctx).Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?)", "published", time.Now()).Where("EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id AND v.deleted_at IS NULL WHERE ps.product_id = products.id AND ps.deleted_at IS NULL AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= ?))", time.Now()).Count(&products)
+	publicVendorQuery(s.DB.WithContext(ctx)).Where("provides_processing = ?", true).Count(&processing)
+	publicVendorQuery(s.DB.WithContext(ctx)).Where("province <> ''").Distinct("province").Count(&provinces)
 	return []StatItem{{Label: "入驻厂商", Value: fmt.Sprintf("%d", vendors)}, {Label: "配件产品", Value: fmt.Sprintf("%d", products)}, {Label: "加工服务厂商", Value: fmt.Sprintf("%d", processing)}, {Label: "覆盖省份", Value: fmt.Sprintf("%d", provinces)}}
 }
 
@@ -508,7 +512,7 @@ func (s HomeService) SidebarMenus(ctx context.Context) []model.Menu {
 		return nil
 	}
 	var categories []model.Category
-	s.DB.WithContext(ctx).Order("sort_order asc, id asc").Find(&categories)
+	publicCategoryQuery(s.DB.WithContext(ctx)).Order("sort_order asc, id asc").Find(&categories)
 	return MergeCategoryMenus(s.menus(ctx, "sidebar"), categories)
 }
 
@@ -517,6 +521,14 @@ func (s HomeService) MobileCategoryMenus(ctx context.Context) []model.Menu {
 		return nil
 	}
 	var categories []model.Category
-	s.DB.WithContext(ctx).Order("sort_order asc, id asc").Find(&categories)
+	publicCategoryQuery(s.DB.WithContext(ctx)).Order("sort_order asc, id asc").Find(&categories)
 	return MergeMobileCategoryMenus(s.menus(ctx, "mobile"), categories)
+}
+
+func publicVendorQuery(db *gorm.DB) *gorm.DB {
+	return db.Model(&model.Vendor{}).Where("is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", true, "published", time.Now())
+}
+
+func publicCategoryQuery(db *gorm.DB) *gorm.DB {
+	return db.Model(&model.Category{}).Where("is_enabled = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", true, "published", time.Now())
 }
