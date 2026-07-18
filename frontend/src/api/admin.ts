@@ -69,6 +69,10 @@ export function logoutSession() {
   return adminClient.post<never, { loggedOut: boolean }>("/api/auth/logout");
 }
 
+export function changePassword(currentPassword: string, newPassword: string) {
+  return adminClient.put<never, { changed: boolean; reauthenticate: boolean }>("/api/auth/password", { currentPassword, newPassword });
+}
+
 export function getDashboardStats() {
   return adminClient.get<never, { vendors: number; products: number; pendingReviews: number; pendingProductReviews: number; missingImages: number }>("/api/admin/dashboard");
 }
@@ -87,6 +91,29 @@ export interface AnalyticsSummary {
 
 export function getAnalyticsSummary(days: 7 | 30 | 90) {
   return adminClient.get<never, AnalyticsSummary>("/api/admin/analytics", { params: { days } });
+}
+
+export interface VendorAnalyticsSummary {
+  days: number;
+  vendor: {
+    id: number;
+    name: string;
+    pv: number;
+    uv: number;
+    contacts: number;
+    contactEvents: Array<{ label: string; count: number }>;
+    trend: Array<{ date: string; pv: number; uv: number }>;
+  };
+  products: {
+    pv: number;
+    uv: number;
+    trend: Array<{ date: string; pv: number; uv: number }>;
+    items: Array<{ productId: number; name: string; path: string; pv: number; uv: number }>;
+  };
+}
+
+export function getVendorAnalytics(days: 7 | 30 | 90) {
+  return adminClient.get<never, VendorAnalyticsSummary>("/api/admin/vendor-analytics", { params: { days } });
 }
 
 export interface SEOStatus {

@@ -43,3 +43,11 @@ func TestAnalyticsWindowsLimitRepeatedEvents(t *testing.T) {
 		t.Fatal("conversion window should advance after 5 minutes")
 	}
 }
+
+func TestAnalyticsDaysAllowsOnlySupportedRanges(t *testing.T) {
+	for raw, want := range map[string]int{"7": 7, "30": 30, "90": 90, "": 30, "8": 30, "invalid": 30} {
+		if got := analyticsDays(raw); got != want {
+			t.Fatalf("analyticsDays(%q) = %d, want %d", raw, got, want)
+		}
+	}
+}

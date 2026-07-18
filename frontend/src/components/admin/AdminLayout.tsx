@@ -31,6 +31,9 @@ const links: AdminLink[] = [
 	{ label: "操作日志", path: "/admin/operation-logs", icon: History, group: "系统管理" },
 	{ label: "访问分析", path: "/admin/analytics", icon: BarChart3, group: "系统管理" },
   { label: "我的厂商资料", path: "/admin/vendor-profile", icon: Factory, group: "业务内容", roles: ["vendor"] },
+  { label: "我的产品资料", path: "/admin/vendor-products", icon: Package, group: "业务内容", roles: ["vendor"] },
+  { label: "访问数据", path: "/admin/vendor-analytics", icon: BarChart3, group: "业务内容", roles: ["vendor"] },
+  { label: "账号安全", path: "/admin/account-security", icon: KeyRound, group: "系统管理", roles: ["vendor"] },
 ];
 
 const groups: AdminLink["group"][] = ["概览", "业务内容", "基础配置", "系统管理"];
@@ -68,8 +71,12 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
           </div>
           <button aria-label="关闭后台导航" className="admin-nav-close" type="button" onClick={() => setMenuOpen(false)}><X size={19} /></button>
         </div>
-        <nav className="admin-nav">
-          {groups.map((group) => (
+        <nav className={`admin-nav ${role === "vendor" ? "admin-nav-vendor" : ""}`}>
+          {role === "vendor" ? <div className="admin-nav-vendor-list">
+            {visibleLinks.map(({ icon: Icon, label, path }) => <div className="admin-nav-entry" key={path}>
+              <NavLink aria-label={`导航：${label}`} className={() => linkClass(path)} to={path} onClick={() => setMenuOpen(false)}><Icon aria-hidden="true" size={17} /><span>{label}</span></NavLink>
+            </div>)}
+          </div> : groups.map((group) => (
             <div className="admin-nav-group" key={group}>
               <span className="admin-nav-group-title">{group}</span>
               {visibleLinks

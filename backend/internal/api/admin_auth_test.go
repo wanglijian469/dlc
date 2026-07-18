@@ -64,3 +64,26 @@ func TestAdminAuthMiddlewareAcceptsToken(t *testing.T) {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
 }
+
+func TestValidateNewPasswordUsesBcryptByteLimitAndRejectsReuse(t *testing.T) {
+	hash, err := auth.HashPassword("current-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name     string
+		password string
+		want     string
+	}{
+		{name: "too short", password: "short", want: "新密码长度需为 8–72 字节"},
+		{name: "multibyte over bcrypt limit", password: strings.Repeat("密", 25), want: "新密码长度需为 8–72 字节"},
+		{name: "same password", password: "current-password", want: "新密码不能与当前密码相同"},
+		{name: "valid", password: "new-password-2026", want: ""},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if got := validateNewPassword(hash, test.password); got != test.want {
+				t.Fatalf("message = %q, want %q", got, test.want)
+			}
+		})
+	}
+}

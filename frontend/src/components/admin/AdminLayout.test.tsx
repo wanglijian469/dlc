@@ -53,4 +53,19 @@ describe("AdminLayout navigation", () => {
     fireEvent.click(trigger);
     expect(screen.queryByLabelText("平台配置子菜单")).not.toBeInTheDocument();
   });
+
+  it("renders a flat four-item workspace for vendor accounts", () => {
+    localStorage.setItem("cms_role", "vendor");
+    render(<MemoryRouter initialEntries={["/admin/vendor-products"]}><AdminLayout title="我的产品资料"><div>内容</div></AdminLayout></MemoryRouter>);
+
+    const navigation = screen.getByRole("complementary", { name: "后台导航" });
+    expect(within(navigation).queryByText("概览")).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("业务内容")).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("基础配置")).not.toBeInTheDocument();
+    expect(within(navigation).queryByText("系统管理")).not.toBeInTheDocument();
+    const labels = ["我的厂商资料", "我的产品资料", "访问数据", "账号安全"];
+    expect(within(navigation).getAllByRole("link")).toHaveLength(4);
+    for (const label of labels) expect(within(navigation).getByRole("link", { name: `导航：${label}` })).toBeInTheDocument();
+    expect(within(navigation).getByRole("link", { name: "导航：我的产品资料" })).toHaveClass("active");
+  });
 });

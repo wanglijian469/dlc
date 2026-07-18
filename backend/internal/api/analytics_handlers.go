@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/netip"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -284,11 +285,121 @@ type analyticsContentCount struct {
 	Count       int64  `json:"count"`
 }
 
-func (h AnalyticsHandler) Summary(c *gin.Context) {
-	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+type vendorAnalyticsProduct struct {
+	ProductID uint   `json:"productId"`
+	Name      string `json:"name"`
+	Path      string `json:"path"`
+	PV        int64  `json:"pv"`
+	UV        int64  `json:"uv"`
+}
+
+type vendorAnalyticsProductCount struct {
+	ProductID uint  `gorm:"column:product_id"`
+	PV        int64 `gorm:"column:pv"`
+	UV        int64 `gorm:"column:uv"`
+}
+
+func analyticsDays(raw string) int {
+	days, _ := strconv.Atoi(raw)
 	if days != 7 && days != 30 && days != 90 {
-		days = 30
+		return 30
 	}
+	return days
+}
+
+func (h AnalyticsHandler) VendorSummary(c *gin.Context) {
+	vendorID := c.GetUint("vendorId")
+	if c.GetString("role") != "vendor" || vendorID == 0 {
+		Fail(c, http.StatusForbidden, 403, "厂商账号未绑定厂商资料")
+		return
+	}
+	var vendor model.Vendor
+	if err := h.DB.Select("id", "name").First(&vendor, vendorID).Error; err != nil {
+		Fail(c, http.StatusForbidden, 403, "厂商账号未绑定有效厂商资料")
+		return
+	}
+
+	days := analyticsDays(c.DefaultQuery("days", "30"))
+	start := time.Now().AddDate(0, 0, -days)
+	vendorEvents := h.DB.Model(&model.AnalyticsEvent{}).
+		Where("created_at >= ? AND content_type = ? AND content_id = ?", start, "vendor", vendorID)
+	var vendorPV, vendorUV, contacts int64
+	vendorEvents.Where("event_type = ?", "page_view").Count(&vendorPV)
+	vendorEvents.Where("event_type = ?", "page_view").Distinct("visitor_hash").Count(&vendorUV)
+	contactTypes := []string{"contact_phone_click", "contact_wechat_copy", "vendor_website_click"}
+	vendorEvents.Where("event_type IN ?", contactTypes).Count(&contacts)
+	contactEvents := []analyticsCount{}
+	h.DB.Model(&model.AnalyticsEvent{}).
+		Select("event_type AS label, COUNT(*) AS count").
+		Where("created_at >= ? AND content_type = ? AND content_id = ? AND event_type IN ?", start, "vendor", vendorID, contactTypes).
+		Group("event_type").Order("event_type asc").Scan(&contactEvents)
+	vendorTrend := []analyticsTrend{}
+	h.DB.Model(&model.AnalyticsEvent{}).
+		Select("DATE(created_at) AS date, COUNT(*) AS pv, COUNT(DISTINCT visitor_hash) AS uv").
+		Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id = ?", start, "page_view", "vendor", vendorID).
+		Group("DATE(created_at)").Order("date asc").Scan(&vendorTrend)
+
+	var products []model.Product
+	h.DB.Model(&model.Product{}).
+		Select("products.id", "products.name", "products.slug").
+		Joins("JOIN product_suppliers ON product_suppliers.product_id = products.id AND product_suppliers.deleted_at IS NULL").
+		Where("product_suppliers.vendor_id = ? AND product_suppliers.status = ?", vendorID, "approved").
+		Order("products.name asc").Find(&products)
+	productIDs := make([]uint, 0, len(products))
+	for _, product := range products {
+		productIDs = append(productIDs, product.ID)
+	}
+
+	productPV, productUV := int64(0), int64(0)
+	productTrend := []analyticsTrend{}
+	productCounts := []vendorAnalyticsProductCount{}
+	if len(productIDs) > 0 {
+		productEvents := h.DB.Model(&model.AnalyticsEvent{}).
+			Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id IN ?", start, "page_view", "product", productIDs)
+		productEvents.Count(&productPV)
+		productEvents.Distinct("visitor_hash").Count(&productUV)
+		h.DB.Model(&model.AnalyticsEvent{}).
+			Select("DATE(created_at) AS date, COUNT(*) AS pv, COUNT(DISTINCT visitor_hash) AS uv").
+			Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id IN ?", start, "page_view", "product", productIDs).
+			Group("DATE(created_at)").Order("date asc").Scan(&productTrend)
+		h.DB.Model(&model.AnalyticsEvent{}).
+			Select("content_id AS product_id, COUNT(*) AS pv, COUNT(DISTINCT visitor_hash) AS uv").
+			Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id IN ?", start, "page_view", "product", productIDs).
+			Group("content_id").Order("pv desc, content_id asc").Scan(&productCounts)
+	}
+	countsByID := make(map[uint]vendorAnalyticsProductCount, len(productCounts))
+	for _, count := range productCounts {
+		countsByID[count.ProductID] = count
+	}
+	items := make([]vendorAnalyticsProduct, 0, len(products))
+	for _, product := range products {
+		path := "/products/" + product.Slug
+		if strings.TrimSpace(product.Slug) == "" {
+			path = "/products/" + strconv.FormatUint(uint64(product.ID), 10)
+		}
+		count := countsByID[product.ID]
+		items = append(items, vendorAnalyticsProduct{ProductID: product.ID, Name: product.Name, Path: path, PV: count.PV, UV: count.UV})
+	}
+	// Keep the public ranking stable by traffic, then product name for empty/tied data.
+	sort.SliceStable(items, func(i, j int) bool {
+		if items[i].PV != items[j].PV {
+			return items[i].PV > items[j].PV
+		}
+		if items[i].UV != items[j].UV {
+			return items[i].UV > items[j].UV
+		}
+		return items[i].Name < items[j].Name
+	})
+
+	OK(c, gin.H{
+		"days":     days,
+		"vendor":   gin.H{"id": vendor.ID, "name": vendor.Name, "pv": vendorPV, "uv": vendorUV, "contacts": contacts, "contactEvents": contactEvents, "trend": vendorTrend},
+		"products": gin.H{"pv": productPV, "uv": productUV, "trend": productTrend, "items": items},
+	})
+}
+
+func (h AnalyticsHandler) Summary(c *gin.Context) {
+	days := analyticsDays(c.DefaultQuery("days", "30"))
 	start := time.Now().AddDate(0, 0, -days)
 	base := h.DB.Model(&model.AnalyticsEvent{}).Where("created_at >= ?", start)
 	var pv, uv, conversions int64

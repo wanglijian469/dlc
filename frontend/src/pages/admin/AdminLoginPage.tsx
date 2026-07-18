@@ -1,6 +1,6 @@
 import { FormEvent, useState } from "react";
 import { ArrowRight, Building2, Eye, EyeOff, Lock, LogOut, ShieldCheck, UserPlus, UserRound } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login, logoutSession, register, staffLogin, type AccountRole, type LoginResponse } from "../../api/admin";
 import { getApiErrorMessage } from "../../api/client";
 import { trackAnalytics } from "../../analytics";
@@ -19,6 +19,7 @@ export function AdminLoginPage({ staffOnly = false }: { staffOnly?: boolean }) {
   const [submitting, setSubmitting] = useState(false);
   const [existingSession, setExistingSession] = useState<ExistingSession | null>(readExistingSession);
   const navigate = useNavigate();
+  const location = useLocation();
   const isRegistration = !staffOnly && mode === "register";
 
   const switchMode = (next: Mode) => {
@@ -96,6 +97,7 @@ export function AdminLoginPage({ staffOnly = false }: { staffOnly?: boolean }) {
         </section>
       ) : (
         <form className="admin-login-card" onSubmit={submit}>
+          {new URLSearchParams(location.search).get("passwordChanged") === "1" && <p className="form-success" role="status">密码已修改，请使用新密码重新登录。</p>}
           {!staffOnly && <div className="admin-auth-tabs" role="tablist" aria-label="厂商账号入口">
             <button aria-selected={mode === "login"} className={mode === "login" ? "active" : ""} role="tab" type="button" onClick={() => switchMode("login")}>厂商登录</button>
             <button aria-selected={mode === "register"} className={mode === "register" ? "active" : ""} role="tab" type="button" onClick={() => switchMode("register")}>厂商入驻</button>

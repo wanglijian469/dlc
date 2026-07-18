@@ -19,6 +19,9 @@ const AdminLoginPage = lazy(() => import("./pages/admin/AdminLoginPage").then((m
 const AdminResourcePage = lazy(() => import("./pages/admin/AdminResourcePage").then((module) => ({ default: module.AdminResourcePage })));
 const AdminUsersPage = lazy(() => import("./pages/admin/AdminUsersPage").then((module) => ({ default: module.AdminUsersPage })));
 const VendorProfilePage = lazy(() => import("./pages/admin/VendorProfilePage").then((module) => ({ default: module.VendorProfilePage })));
+const VendorProductsPage = lazy(() => import("./pages/admin/VendorProductsPage").then((module) => ({ default: module.VendorProductsPage })));
+const VendorAnalyticsPage = lazy(() => import("./pages/admin/VendorAnalyticsPage").then((module) => ({ default: module.VendorAnalyticsPage })));
+const AccountSecurityPage = lazy(() => import("./pages/admin/AccountSecurityPage").then((module) => ({ default: module.AccountSecurityPage })));
 const VendorReviewsPage = lazy(() => import("./pages/admin/VendorReviewsPage").then((module) => ({ default: module.VendorReviewsPage })));
 const AdminLogsPage = lazy(() => import("./pages/admin/AdminLogsPage").then((module) => ({ default: module.AdminLogsPage })));
 const ProductReviewsPage = lazy(() => import("./pages/admin/ProductReviewsPage").then((module) => ({ default: module.ProductReviewsPage })));
@@ -60,6 +63,9 @@ export function App() {
         }
       />
       <Route path="/admin/vendor-profile" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProfilePage /></ProtectedAdminRoute>} />
+      <Route path="/admin/vendor-products" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProductsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/vendor-analytics" element={<ProtectedAdminRoute roles={["vendor"]}><VendorAnalyticsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/account-security" element={<ProtectedAdminRoute roles={["vendor"]}><AccountSecurityPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
@@ -81,11 +87,15 @@ export function App() {
           </ProtectedAdminRoute>
         }
       />
-      <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
+      <Route path="/admin" element={<AdminIndexRedirect />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
     </Suspense>
   );
+}
+
+function AdminIndexRedirect() {
+  return <Navigate to={localStorage.getItem("cms_role") === "vendor" ? "/admin/vendor-profile" : "/admin/dashboard"} replace />;
 }
 
 function GuideRoute() {

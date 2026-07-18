@@ -31,6 +31,7 @@ import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProd
 import { AdminCategoriesPage } from "./AdminCategoriesPage";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { getApiErrorMessage } from "../../api/client";
+import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
 
 type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
@@ -80,17 +81,17 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
     title: "厂商信息",
     fields: [
       { key: "name", label: "厂商名称" },
-      { key: "shortName", label: "简称" },
+      { key: "shortName", label: "简称", placeholder: vendorFieldGuidance.shortName },
       { key: "logo", label: "Logo URL", type: "image" },
       { key: "coverImage", label: "封面 URL", type: "image" },
       { key: "province", label: "省份" },
       { key: "city", label: "城市" },
       { key: "county", label: "区县" },
       { key: "address", label: "详细地址" },
-      { key: "mainProducts", label: "主营产品", type: "textarea" },
-      { key: "serviceModels", label: "适配机型", type: "textarea" },
-      { key: "serviceAdvantages", label: "服务优势", type: "textarea" },
-      { key: "description", label: "公司介绍", type: "textarea" },
+      { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts },
+      { key: "serviceModels", label: "适配机型", type: "textarea", placeholder: vendorFieldGuidance.serviceModels },
+      { key: "serviceAdvantages", label: "服务优势", type: "textarea", placeholder: vendorFieldGuidance.serviceAdvantages },
+      { key: "description", label: "公司介绍", type: "textarea", placeholder: vendorFieldGuidance.description },
       { key: "seoTitle", label: "SEO 标题" },
       { key: "seoDescription", label: "SEO 摘要", type: "textarea" },
       { key: "seoTitleManual", label: "SEO 标题人工设置", type: "checkbox", group: "SEO 优化建议" },
@@ -98,10 +99,10 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "establishedYear", label: "成立年份" },
       { key: "factoryArea", label: "厂房面积" },
       { key: "employeeCount", label: "员工规模" },
-      { key: "annualCapacity", label: "年产能", type: "textarea" },
-      { key: "equipment", label: "主要设备", type: "textarea" },
-      { key: "certifications", label: "认证资质", type: "textarea" },
-      { key: "afterSalesService", label: "售后服务", type: "textarea" },
+      { key: "annualCapacity", label: "年产能", type: "textarea", placeholder: vendorFieldGuidance.annualCapacity },
+      { key: "equipment", label: "主要设备", type: "textarea", placeholder: vendorFieldGuidance.equipment },
+      { key: "certifications", label: "认证资质", type: "textarea", placeholder: vendorFieldGuidance.certifications },
+      { key: "afterSalesService", label: "售后服务", type: "textarea", placeholder: vendorFieldGuidance.afterSalesService },
       { key: "reviewStatus", label: "复核状态", type: "select", options: reviewStatusOptions },
       { key: "websiteUrl", label: "厂商官网 URL" },
       { key: "phone", label: "联系电话" },
@@ -141,8 +142,8 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "image", label: "产品主图", type: "image" },
       { key: "categoryId", label: "所属分类", type: "select", refResource: "categories" },
       { key: "compatibleModels", label: "适配机型" },
-      { key: "description", label: "列表描述", type: "textarea" },
-      { key: "detailContent", label: "详情正文", type: "textarea" },
+      { key: "description", label: "产品说明", type: "textarea", placeholder: productFieldGuidance.description },
+      { key: "detailContent", label: "产品详细说明", type: "textarea", placeholder: productFieldGuidance.detailContent },
       { key: "seoTitle", label: "SEO 标题" },
       { key: "seoDescription", label: "SEO 摘要", type: "textarea" },
       { key: "galleryRaw", label: "产品图库", type: "gallery" },
@@ -205,14 +206,14 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
 };
 
 const processingVendorFields: Field[] = [
-  { key: "providesProcessing", label: "是否提供加工服务", type: "checkbox" },
+  { key: "providesProcessing", label: "是否提供加工服务", type: "checkbox", description: processingToggleDescription },
   { key: "tagIds", label: "加工服务标签", type: "checkbox-group", refResource: "tags", optionTagType: "processing", group: "加工能力", description: "用于标识可承接的加工方式，可多选。" },
-  { key: "processingServices", label: "加工服务能力", type: "textarea" },
-  { key: "processingMaterials", label: "可加工材料 / 配件类型", type: "textarea" },
-  { key: "processingEquipment", label: "加工设备", type: "textarea" },
-  { key: "processingCapacity", label: "产能 / 交期", type: "textarea" },
-  { key: "processingRegions", label: "加工服务区域", type: "textarea" },
-  { key: "processingNotes", label: "接单说明", type: "textarea" },
+  { key: "processingServices", label: "加工服务能力", type: "textarea", placeholder: vendorFieldGuidance.processingServices },
+  { key: "processingMaterials", label: "可加工材料 / 配件类型", type: "textarea", placeholder: vendorFieldGuidance.processingMaterials },
+  { key: "processingEquipment", label: "加工设备", type: "textarea", placeholder: vendorFieldGuidance.processingEquipment },
+  { key: "processingCapacity", label: "产能 / 交期", type: "textarea", placeholder: vendorFieldGuidance.processingCapacity },
+  { key: "processingRegions", label: "加工服务区域", type: "textarea", placeholder: vendorFieldGuidance.processingRegions },
+  { key: "processingNotes", label: "接单说明", type: "textarea", placeholder: vendorFieldGuidance.processingNotes },
 ];
 
 extendProcessingSchemas();
@@ -487,7 +488,7 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
   if (field.type === "specs") return <SpecsEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
   if (field.type === "blocks") return <BlocksEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
   if (field.type === "textarea") {
-    return <textarea placeholder={field.placeholder} value={String(form[field.key] ?? "")} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />;
+    return <textarea className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={String(form[field.key] ?? "")} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />;
   }
   if (field.type === "checkbox") {
     return <input aria-label={field.label} checked={Boolean(form[field.key])} type="checkbox" onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} />;
@@ -547,6 +548,7 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
     <input
       value={String(form[field.key] ?? "")}
       type={field.type || "text"}
+      className={field.placeholder ? "writing-example" : undefined}
       placeholder={field.placeholder}
       onChange={(event) => setForm({ ...form, [field.key]: field.type === "number" ? Number(event.target.value) : event.target.value })}
     />

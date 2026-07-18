@@ -28,6 +28,7 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 
 	for _, want := range []string{
 		"POST /api/auth/register",
+		"PUT /api/auth/password",
 		"GET /api/site-meta",
 		"GET /api/pages/:slug",
 		"GET /api/products/:id",
@@ -47,6 +48,7 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 		"PUT /api/admin/vendor-submissions/:id/review",
 		"GET /api/admin/vendor-product-catalog",
 		"POST /api/admin/vendor-products/link",
+		"GET /api/admin/vendor-analytics",
 		"GET /api/admin/product-submissions",
 		"PUT /api/admin/product-submissions/:id/review",
 		"GET /api/admin/products/:id/suppliers",

@@ -3,6 +3,7 @@ import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createResource, deleteResource, listConfigs, listResource, listResourcePage, suggestVendorSEO, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
+import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
 
 vi.mock("../../api/admin", () => ({
   createResource: vi.fn(),
@@ -212,6 +213,26 @@ describe("AdminResourcePage CMS forms", () => {
         }),
       ),
     );
+  });
+
+  it("shows shared writing guidance for vendor and product editors", async () => {
+    const { unmount } = renderAdmin("/admin/vendors");
+    await openCreateEditor("新增厂商信息");
+
+    expect(screen.getByLabelText("简称")).toHaveAttribute("placeholder", vendorFieldGuidance.shortName);
+    expect(screen.getByLabelText("主营产品")).toHaveAttribute("placeholder", vendorFieldGuidance.mainProducts);
+    expect(screen.getByLabelText("公司介绍")).toHaveAttribute("placeholder", vendorFieldGuidance.description);
+    expect(screen.getByLabelText("加工服务能力")).toHaveAttribute("placeholder", vendorFieldGuidance.processingServices);
+    const processingToggle = screen.getByLabelText("是否提供加工服务");
+    expect(processingToggle.closest("label")).toHaveClass("admin-toggle-field");
+    expect(screen.getByText(processingToggleDescription)).toBeInTheDocument();
+
+    unmount();
+    renderAdmin("/admin/products");
+    await openCreateEditor("新增配件产品");
+
+    expect(screen.getByLabelText("产品说明")).toHaveAttribute("placeholder", productFieldGuidance.description);
+    expect(screen.getByLabelText("产品详细说明")).toHaveAttribute("placeholder", productFieldGuidance.detailContent);
   });
 
   it("separates vendor and processing tags into checkbox groups", async () => {

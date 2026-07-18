@@ -637,7 +637,7 @@ dt { color: var(--text-sub); } dd { margin: 0; }
 /* Dalu Village marketplace landmark hero: reserve the upper image area for
    the gateway sign and keep all search controls on a legible lower panel. */
 .marketplace-hero {
-  min-height: 414px;
+  min-height: 314px;
 }
 .marketplace-hero::before {
   background-image:
@@ -650,8 +650,8 @@ dt { color: var(--text-sub); } dd { margin: 0; }
 .marketplace-hero .hero-copy {
   display: flex;
   flex-direction: column;
-  min-height: 414px;
-  padding: 20px 38px 22px;
+  min-height: 314px;
+  padding: 18px 38px;
 }
 .marketplace-hero .hero-copy h1 {
   align-self: flex-start;

@@ -5,6 +5,7 @@ import { getFilterOptions } from "../../api/public";
 import type { Category, Product, ProductSupplier, VendorProductRecord } from "../../types/api";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { ProtectedMediaImage } from "./ProtectedMediaImage";
+import { productFieldGuidance } from "../../config/formGuidance";
 
 const emptyCandidate: Partial<Product> = { name: "", compatibleModels: "", description: "", detailContent: "", image: "", priceNote: "" };
 const emptyOffer: Partial<ProductSupplier> = { vendorProductName: "", vendorModel: "", compatibleModels: "", description: "", image: "", priceNote: "", inquiryText: "欢迎询价" };
@@ -76,8 +77,8 @@ function CandidateFields({ form, categories, onChange }: { form: Partial<Product
   <label>产品分类<select value={form.categoryId || ""} onChange={(event) => onChange({ ...form, categoryId: Number(event.target.value) || undefined })}><option value="">请选择</option>{hierarchicalCategoryOptions(categories).map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></label>
   <label>通用适配机型<input value={form.compatibleModels || ""} onChange={(event) => onChange({ ...form, compatibleModels: event.target.value })} /></label>
   <label>本厂价格说明<input value={form.priceNote || ""} onChange={(event) => onChange({ ...form, priceNote: event.target.value })} /></label>
-  <label className="wide-field">公共产品说明<textarea value={form.description || ""} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
-  <label className="wide-field">产品详细说明<textarea value={form.detailContent || ""} onChange={(event) => onChange({ ...form, detailContent: event.target.value })} /></label>
+  <label className="wide-field">发布产品说明<textarea className="writing-example" placeholder={productFieldGuidance.description} value={form.description || ""} onChange={(event) => onChange({ ...form, description: event.target.value })} /></label>
+  <label className="wide-field">产品详细说明<textarea className="writing-example" placeholder={productFieldGuidance.detailContent} value={form.detailContent || ""} onChange={(event) => onChange({ ...form, detailContent: event.target.value })} /></label>
 </div>; }
 
 function OfferFields({ product, form, onChange }: { product?: Product; form: Partial<ProductSupplier>; onChange: (value: Partial<ProductSupplier>) => void }) { return <div className="vendor-product-fields">
@@ -92,5 +93,5 @@ function OfferFields({ product, form, onChange }: { product?: Product; form: Par
 
 function statusLabel(status: ProductSupplier["status"]) { return ({ pending: "待审核", approved: "已展示", rejected: "已驳回", disabled: "已停供" })[status]; }
 function drawerTitle(mode: "link" | "new" | "edit") { return mode === "new" ? "提交新产品候选" : mode === "edit" ? "编辑本厂供应信息" : "关联平台产品"; }
-function drawerHint(mode: "link" | "new" | "edit") { return mode === "new" ? "补充公共产品资料和标准配图，提交后由管理员审核。" : mode === "edit" ? "修改仅影响本厂供应信息，已发布版本会保留到新版本审核通过。" : "先查找平台已有产品，再填写本厂型号、适配信息和价格说明。"; }
+function drawerHint(mode: "link" | "new" | "edit") { return mode === "new" ? "补充产品资料和标准配图，提交后由管理员审核。" : mode === "edit" ? "修改仅影响本厂供应信息，已发布版本会保留到新版本审核通过。" : "先查找平台已有产品，再填写本厂型号、适配信息和价格说明。"; }
 function assetId(url?: string) { const match = url?.match(/\/api\/media\/(\d+)/); return match ? Number(match[1]) : undefined; }

@@ -112,6 +112,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	authProtected.Use(CMSAuth(db, cfg.AuthSecret), RequireCSRF())
 	authProtected.GET("/session", handler.CurrentSession)
 	authProtected.POST("/logout", handler.Logout)
+	authProtected.PUT("/password", handler.ChangePassword)
 
 	admin := router.Group("/api/admin")
 	admin.POST("/login", handler.StaffLogin)
@@ -161,6 +162,10 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	cmsOnly.POST("/vendor-products/link", handler.LinkOwnProduct)
 	cmsOnly.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
 	cmsOnly.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
+
+	vendorOnly := protected.Group("")
+	vendorOnly.Use(RequireRole("vendor"))
+	vendorOnly.GET("/vendor-analytics", AnalyticsHandler{DB: db, Config: cfg}.VendorSummary)
 
 	adminOnly := protected.Group("")
 	adminOnly.Use(RequireRole("admin"))

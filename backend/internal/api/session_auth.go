@@ -164,3 +164,64 @@ func (h AdminHandler) Logout(c *gin.Context) {
 	clearAuthCookies(c, h.Config)
 	OK(c, gin.H{"loggedOut": true})
 }
+
+type changePasswordRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+}
+
+func validateNewPassword(currentHash, password string) string {
+	passwordBytes := len([]byte(password))
+	if passwordBytes < 8 || passwordBytes > 72 {
+		return "新密码长度需为 8–72 字节"
+	}
+	if auth.CheckPassword(currentHash, password) {
+		return "新密码不能与当前密码相同"
+	}
+	return ""
+}
+
+// ChangePassword verifies the signed-in user's current password, replaces the
+// bcrypt hash and revokes every active browser session for that account.
+func (h AdminHandler) ChangePassword(c *gin.Context) {
+	var req changePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil || req.CurrentPassword == "" || req.NewPassword == "" {
+		Fail(c, http.StatusBadRequest, 400, "请填写当前密码和新密码")
+		return
+	}
+
+	var user model.AdminUser
+	if err := h.DB.First(&user, c.GetUint("userId")).Error; err != nil {
+		Fail(c, http.StatusUnauthorized, 401, "账号不存在或登录已失效")
+		return
+	}
+	if !auth.CheckPassword(user.PasswordHash, req.CurrentPassword) {
+		Fail(c, http.StatusBadRequest, 400, "当前密码不正确")
+		return
+	}
+	if message := validateNewPassword(user.PasswordHash, req.NewPassword); message != "" {
+		Fail(c, http.StatusBadRequest, 400, message)
+		return
+	}
+	hash, err := auth.HashPassword(req.NewPassword)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "新密码保存失败")
+		return
+	}
+
+	now := time.Now()
+	err = h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&model.AdminUser{}).Where("id = ?", user.ID).Update("password_hash", hash).Error; err != nil {
+			return err
+		}
+		return tx.Model(&model.AuthSession{}).
+			Where("user_id = ? AND revoked_at IS NULL", user.ID).
+			Update("revoked_at", &now).Error
+	})
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "新密码保存失败")
+		return
+	}
+	clearAuthCookies(c, h.Config)
+	OK(c, gin.H{"changed": true, "reauthenticate": true})
+}
