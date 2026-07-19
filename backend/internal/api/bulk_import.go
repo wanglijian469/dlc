@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"dalu-nongji-parts/backend/internal/database"
 	"dalu-nongji-parts/backend/internal/model"
 	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
@@ -149,8 +150,13 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 			result.Issues = append(result.Issues, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "厂商名称不能为空"})
 			continue
 		}
-		if website := values["官网 URL"]; website != "" && !validURL(website) {
-			result.Issues = append(result.Issues, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "官网 URL 格式不正确"})
+		if website := values["官网 URL"]; website != "" {
+			normalizedWebsite, websiteErr := normalizeImportWebsiteURL(website)
+			if websiteErr != nil {
+				result.Issues = append(result.Issues, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "官网 URL 格式不正确"})
+			} else {
+				values["官网 URL"] = normalizedWebsite
+			}
 		}
 		provides, boolErr := parseOptionalBool(values["是否提供加工"])
 		if boolErr != nil {
@@ -212,6 +218,9 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 			}
 			applyVendorImport(&vendor, row)
 			service.ApplyVendorSEO(&vendor)
+			if err := database.EnsureVendorSlug(tx, &vendor); err != nil {
+				return fmt.Errorf("厂商信息第 %d 行页面标识生成失败: %w", row.Row, err)
+			}
 			if row.LogoAssetID != nil {
 				vendor.LogoAssetID = row.LogoAssetID
 			}
@@ -360,6 +369,9 @@ func (h AdminHandler) importProducts(sheets map[string]xlsxSheet, username strin
 					row.GalleryRaw = string(galleryRaw)
 				}
 				applyProductImport(&product, row)
+				if err := database.EnsureProductSlug(tx, &product); err != nil {
+					return fmt.Errorf("配件产品第 %d 行页面标识生成失败: %w", row.Row, err)
+				}
 				if err := tx.Save(&product).Error; err != nil {
 					return err
 				}
@@ -661,6 +673,24 @@ func splitImportList(value string) []string {
 
 func normalizeImportText(value string) string {
 	return strings.TrimSpace(strings.ReplaceAll(value, "\u00a0", " "))
+}
+
+func normalizeImportWebsiteURL(value string) (string, error) {
+	normalized := normalizeImportText(value)
+	if normalized == "" {
+		return "", nil
+	}
+	lower := strings.ToLower(normalized)
+	if strings.HasPrefix(normalized, "//") || (!strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") && strings.Contains(normalized, "://")) {
+		return "", fmt.Errorf("unsupported URL scheme")
+	}
+	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+		normalized = "https://" + normalized
+	}
+	if !validURL(normalized) {
+		return "", fmt.Errorf("invalid URL")
+	}
+	return normalized, nil
 }
 
 func canonicalImportHeader(value string) string {

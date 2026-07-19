@@ -77,3 +77,30 @@ func TestCanonicalImportHeaderSupportsPreviousTemplate(t *testing.T) {
 		}
 	}
 }
+
+func TestNormalizeImportWebsiteURLAcceptsBareDomains(t *testing.T) {
+	cases := map[string]string{
+		"www.scaffoldwelder.com":           "https://www.scaffoldwelder.com",
+		"langkepto.com":                    "https://langkepto.com",
+		"vendor.example.com/products?id=1": "https://vendor.example.com/products?id=1",
+		"http://vendor.example.com":        "http://vendor.example.com",
+		"https://vendor.example.com":       "https://vendor.example.com",
+	}
+	for input, want := range cases {
+		got, err := normalizeImportWebsiteURL(input)
+		if err != nil {
+			t.Fatalf("normalizeImportWebsiteURL(%q) returned error: %v", input, err)
+		}
+		if got != want {
+			t.Fatalf("normalizeImportWebsiteURL(%q) = %q, want %q", input, got, want)
+		}
+	}
+}
+
+func TestNormalizeImportWebsiteURLRejectsInvalidValues(t *testing.T) {
+	for _, input := range []string{"not a website", "javascript://alert", "//vendor.example.com", "https://"} {
+		if _, err := normalizeImportWebsiteURL(input); err == nil {
+			t.Fatalf("normalizeImportWebsiteURL(%q) returned nil error", input)
+		}
+	}
+}
