@@ -1,0 +1,93 @@
+name: release-linux
+
+on:
+  push:
+    tags:
+      - 'v*-linux.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0.46
+        env:
+          MYSQL_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: root
+      DB_NAME: dl_nongji_parts_release
+      AUTH_SECRET: release-ci-only-long-random-secret
+      ADMIN_PASSWORD: release-ci-admin-password
+      APP_ENV: development
+      RUN_MIGRATIONS: "true"
+      SEED_DEMO_DATA: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+      - name: Run versioned migration
+        working-directory: backend
+        run: go run ./cmd/initdb
+      - name: Run backend tests
+        working-directory: backend
+        run: go test ./...
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test
+      - name: Build frontend and enforce bundle budget
+        working-directory: frontend
+        run: npm run build && npm run budget
+      - name: Check deployment scripts
+        run: |
+          bash -n scripts/package-linux.sh scripts/verify-linux-package.sh
+          find deploy/linux/scripts -type f -name '*.sh' -print0 | xargs -0 -n1 bash -n
+      - name: Build reproducible Linux package
+        run: ./scripts/package-linux.sh "${GITHUB_REF_NAME}"
+      - name: Verify package architecture and content
+        run: ./scripts/verify-linux-package.sh "release/dlc-deploy-linux-x86_64-${GITHUB_REF_NAME}.tar.gz"
+      - name: Verify systemd unit
+        run: |
+          package_root="/tmp/dlc-systemd-verify"
+          mkdir -p "${package_root}"
+          tar -xzf "release/dlc-deploy-linux-x86_64-${GITHUB_REF_NAME}.tar.gz" \
+            -C "${package_root}" --strip-components=1
+          sudo install -d /opt/dalu-parts /etc/dalu-parts /var/lib/dalu-parts/media_storage
+          sudo useradd --system --no-create-home --shell /usr/sbin/nologin dlc
+          sudo install -m 0755 "${package_root}/server" /opt/dalu-parts/server
+          sudo install -m 0640 "${package_root}/config/dlc.env.example" /etc/dalu-parts/dlc.env
+          systemd-analyze verify deploy/linux/systemd/dalu-parts.service
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${GITHUB_REF_NAME}"
+          "release/dlc-deploy-linux-x86_64-${GITHUB_REF_NAME}.tar.gz"
+          --verify-tag
+          --generate-notes
+          --title "${GITHUB_REF_NAME}"
