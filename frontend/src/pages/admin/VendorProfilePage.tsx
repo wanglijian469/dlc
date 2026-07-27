@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { CheckCircle2, Clock3, ImageUp, Send } from "lucide-react";
+import { CheckCircle2, Clipboard, Clock3, ExternalLink, ImageUp, Send } from "lucide-react";
 import { getVendorProfile, submitVendorProfile, uploadFile } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import type { Vendor } from "../../types/api";
@@ -12,6 +12,7 @@ type Field = { key: keyof Vendor; label: string; type?: "textarea" | "checkbox" 
 
 const fields: Field[] = [
   { key: "name", label: "厂商全称" }, { key: "shortName", label: "厂商简称", placeholder: vendorFieldGuidance.shortName },
+	{ key: "slug", label: "厂商网站地址标识", placeholder: "例如 abc-parts" },
   { key: "logo", label: "厂商 Logo", type: "image" }, { key: "coverImage", label: "厂商封面图", type: "image" },
   { key: "province", label: "省份" }, { key: "city", label: "城市" }, { key: "county", label: "区县" },
   { key: "address", label: "详细地址" }, { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts },
@@ -29,7 +30,7 @@ const fields: Field[] = [
 ];
 
 const groups: Array<{ title: string; keys: Array<keyof Vendor> }> = [
-  { title: "基础资料", keys: ["name", "shortName", "province", "city", "county", "address", "mainProducts", "serviceModels", "description"] },
+  { title: "基础资料", keys: ["name", "shortName", "slug", "province", "city", "county", "address", "mainProducts", "serviceModels", "description"] },
   { title: "展示素材", keys: ["logo", "coverImage", "serviceAdvantages"] },
   { title: "生产能力", keys: ["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications"] },
   { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes", "afterSalesService"] },
@@ -41,12 +42,14 @@ export function VendorProfilePage() {
   const [status, setStatus] = useState<string>("");
   const [reviewNote, setReviewNote] = useState("");
   const [message, setMessage] = useState("");
+	const [publicWebsiteURL, setPublicWebsiteURL] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const original = useRef("");
 
   const load = () => getVendorProfile().then((result) => {
     setForm(result.draft);
+		setPublicWebsiteURL(result.vendor.slug ? `${window.location.origin}/v/${result.vendor.slug}` : "");
     original.current = JSON.stringify(result.draft);
     setStatus(result.submission?.status || (result.vendor.publicationStatus === "draft" ? "draft" : "published"));
     setReviewNote(result.submission?.reviewNote || "");
@@ -71,9 +74,17 @@ export function VendorProfilePage() {
       original.current = JSON.stringify(form);
     }).catch(() => setMessage("提交失败，请检查厂商名称、网址或图片状态")).finally(() => setSaving(false));
   };
+	const copyWebsiteAddress = () => {
+		if (!publicWebsiteURL) return;
+		void navigator.clipboard.writeText(publicWebsiteURL).then(() => setMessage("厂商网站地址已复制")).catch(() => setMessage("复制失败，请手动复制网站地址"));
+	};
 
   return (
     <AdminLayout title="我的厂商资料">
+		<section className="admin-panel vendor-website-panel">
+			<div><h2>我的厂商网站</h2><p>审核通过后，客户可通过此地址访问您的企业资料和已发布产品。修改地址标识会随本次资料一并提交审核。</p></div>
+			{publicWebsiteURL ? <div className="vendor-website-actions"><code>{publicWebsiteURL}</code><button className="outline-btn small" type="button" onClick={copyWebsiteAddress}><Clipboard size={15} />复制地址</button><a className="primary-btn small" href={publicWebsiteURL} rel="noreferrer" target="_blank"><ExternalLink size={15} />打开网站</a></div> : <p className="admin-message">请先提交并审核通过厂商资料后获取独立网站地址。</p>}
+		</section>
       <section className={`vendor-workflow-status ${status}`}>
         {status === "pending" ? <Clock3 size={20} /> : <CheckCircle2 size={20} />}
         <div><strong>{statusLabel(status)}</strong><p>{statusHint(status, reviewNote)}</p></div>

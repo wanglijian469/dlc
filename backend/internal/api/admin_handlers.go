@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	_ "image/gif"
@@ -297,6 +298,31 @@ func (h AdminHandler) ListVendors(c *gin.Context) {
 	}
 	OK(c, rows)
 }
+
+func (h AdminHandler) ListVendorOptions(c *gin.Context) {
+	var rows []model.VendorOption
+	query := h.DB.Model(&model.Vendor{})
+	if search := strings.TrimSpace(c.Query("search")); search != "" {
+		like := "%" + search + "%"
+		query = query.Where(
+			"name LIKE ? OR short_name LIKE ? OR province LIKE ? OR city LIKE ? OR main_products LIKE ?",
+			like, like, like, like, like,
+		)
+	}
+	page, pageSize := pageParams(c, 20)
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "厂商搜索失败")
+		return
+	}
+	if err := query.Select("id, name, short_name, province, city, main_products, publication_status, is_visible").
+		Order("name asc, id asc").Offset((page - 1) * pageSize).Limit(pageSize).Scan(&rows).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "厂商搜索失败")
+		return
+	}
+	OK(c, PageResult{Items: rows, Page: page, PageSize: pageSize, Total: total})
+}
+
 func (h AdminHandler) CreateVendor(c *gin.Context) { saveVendor(c, h.DB, 0) }
 func (h AdminHandler) UpdateVendor(c *gin.Context) { saveVendor(c, h.DB, idParam(c)) }
 func (h AdminHandler) DeleteVendor(c *gin.Context) { remove[model.Vendor](c, h.DB, "vendors") }
@@ -324,14 +350,24 @@ func (h AdminHandler) ListProducts(c *gin.Context) {
 		like := "%" + search + "%"
 		query = query.Where("products.name LIKE ? OR products.description LIKE ? OR products.compatible_models LIKE ?", like, like, like)
 	}
-	if status := strings.TrimSpace(c.Query("status")); status != "" {
-		query = query.Where("products.publication_status = ?", status)
+	publicationStatus := strings.TrimSpace(c.Query("publicationStatus"))
+	if publicationStatus == "" {
+		publicationStatus = strings.TrimSpace(c.Query("status"))
+	}
+	if publicationStatus != "" {
+		query = query.Where("products.publication_status = ?", publicationStatus)
 	}
 	if vendorID := strings.TrimSpace(c.Query("vendorId")); vendorID != "" {
-		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.deleted_at IS NULL)", vendorID)
+		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status <> 'disabled' AND ps.deleted_at IS NULL)", vendorID)
 	}
 	if categoryID := strings.TrimSpace(c.Query("categoryId")); categoryID != "" {
 		query = query.Where("products.category_id = ?", categoryID)
+	}
+	switch strings.TrimSpace(c.Query("associationStatus")) {
+	case "linked":
+		query = query.Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.status <> 'disabled' AND ps.deleted_at IS NULL)")
+	case "unlinked":
+		query = query.Where("NOT EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.status <> 'disabled' AND ps.deleted_at IS NULL)")
 	}
 	if adminPaginationRequested(c) {
 		var rows []model.Product
@@ -342,6 +378,7 @@ func (h AdminHandler) ListProducts(c *gin.Context) {
 			return
 		}
 		enrichProductSummaries(h.DB, rows, 0)
+		enrichAdminProductAssociations(h.DB, rows)
 		OK(c, result)
 		return
 	}
@@ -351,7 +388,53 @@ func (h AdminHandler) ListProducts(c *gin.Context) {
 		return
 	}
 	enrichProductSummaries(h.DB, rows, 0)
+	enrichAdminProductAssociations(h.DB, rows)
 	OK(c, rows)
+}
+
+func enrichAdminProductAssociations(db *gorm.DB, products []model.Product) {
+	if len(products) == 0 {
+		return
+	}
+	productIDs := make([]uint, 0, len(products))
+	indexByID := make(map[uint]int, len(products))
+	for i := range products {
+		productIDs = append(productIDs, products[i].ID)
+		indexByID[products[i].ID] = i
+	}
+	type associationRow struct {
+		ProductID         uint
+		ID                uint
+		Name              string
+		ShortName         string
+		Province          string
+		City              string
+		MainProducts      string
+		PublicationStatus string
+		IsVisible         bool
+	}
+	var rows []associationRow
+	if err := db.Table("product_suppliers ps").
+		Select("ps.product_id, v.id, v.name, v.short_name, v.province, v.city, v.main_products, v.publication_status, v.is_visible").
+		Joins("JOIN vendors v ON v.id = ps.vendor_id AND v.deleted_at IS NULL").
+		Where("ps.product_id IN ? AND ps.status <> ? AND ps.deleted_at IS NULL", productIDs, "disabled").
+		Order("v.name asc, v.id asc").
+		Scan(&rows).Error; err != nil {
+		return
+	}
+	for _, row := range rows {
+		index, ok := indexByID[row.ProductID]
+		if !ok {
+			continue
+		}
+		products[index].AssociationCount++
+		if len(products[index].AssociatedVendors) < 3 {
+			products[index].AssociatedVendors = append(products[index].AssociatedVendors, model.VendorOption{
+				ID: row.ID, Name: row.Name, ShortName: row.ShortName, Province: row.Province, City: row.City,
+				MainProducts: row.MainProducts, PublicationStatus: row.PublicationStatus, IsVisible: row.IsVisible,
+			})
+		}
+	}
 }
 func (h AdminHandler) CreateProduct(c *gin.Context) { saveProduct(c, h.DB, 0) }
 func (h AdminHandler) UpdateProduct(c *gin.Context) { saveProduct(c, h.DB, idParam(c)) }
@@ -564,9 +647,6 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		return
 	}
 	input.IsVisible = input.PublicationStatus == "published"
-	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
-		return
-	}
 	if input.DataOrigin == "" {
 		input.DataOrigin = "admin"
 	}
@@ -633,7 +713,7 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	committed = true
 	db.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&input, input.ID)
 	input.TagIDs = tagIDsFromTags(input.Tags)
-	logOperationReason(db, c.GetString("username"), upsertAction(id), "vendors", input.ID, c.GetString("publishReason"))
+	logOperation(db, c.GetString("username"), upsertAction(id), "vendors", input.ID)
 	OK(c, input)
 }
 
@@ -670,18 +750,24 @@ func mediaAssetIDFromURL(value string) uint {
 	return uint(id)
 }
 
+type adminProductInput struct {
+	model.Product
+	VendorIDs []uint `json:"vendorIds"`
+}
+
 func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
-	var input model.Product
+	var request adminProductInput
 	if id > 0 {
-		if err := db.First(&input, id).Error; err != nil {
+		if err := db.First(&request.Product, id).Error; err != nil {
 			Fail(c, http.StatusNotFound, 404, "产品不存在")
 			return
 		}
 	}
-	if err := c.ShouldBindJSON(&input); err != nil {
+	if err := c.ShouldBindJSON(&request); err != nil {
 		Fail(c, http.StatusBadRequest, 400, "璇锋眰鏍煎紡閿欒")
 		return
 	}
+	input := request.Product
 	if id > 0 {
 		input.ID = id
 	}
@@ -712,9 +798,6 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 	} else {
 		input.Status = 2
 	}
-	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
-		return
-	}
 	if input.ContentVersion == 0 {
 		input.ContentVersion = 1
 	}
@@ -741,37 +824,107 @@ func saveProduct(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, "分类不存在")
 		return
 	}
-	if input.VendorID != nil && *input.VendorID == 0 {
-		input.VendorID = nil
+	vendorIDs := uniqueUintIDs(request.VendorIDs)
+	if input.VendorID != nil {
+		if *input.VendorID == 0 {
+			input.VendorID = nil
+		} else {
+			vendorIDs = uniqueUintIDs(append(vendorIDs, *input.VendorID))
+		}
 	}
-	if vendorID := input.VendorIDValue(); vendorID > 0 && !recordExists[model.Vendor](db, vendorID) {
-		// 后台产品目录是共享目录。若浏览器保留了已删除厂商的旧 ID，
-		// 则忽略该过期关联，仍允许创建产品。
-		input.VendorID = nil
+	if len(vendorIDs) > 0 {
+		var vendorCount int64
+		if err := db.Model(&model.Vendor{}).Where("id IN ?", vendorIDs).Count(&vendorCount).Error; err != nil {
+			Fail(c, http.StatusInternalServerError, 500, "厂商校验失败")
+			return
+		}
+		if vendorCount != int64(len(vendorIDs)) {
+			Fail(c, http.StatusBadRequest, 400, "所选厂商不存在或已删除")
+			return
+		}
 	}
-	if err := db.Save(&input).Error; err != nil {
-		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
+	if input.PublicationStatus == "published" && !hasPublishableSupplier(db, id, vendorIDs) {
+		Fail(c, http.StatusBadRequest, 400, "产品发布前必须关联至少一家已发布且前台可见的厂商")
 		return
 	}
-	if input.Status == 1 {
-		publishProductMedia(db, input)
-	}
-	if vendorID := input.VendorIDValue(); vendorID > 0 {
-		var supplier model.ProductSupplier
-		if db.Where("product_id = ? AND vendor_id = ?", input.ID, vendorID).First(&supplier).Error != nil {
-			supplier = model.ProductSupplier{ProductID: input.ID, VendorID: vendorID, ContentVersion: 1}
+
+	err := db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Save(&input).Error; err != nil {
+			return err
 		}
-		applySupplierDraft(&supplier, supplierFromProduct(input, input.ID, vendorID))
-		supplier.Status = "approved"
-		supplier.SourceType = "admin"
-		supplier.ReviewedBy = c.GetString("username")
-		now := time.Now()
-		supplier.ReviewedAt = &now
-		_ = db.Save(&supplier).Error
+		for _, vendorID := range vendorIDs {
+			if _, err := upsertAdminProductSupplier(tx, input, vendorID, c.GetString("username")); err != nil {
+				return err
+			}
+		}
+		if input.PublicationStatus == "published" && !hasPublishableSupplier(tx, input.ID, nil) {
+			return errProductRequiresVendor
+		}
+		if input.Status == 1 {
+			publishProductMedia(tx, input)
+		}
+		return nil
+	})
+	if err != nil {
+		if errors.Is(err, errProductRequiresVendor) {
+			Fail(c, http.StatusBadRequest, 400, "产品发布前必须关联至少一家已发布且前台可见的厂商")
+			return
+		}
+		Fail(c, http.StatusInternalServerError, 500, "保存失败")
+		return
 	}
 	db.Preload("Category").First(&input, input.ID)
-	logOperationReason(db, c.GetString("username"), upsertAction(id), "products", input.ID, c.GetString("publishReason"))
+	enriched := []model.Product{input}
+	enrichAdminProductAssociations(db, enriched)
+	input = enriched[0]
+	logOperation(db, c.GetString("username"), upsertAction(id), "products", input.ID)
 	OK(c, input)
+}
+
+func hasPublishableSupplier(db *gorm.DB, productID uint, additionalVendorIDs []uint) bool {
+	var count int64
+	if productID > 0 {
+		db.Model(&model.ProductSupplier{}).
+			Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id AND vendors.deleted_at IS NULL").
+			Where("product_suppliers.product_id = ? AND product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (vendors.published_at IS NULL OR vendors.published_at <= ?)",
+				productID, "approved", true, "published", time.Now()).
+			Count(&count)
+		if count > 0 {
+			return true
+		}
+	}
+	if len(additionalVendorIDs) == 0 {
+		return false
+	}
+	db.Model(&model.Vendor{}).
+		Where("id IN ? AND is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)",
+			additionalVendorIDs, true, "published", time.Now()).
+		Count(&count)
+	return count > 0
+}
+
+func upsertAdminProductSupplier(db *gorm.DB, product model.Product, vendorID uint, username string) (model.ProductSupplier, error) {
+	var supplier model.ProductSupplier
+	err := db.Unscoped().Where("product_id = ? AND vendor_id = ?", product.ID, vendorID).First(&supplier).Error
+	if err != nil && err != gorm.ErrRecordNotFound {
+		return supplier, err
+	}
+	if err == gorm.ErrRecordNotFound {
+		supplier = model.ProductSupplier{ProductID: product.ID, VendorID: vendorID, ContentVersion: 1}
+		applySupplierDraft(&supplier, supplierFromProduct(product, product.ID, vendorID))
+	} else {
+		supplier.ContentVersion++
+	}
+	supplier.DeletedAt = gorm.DeletedAt{}
+	supplier.Status = "approved"
+	supplier.SourceType = "admin"
+	supplier.ReviewedBy = username
+	now := time.Now()
+	supplier.ReviewedAt = &now
+	if err := db.Unscoped().Save(&supplier).Error; err != nil {
+		return supplier, err
+	}
+	return supplier, nil
 }
 
 func publishProductMedia(db *gorm.DB, product model.Product) {
@@ -826,9 +979,6 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 	} else {
 		input.PublicationStatus = "archived"
 	}
-	if !requireEmergencyPublishReason(c, input.PublicationStatus == "published") {
-		return
-	}
 	if err := database.EnsurePageSlug(db, &input); err != nil {
 		Fail(c, http.StatusConflict, 409, "页面标识已存在")
 		return
@@ -853,7 +1003,7 @@ func savePage(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
 	}
-	logOperationReason(db, c.GetString("username"), upsertAction(id), "pages", input.ID, c.GetString("publishReason"))
+	logOperation(db, c.GetString("username"), upsertAction(id), "pages", input.ID)
 	OK(c, input)
 }
 
@@ -1008,33 +1158,11 @@ func validateJSONStringArray(value string, label string) error {
 }
 
 func logOperation(db *gorm.DB, username string, action string, resource string, recordID uint) {
-	logOperationReason(db, username, action, resource, recordID, "")
-}
-
-func logOperationReason(db *gorm.DB, username string, action string, resource string, recordID uint, reason string) {
 	if db == nil {
 		return
 	}
 	if username == "" {
 		username = "admin"
 	}
-	_ = db.Create(&model.OperationLog{Username: username, Action: action, Resource: resource, RecordID: recordID, Reason: strings.TrimSpace(reason)}).Error
-}
-
-func requireEmergencyPublishReason(c *gin.Context, publishing bool) bool {
-	if !publishing || c.GetString("role") != "admin" {
-		return true
-	}
-	encodedReason := strings.TrimSpace(c.GetHeader("X-Publish-Reason"))
-	reason, err := url.QueryUnescape(encodedReason)
-	if err != nil {
-		reason = encodedReason
-	}
-	reason = strings.TrimSpace(reason)
-	if reason == "" {
-		Fail(c, http.StatusBadRequest, 400, "管理员越权直接发布必须填写紧急发布原因")
-		return false
-	}
-	c.Set("publishReason", reason)
-	return true
+	_ = db.Create(&model.OperationLog{Username: username, Action: action, Resource: resource, RecordID: recordID}).Error
 }

@@ -118,6 +118,20 @@ func (h AnalyticsHandler) resolveTarget(path, contentType string, contentID uint
 		}
 		return path, "vendor", vendor.ID, true
 	}
+	if id, ok := numericRoute(path, "/v/"); ok {
+		var vendor model.Vendor
+		if h.DB.First(&vendor, "id = ? AND is_visible = ? AND publication_status = ?", id, true, "published").Error != nil {
+			return "", "", 0, false
+		}
+		return path, "vendor", id, true
+	}
+	if slug, ok := slugRoute(path, "/v/"); ok {
+		var vendor model.Vendor
+		if publishedVendorQuery(h.DB).First(&vendor, "slug = ?", slug).Error != nil {
+			return "", "", 0, false
+		}
+		return path, "vendor", vendor.ID, true
+	}
 	if slug, ok := slugRoute(path, "/products/category/"); ok {
 		var category model.Category
 		if publishedCategoryQuery(h.DB).First(&category, "slug = ?", slug).Error != nil {

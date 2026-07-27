@@ -6,6 +6,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/public/State
 import type { FilterOptions, PageResult, Tag, Vendor } from "../types/api";
 import { SlidersHorizontal, X } from "lucide-react";
 import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
+import { vendorPath } from "../utils/vendorPath";
 
 const pageSize = 12;
 
@@ -154,10 +155,10 @@ function ProcessingVendorCard({ vendor }: { vendor: Vendor }) {
         {vendor.processingCapacity && <p className="vendor-line">产能/交期：{vendor.processingCapacity}</p>}
       </div>
       <div className="card-actions">
-        <Link className="primary-btn small" to={`/vendors/${vendor.slug || vendor.id}`}>
+        <Link className="primary-btn small" to={vendorPath(vendor)}>
           查看厂商
         </Link>
-        <Link className="outline-btn small" to={`/vendors/${vendor.slug || vendor.id}`}>
+        <Link className="outline-btn small" to={vendorPath(vendor)}>
           对接加工
         </Link>
       </div>

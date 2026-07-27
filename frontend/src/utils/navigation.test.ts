@@ -25,7 +25,7 @@ describe("navigation helpers", () => {
   it("falls back to internal vendor detail", () => {
     expect(getVendorEntryTarget({ id: 7, websiteUrl: "" })).toEqual({
       type: "internal",
-      href: "/vendors/7",
+      href: "/v/7",
     });
   });
 });

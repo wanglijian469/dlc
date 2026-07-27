@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"dalu-nongji-parts/backend/internal/auth"
+	"dalu-nongji-parts/backend/internal/database"
 	"dalu-nongji-parts/backend/internal/model"
 	"dalu-nongji-parts/backend/internal/service"
 	"github.com/gin-gonic/gin"
@@ -59,6 +60,12 @@ func (h AdminHandler) SubmitVendorProfile(c *gin.Context) {
 		return
 	}
 	applyVendorEditableFields(&current, proposed)
+	slug, err := database.ValidateVendorSiteSlug(h.DB, current.Slug, vendorID)
+	if err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	current.Slug = slug
 	service.ApplyVendorSEO(&current)
 	if proposed.Media != nil {
 		media, mediaErr := sanitizeVendorMedia(proposed.Media)
@@ -164,6 +171,14 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 				return errSubmissionConflict
 			}
 			applyVendorEditableFields(&vendor, draft)
+			slug, err := database.ValidateVendorSiteSlug(tx, vendor.Slug, vendor.ID)
+			if err != nil {
+				return err
+			}
+			vendor.Slug = slug
+			if err := database.EnsureVendorSlug(tx, &vendor); err != nil {
+				return err
+			}
 			service.ApplyVendorSEO(&vendor)
 			vendor.ReviewStatus = "verified"
 			if vendor.PublicationStatus == "" || vendor.PublicationStatus == "draft" {
@@ -227,6 +242,7 @@ type workflowError struct{ message string }
 func (e *workflowError) Error() string { return e.message }
 
 func applyVendorEditableFields(dst *model.Vendor, src model.Vendor) {
+	dst.Slug = strings.TrimSpace(src.Slug)
 	dst.Name = strings.TrimSpace(src.Name)
 	dst.ShortName = src.ShortName
 	dst.Logo = src.Logo

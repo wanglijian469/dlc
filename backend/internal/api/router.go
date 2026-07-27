@@ -41,7 +41,7 @@ func NewRouter(deps Deps) *gin.Engine {
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     deps.Config.AllowedOrigins,
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token", "X-Publish-Reason"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))
 	RegisterHealthRoute(router)
@@ -127,6 +127,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	workflowReaders.GET("/revisions", handler.ListRevisions)
 	workflowReaders.GET("/revisions/:id/preview", handler.PreviewRevision)
 	workflowReaders.GET("/editorial/vendors", handler.ListVendors)
+	workflowReaders.GET("/editorial/vendor-options", handler.ListVendorOptions)
 	workflowReaders.GET("/editorial/products", handler.ListProducts)
 	workflowReaders.GET("/editorial/categories", handler.ListCategories)
 	workflowReaders.GET("/editorial/pages", handler.ListPages)
@@ -179,6 +180,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.PUT("/menus/:id", handler.UpdateMenu)
 	adminOnly.DELETE("/menus/:id", handler.DeleteMenu)
 	adminOnly.GET("/vendors", handler.ListVendors)
+	adminOnly.GET("/vendor-options", handler.ListVendorOptions)
 	adminOnly.POST("/vendors", handler.CreateVendor)
 	adminOnly.PUT("/vendors/:id", handler.UpdateVendor)
 	adminOnly.DELETE("/vendors/:id", handler.DeleteVendor)
@@ -205,6 +207,7 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.GET("/products/:id/suppliers", handler.ListAdminProductSuppliers)
 	adminOnly.POST("/products/:id/suppliers", handler.SaveAdminProductSupplier)
 	adminOnly.DELETE("/products/:id/suppliers/:supplierId", handler.DisableAdminProductSupplier)
+	adminOnly.POST("/product-suppliers/batch", handler.BatchSaveAdminProductSuppliers)
 	adminOnly.PUT("/products/:id/merge", handler.MergeProducts)
 	adminOnly.GET("/banners", handler.ListBanners)
 	adminOnly.POST("/banners", handler.CreateBanner)

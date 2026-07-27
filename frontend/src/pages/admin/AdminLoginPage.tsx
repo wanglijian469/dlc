@@ -76,7 +76,6 @@ export function AdminLoginPage({ staffOnly = false }: { staffOnly?: boolean }) {
     <main className={`admin-login ${staffOnly ? "staff-login" : "vendor-login"}`}>
       <section className="admin-login-visual" aria-label="平台介绍">
         <div className="admin-login-brand"><div className="admin-login-logo">农</div><span>大陆农机配件平台</span></div>
-        <p className="admin-login-eyebrow">INDUSTRIAL PARTS DIRECTORY</p>
         <h1>{visualTitle}</h1>
         <span>{visualCopy}</span>
         <div className="admin-login-points">
@@ -103,7 +102,6 @@ export function AdminLoginPage({ staffOnly = false }: { staffOnly?: boolean }) {
             <button aria-selected={mode === "register"} className={mode === "register" ? "active" : ""} role="tab" type="button" onClick={() => switchMode("register")}>厂商入驻</button>
           </div>}
           <div className="admin-login-heading">
-            <span>{staffOnly ? "CMS STAFF ACCESS" : isRegistration ? "VENDOR ONBOARDING" : "VENDOR ACCESS"}</span>
             <h2>{staffOnly ? "CMS 员工登录" : isRegistration ? "提交厂商入驻" : "厂商账号登录"}</h2>
             <p>{staffOnly ? "使用平台分配的员工账号登录。" : isRegistration ? "提交后可完善企业资料，审核通过后在前台公开展示。" : "登录后维护厂商资料与产品信息。"}</p>
           </div>

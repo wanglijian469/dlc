@@ -12,7 +12,7 @@ describe("VendorCard", () => {
     expect(screen.getByText("山东测试农机配件有限公司")).toBeInTheDocument();
     expect(screen.getByText("平台认证")).toHaveClass("tag-blue");
     expect(screen.getByText(/山东 · 潍坊/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/vendors/1");
+    expect(screen.getByRole("link", { name: "查看详情" })).toHaveAttribute("href", "/v/1");
     expect(screen.getByRole("link", { name: "查看产品" })).toHaveAttribute("href", "/products?vendorId=1");
     expect(screen.getByRole("link", { name: /访问官网/ })).toHaveAttribute("href", "https://example.com");
   });

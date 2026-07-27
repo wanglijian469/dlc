@@ -9,6 +9,7 @@ import { VendorCover } from "../components/public/VendorCover";
 import type { Product, Vendor } from "../types/api";
 import { useSite } from "../contexts/SiteContext";
 import { getMenuLabel } from "../utils/navigation";
+import { vendorPath } from "../utils/vendorPath";
 import { trackAnalytics } from "../analytics";
 
 export function VendorDetailPage() {
@@ -52,12 +53,12 @@ export function VendorDetailPage() {
           <p className="vendor-lead">{vendor.serviceAdvantages || vendor.description || "专注农机配件生产与供应"}</p>
           <div className="vendor-key-lines"><span><MapPin size={16} />{region || "全国供应"}</span><span><Wrench size={16} />{vendor.mainProducts || "农机配件"}</span></div>
           <div className="contact-actions">
-            {vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}
+            {vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}
             {vendor.phone && !phoneMasked && <button className="outline-btn" type="button" onClick={() => copy("电话", vendor.phone!)}><Clipboard size={16} />{copied === "电话" ? "已复制" : "复制电话"}</button>}
             {vendor.phone && phoneMasked && <Link className="primary-btn" to="/account/login"><Phone size={16} />厂商登录查看完整电话</Link>}
-            {vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}><Clipboard size={16} />{copied === "微信" ? "已复制" : "复制微信"}</button>}
+            {vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}><Clipboard size={16} />{copied === "微信" ? "已复制" : "复制微信"}</button>}
             {copied === "复制失败" && <span className="form-error" role="status">复制失败，请手动选择内容</span>}
-            {vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><ExternalLink size={16} />访问官网</a>}
+            {vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id })}><ExternalLink size={16} />访问官网</a>}
           </div>
         </div>
       </section>
@@ -77,7 +78,7 @@ export function VendorDetailPage() {
       {productsError && <section className="inline-notice" role="status">关联产品暂时加载失败，企业主体资料不受影响。</section>}
       {products.length > 0 && <section className="section-block"><div className="section-title"><h2>关联产品</h2><Link to={`/products?vendorId=${vendor.id}`}>查看全部</Link></div><div className="product-grid related-products">{products.map((product) => <ProductCard compact key={product.id} product={{ ...product, vendor }} />)}</div></section>}
 
-      {(vendor.phone || vendor.wechat || vendor.websiteUrl) && <div className="mobile-contact-bar">{vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}{vendor.phone && phoneMasked && <Link className="primary-btn" to="/account/login">登录查看电话</Link>}{vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}>复制微信</button>}{vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: `/vendors/${vendor.id}`, contentType: "vendor", contentId: vendor.id })}>访问官网</a>}</div>}
+      {(vendor.phone || vendor.wechat || vendor.websiteUrl) && <div className="mobile-contact-bar">{vendor.phone && !phoneMasked && <a className="primary-btn" href={`tel:${vendor.phone}`} onClick={() => trackAnalytics({ eventType: "contact_phone_click", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id })}><Phone size={16} />电话联系</a>}{vendor.phone && phoneMasked && <Link className="primary-btn" to="/account/login">登录查看电话</Link>}{vendor.wechat && <button className="outline-btn" type="button" onClick={() => { trackAnalytics({ eventType: "contact_wechat_copy", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id }); copy("微信", vendor.wechat!); }}>复制微信</button>}{vendor.websiteUrl && <a className="outline-btn" href={vendor.websiteUrl} rel="noreferrer" target="_blank" onClick={() => trackAnalytics({ eventType: "vendor_website_click", path: vendorPath(vendor), contentType: "vendor", contentId: vendor.id })}>访问官网</a>}</div>}
     </PageFrame>
   );
 }

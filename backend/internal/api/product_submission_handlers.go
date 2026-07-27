@@ -2,6 +2,8 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -9,7 +11,10 @@ import (
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
+
+var errLastPublishableSupplier = errors.New("cannot remove the last publishable supplier")
 
 func decodeProductSubmission(row model.ProductSubmission) model.ProductSubmissionView {
 	view := model.ProductSubmissionView{ProductSubmission: row}
@@ -250,21 +255,105 @@ func (h AdminHandler) SaveAdminProductSupplier(c *gin.Context) {
 
 func (h AdminHandler) DisableAdminProductSupplier(c *gin.Context) {
 	var row model.ProductSupplier
-	if err := h.DB.Where("id = ? AND product_id = ?", c.Param("supplierId"), c.Param("id")).First(&row).Error; err != nil {
-		Fail(c, 404, 404, "供应关系不存在")
-		return
-	}
-	if err := h.DB.Transaction(func(tx *gorm.DB) error {
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("id = ? AND product_id = ?", c.Param("supplierId"), c.Param("id")).First(&row).Error; err != nil {
+			return err
+		}
+		var product model.Product
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&product, row.ProductID).Error; err != nil {
+			return err
+		}
+		if product.PublicationStatus == "published" {
+			var currentQualifies, remaining int64
+			publishable := tx.Model(&model.ProductSupplier{}).
+				Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id AND vendors.deleted_at IS NULL").
+				Where("product_suppliers.product_id = ? AND product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (vendors.published_at IS NULL OR vendors.published_at <= ?)",
+					product.ID, "approved", true, "published", time.Now())
+			if err := publishable.Where("product_suppliers.id = ?", row.ID).Count(&currentQualifies).Error; err != nil {
+				return err
+			}
+			if currentQualifies > 0 {
+				if err := publishable.Where("product_suppliers.id <> ?", row.ID).Count(&remaining).Error; err != nil {
+					return err
+				}
+				if remaining == 0 {
+					return errLastPublishableSupplier
+				}
+			}
+		}
 		if err := tx.Delete(&row).Error; err != nil {
 			return err
 		}
 		return tx.Model(&model.ProductSubmission{}).Where("supplier_id = ? AND status = ?", row.ID, "pending").Update("status", "superseded").Error
-	}); err != nil {
+	})
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		Fail(c, http.StatusNotFound, 404, "供应关系或产品不存在")
+		return
+	}
+	if errors.Is(err, errLastPublishableSupplier) {
+		Fail(c, http.StatusConflict, 409, "已发布产品必须保留至少一家已发布且前台可见的厂商")
+		return
+	}
+	if err != nil {
 		Fail(c, 500, 500, "删除供应关系失败")
 		return
 	}
 	logOperation(h.DB, c.GetString("username"), "delete", "product-suppliers", row.ID)
 	OK(c, gin.H{"deleted": true})
+}
+
+func (h AdminHandler) BatchSaveAdminProductSuppliers(c *gin.Context) {
+	var req struct {
+		ProductIDs []uint `json:"productIds"`
+		VendorID   uint   `json:"vendorId"`
+	}
+	if c.ShouldBindJSON(&req) != nil {
+		Fail(c, http.StatusBadRequest, 400, "批量关联参数格式错误")
+		return
+	}
+	req.ProductIDs = uniqueUintIDs(req.ProductIDs)
+	if len(req.ProductIDs) == 0 || req.VendorID == 0 {
+		Fail(c, http.StatusBadRequest, 400, "请选择产品和厂商")
+		return
+	}
+	var vendor model.Vendor
+	if err := h.DB.First(&vendor, req.VendorID).Error; err != nil {
+		Fail(c, http.StatusNotFound, 404, "厂商不存在或已删除")
+		return
+	}
+	var products []model.Product
+	if err := h.DB.Where("id IN ?", req.ProductIDs).Find(&products).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "产品校验失败")
+		return
+	}
+	if len(products) != len(req.ProductIDs) {
+		Fail(c, http.StatusBadRequest, 400, "所选产品中包含不存在或已删除的记录")
+		return
+	}
+	created, existing := 0, 0
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		for _, product := range products {
+			var current model.ProductSupplier
+			lookup := tx.Unscoped().Where("product_id = ? AND vendor_id = ?", product.ID, vendor.ID).First(&current)
+			wasActive := lookup.Error == nil && !current.DeletedAt.Valid && current.Status != "disabled"
+			supplier, err := upsertAdminProductSupplier(tx, product, vendor.ID, c.GetString("username"))
+			if err != nil {
+				return err
+			}
+			if wasActive {
+				existing++
+			} else {
+				created++
+			}
+			logOperation(tx, c.GetString("username"), "upsert", "product-suppliers", supplier.ID)
+		}
+		return nil
+	})
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "批量关联失败，未写入任何关系")
+		return
+	}
+	OK(c, gin.H{"created": created, "existing": existing, "total": len(products)})
 }
 
 func (h AdminHandler) MergeProducts(c *gin.Context) {

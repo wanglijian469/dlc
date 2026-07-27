@@ -63,6 +63,9 @@ func TestSEOHelperNormalizesCanonicalPathsAndDescriptions(t *testing.T) {
 	if id, ok := routeID("/products/24", "/products/"); !ok || id != 24 {
 		t.Fatalf("routeID valid route = (%d, %t), want (24, true)", id, ok)
 	}
+	if id, ok := routeID("/v/24", "/v/"); !ok || id != 24 {
+		t.Fatalf("routeID vendor site = (%d, %t), want (24, true)", id, ok)
+	}
 	if _, ok := routeID("/products/24/extra", "/products/"); ok {
 		t.Fatal("routeID accepted a nested path")
 	}

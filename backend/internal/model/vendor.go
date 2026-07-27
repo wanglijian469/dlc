@@ -62,6 +62,17 @@ type Vendor struct {
 	DeletedAt            gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+type VendorOption struct {
+	ID                uint   `json:"id"`
+	Name              string `json:"name"`
+	ShortName         string `json:"shortName"`
+	Province          string `json:"province"`
+	City              string `json:"city"`
+	MainProducts      string `json:"mainProducts"`
+	PublicationStatus string `json:"publicationStatus"`
+	IsVisible         bool   `json:"isVisible"`
+}
+
 func (v Vendor) Region() string {
 	if v.City == "" {
 		return v.Province

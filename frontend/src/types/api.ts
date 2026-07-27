@@ -90,6 +90,17 @@ export interface Vendor {
   tagIds?: number[];
 }
 
+export interface VendorOption {
+  id: number;
+  name: string;
+  shortName?: string;
+  province?: string;
+  city?: string;
+  mainProducts?: string;
+  publicationStatus?: Vendor["publicationStatus"];
+  isVisible?: boolean;
+}
+
 export interface Category {
   id: number;
   slug?: string;
@@ -139,6 +150,8 @@ export interface Product {
   supplierCount?: number;
   supplierRegions?: string[];
   supplier?: ProductSupplier;
+  associationCount?: number;
+  associatedVendors?: VendorOption[];
   category?: Category;
   vendor?: Vendor;
 }

@@ -1,5 +1,5 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorProductRecord } from "../types/api";
+import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorOption, VendorProductRecord } from "../types/api";
 
 export type AccountRole = "admin" | "editor" | "reviewer" | "vendor";
 
@@ -167,33 +167,22 @@ export function listResource<T extends ResourceRecord>(resource: ResourceName) {
   return adminClient.get<never, T[]>(resourceListPath(resource));
 }
 
-export function listResourcePage<T extends ResourceRecord>(resource: "vendors" | "products", params: { page: number; pageSize: number; search?: string; status?: string; publicationStatus?: string; province?: string; vendorId?: number; categoryId?: number }) {
+export function listResourcePage<T extends ResourceRecord>(resource: "vendors" | "products", params: { page: number; pageSize: number; search?: string; status?: string; publicationStatus?: string; province?: string; vendorId?: number; categoryId?: number; associationStatus?: "linked" | "unlinked" }) {
   return adminClient.get<never, PageResult<T>>(resourceListPath(resource), { params });
 }
 
+export function listVendorOptions(params: { page?: number; pageSize?: number; search?: string }) {
+  const role = typeof window === "undefined" ? "admin" : window.localStorage.getItem("cms_role");
+  const path = role && role !== "admin" ? "/api/admin/editorial/vendor-options" : "/api/admin/vendor-options";
+  return adminClient.get<never, PageResult<VendorOption>>(path, { params: { page: 1, pageSize: 20, ...params } });
+}
+
 export function createResource<T extends ResourceRecord>(resource: ResourceName, payload: Partial<T>) {
-  return adminClient.post<never, T>(`/api/admin/${resource}`, resourceRequestBody(payload), emergencyPublishConfig(resource, payload));
+  return adminClient.post<never, T>(`/api/admin/${resource}`, payload);
 }
 
 export function updateResource<T extends ResourceRecord>(resource: ResourceName, id: number, payload: Partial<T>) {
-  return adminClient.put<never, T>(`/api/admin/${resource}/${id}`, resourceRequestBody(payload), emergencyPublishConfig(resource, payload));
-}
-
-function emergencyPublishConfig(resource: ResourceName, payload: object) {
-  const value = payload as Record<string, unknown>;
-  const publishing = resource === "vendors" ? value.publicationStatus === "published" || value.isVisible === true
-    : resource === "products" ? value.publicationStatus === "published" || value.status === 1
-    : resource === "categories" || resource === "pages" ? value.isEnabled === true
-    : false;
-  if (!publishing) return undefined;
-  const reason = String(value.publishReason || "").trim();
-  if (!reason) throw new Error("发布到前台前，请填写发布说明");
-  return { headers: { "X-Publish-Reason": encodeURIComponent(reason) } };
-}
-
-function resourceRequestBody(payload: object) {
-  const { publishReason: _publishReason, ...body } = payload as Record<string, unknown>;
-  return body;
+  return adminClient.put<never, T>(`/api/admin/${resource}/${id}`, payload);
 }
 
 export function deleteResource(resource: ResourceName, id: number) {
@@ -289,6 +278,10 @@ export function saveProductSupplier(productId: number, payload: Partial<ProductS
 
 export function deleteProductSupplier(productId: number, supplierId: number) {
 	return adminClient.delete<never, { deleted: boolean }>(`/api/admin/products/${productId}/suppliers/${supplierId}`);
+}
+
+export function batchSaveProductSuppliers(productIds: number[], vendorId: number) {
+  return adminClient.post<never, { created: number; existing: number; total: number }>("/api/admin/product-suppliers/batch", { productIds, vendorId });
 }
 
 export function mergeProducts(targetProductId: number, sourceProductId: number) {

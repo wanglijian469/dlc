@@ -167,7 +167,7 @@ func (h SEOHandler) sitemapSections(base string) map[string][]sitemapURL {
 	publishedVendorQuery(h.DB).Select("id, slug, published_at, updated_at").Order("id asc").Find(&vendors)
 	for _, item := range vendors {
 		if item.Slug != "" {
-			appendURL("vendors", "/vendors/"+item.Slug, item.PublishedAt, item.UpdatedAt)
+			appendURL("vendors", "/v/"+item.Slug, item.PublishedAt, item.UpdatedAt)
 		}
 	}
 	var products []model.Product
@@ -335,7 +335,7 @@ func (h SEOHandler) document(c *gin.Context) (seoDocument, bool) {
 		doc.BodyText = doc.Description
 		return doc, true
 	}
-	if slug, ok := routeSlug(path, "/vendors/"); ok {
+	if slug, ok := routeSlug(path, "/v/"); ok {
 		var vendor model.Vendor
 		if publishedVendorQuery(h.DB).First(&vendor, "slug = ?", slug).Error != nil {
 			return seoDocument{}, false
@@ -411,7 +411,19 @@ func (h SEOHandler) redirect(c *gin.Context) (string, int, bool) {
 	if id, ok := routeID(c.Request.URL.Path, "/vendors/"); ok {
 		var vendor model.Vendor
 		if publishedVendorQuery(h.DB).Select("id, slug").First(&vendor, id).Error == nil && vendor.Slug != "" {
-			return "/vendors/" + vendor.Slug, http.StatusMovedPermanently, true
+			return "/v/" + vendor.Slug, http.StatusMovedPermanently, true
+		}
+	}
+	if slug, ok := routeSlug(c.Request.URL.Path, "/vendors/"); ok {
+		var vendor model.Vendor
+		if publishedVendorQuery(h.DB).Select("id, slug").First(&vendor, "slug = ?", slug).Error == nil && vendor.Slug != "" {
+			return "/v/" + vendor.Slug, http.StatusMovedPermanently, true
+		}
+	}
+	if id, ok := routeID(c.Request.URL.Path, "/v/"); ok {
+		var vendor model.Vendor
+		if publishedVendorQuery(h.DB).Select("id, slug").First(&vendor, id).Error == nil && vendor.Slug != "" {
+			return "/v/" + vendor.Slug, http.StatusMovedPermanently, true
 		}
 	}
 	if id, ok := routeID(c.Request.URL.Path, "/products/"); ok {

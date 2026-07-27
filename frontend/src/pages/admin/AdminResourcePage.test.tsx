@@ -1,16 +1,18 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createResource, deleteResource, listConfigs, listResource, listResourcePage, suggestVendorSEO, updateResource } from "../../api/admin";
+import { batchSaveProductSuppliers, createResource, deleteResource, listConfigs, listResource, listResourcePage, listVendorOptions, suggestVendorSEO, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
 import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
 
 vi.mock("../../api/admin", () => ({
   createResource: vi.fn(),
+  batchSaveProductSuppliers: vi.fn(),
   deleteResource: vi.fn(),
   listConfigs: vi.fn(),
   listResource: vi.fn(),
     listResourcePage: vi.fn(),
+    listVendorOptions: vi.fn(),
     importWorkbook: vi.fn(),
   updateConfig: vi.fn(),
   updateResource: vi.fn(),
@@ -19,9 +21,11 @@ vi.mock("../../api/admin", () => ({
 }));
 
 const mockedCreateResource = vi.mocked(createResource);
+const mockedBatchSaveProductSuppliers = vi.mocked(batchSaveProductSuppliers);
 const mockedListConfigs = vi.mocked(listConfigs);
 const mockedListResource = vi.mocked(listResource);
 const mockedListResourcePage = vi.mocked(listResourcePage);
+const mockedListVendorOptions = vi.mocked(listVendorOptions);
 const mockedUpdateResource = vi.mocked(updateResource);
 const mockedSuggestVendorSEO = vi.mocked(suggestVendorSEO);
 
@@ -43,6 +47,8 @@ describe("AdminResourcePage CMS forms", () => {
   afterEach(() => cleanup());
 
   beforeEach(() => {
+    vi.clearAllMocks();
+    localStorage.setItem("cms_role", "admin");
     mockedListConfigs.mockResolvedValue([
       { id: 1, configKey: "site.meta", configValue: JSON.stringify({ siteName: "大陆农机配件" }), description: "站点品牌和页脚信息" },
       { id: 2, configKey: "home.modules", configValue: "[]", description: "首页实际展示模块" },
@@ -62,6 +68,8 @@ describe("AdminResourcePage CMS forms", () => {
       const items = await mockedListResource(resource) as never[];
       return { items, page: 1, pageSize: 20, total: items.length };
     });
+    mockedListVendorOptions.mockResolvedValue({ items: [], page: 1, pageSize: 20, total: 0 });
+    mockedBatchSaveProductSuppliers.mockResolvedValue({ created: 1, existing: 0, total: 1 });
     mockedCreateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedUpdateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedSuggestVendorSEO.mockImplementation(async (vendor) => ({
@@ -261,15 +269,85 @@ describe("AdminResourcePage CMS forms", () => {
 
     fireEvent.change(await screen.findByLabelText("产品名称"), { target: { value: "液压油泵总成" } });
     fireEvent.change(screen.getByLabelText("所属分类"), { target: { value: "5" } });
-    fireEvent.change(screen.getByLabelText("目录发布状态"), { target: { value: "published" } });
+    fireEvent.change(screen.getByLabelText("目录发布状态"), { target: { value: "draft" } });
     const form = screen.getByLabelText("产品名称").closest("form") as HTMLFormElement;
     expect(within(form).getByRole("option", { name: "液压系统配件" })).toBeInTheDocument();
     expect(within(form).queryByLabelText("所属厂商")).not.toBeInTheDocument();
     fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
-      expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, publicationStatus: "published" })),
+      expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({ name: "液压油泵总成", categoryId: 5, publicationStatus: "draft", vendorIds: [] })),
     );
+  });
+
+  it("requires and submits a visible published vendor when publishing a new product", async () => {
+    mockedListVendorOptions.mockResolvedValue({
+      items: [{ id: 9, name: "河北液压件厂", province: "河北省", city: "邢台市", publicationStatus: "published", isVisible: true }],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+    });
+    renderAdmin("/admin/products");
+    await openCreateEditor("新增配件产品");
+
+    fireEvent.change(await screen.findByLabelText("产品名称"), { target: { value: "液压分配器" } });
+    fireEvent.change(screen.getByLabelText("所属分类"), { target: { value: "5" } });
+    fireEvent.change(screen.getByLabelText("目录发布状态"), { target: { value: "published" } });
+    const form = screen.getByLabelText("产品名称").closest("form") as HTMLFormElement;
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
+    expect(await screen.findByText("产品发布前必须关联至少一家前台已发布的厂商")).toBeInTheDocument();
+    expect(mockedCreateResource).not.toHaveBeenCalled();
+
+    fireEvent.focus(screen.getByLabelText("搜索厂商"));
+    fireEvent.click(await screen.findByRole("button", { name: /河北液压件厂/ }));
+    fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
+
+    await waitFor(() => expect(mockedCreateResource).toHaveBeenCalledWith("products", expect.objectContaining({
+      name: "液压分配器",
+      publicationStatus: "published",
+      vendorIds: [9],
+    })));
+  });
+
+  it("shows association summaries and batch-adds one vendor to selected products", async () => {
+    mockedListResourcePage.mockImplementation(async (resource) => {
+      if (resource === "products") {
+        return {
+          items: [{
+            id: 15,
+            name: "收割机链轮",
+            slug: "shou-ge-ji-lian-lun",
+            publicationStatus: "published",
+            category: { id: 5, name: "液压系统配件" },
+            associationCount: 2,
+            associatedVendors: [{ id: 3, name: "江苏东成农机配件有限公司" }],
+          }],
+          page: 1,
+          pageSize: 20,
+          total: 1,
+        } as never;
+      }
+      return { items: [], page: 1, pageSize: 20, total: 0 } as never;
+    });
+    mockedListVendorOptions.mockResolvedValue({
+      items: [{ id: 9, name: "河北链轮厂", province: "河北省", publicationStatus: "published", isVisible: true }],
+      page: 1,
+      pageSize: 20,
+      total: 1,
+    });
+    renderAdmin("/admin/products");
+
+    expect(await screen.findByText("江苏东成农机配件有限公司")).toBeInTheDocument();
+    expect(screen.getByText("共 2 家")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("选择产品 收割机链轮"));
+    fireEvent.click(screen.getByRole("button", { name: "批量关联厂商（1）" }));
+
+    const dialog = screen.getByRole("dialog", { name: "批量关联厂商" });
+    fireEvent.focus(within(dialog).getByLabelText("搜索批量关联厂商"));
+    fireEvent.click(await within(dialog).findByRole("button", { name: /河北链轮厂/ }));
+    fireEvent.click(within(dialog).getByRole("button", { name: "确认关联 1 个产品" }));
+
+    await waitFor(() => expect(mockedBatchSaveProductSuppliers).toHaveBeenCalledWith([15], 9));
   });
 
   it("keeps category-generated and legacy sidebar anchors out of the quick-navigation list", async () => {

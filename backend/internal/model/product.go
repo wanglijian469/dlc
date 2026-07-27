@@ -41,6 +41,8 @@ type Product struct {
 	SupplierCount     int64            `gorm:"-" json:"supplierCount"`
 	SupplierRegions   []string         `gorm:"-" json:"supplierRegions,omitempty"`
 	Supplier          *ProductSupplier `gorm:"-" json:"supplier,omitempty"`
+	AssociationCount  int64            `gorm:"-" json:"associationCount"`
+	AssociatedVendors []VendorOption   `gorm:"-" json:"associatedVendors,omitempty"`
 	CreatedAt         time.Time        `json:"createdAt"`
 	UpdatedAt         time.Time        `json:"updatedAt"`
 	DeletedAt         gorm.DeletedAt   `gorm:"index" json:"-"`

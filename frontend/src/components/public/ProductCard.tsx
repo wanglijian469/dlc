@@ -1,5 +1,6 @@
 ﻿import { Link } from "react-router-dom";
 import type { Product } from "../../types/api";
+import { vendorPath } from "../../utils/vendorPath";
 import { ProductCover } from "./ProductCover";
 
 function categoryName(product: Product) {
@@ -44,7 +45,7 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         <p className="product-line">价格：{supplier?.priceNote || product.priceNote || "面议 / 批量报价"}</p>
         <div className="card-actions">
           <Link className="outline-btn small" to={`/products/${product.slug || product.id}`}>产品详情</Link>
-          <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : `/vendors/${vendor.id}`}>供应厂商</Link>
+          <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : vendorPath(vendor)}>供应厂商</Link>
         </div>
       </div>
     </article>

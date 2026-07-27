@@ -19,6 +19,7 @@ func TestApplyVendorEditableFieldsPreservesAdministratorFields(t *testing.T) {
 		SEOTitleManual: true,
 	}
 	source := model.Vendor{
+		Slug:          "new-vendor-site",
 		Name:          " 新名称 ",
 		MainProducts:  "齿轮、轴承",
 		Phone:         "13800000000",
@@ -33,7 +34,7 @@ func TestApplyVendorEditableFieldsPreservesAdministratorFields(t *testing.T) {
 
 	applyVendorEditableFields(&destination, source)
 
-	if destination.Name != "新名称" || destination.WebsiteURL != "https://vendor.example.com" || destination.MainProducts != "齿轮、轴承" {
+	if destination.Name != "新名称" || destination.Slug != "new-vendor-site" || destination.WebsiteURL != "https://vendor.example.com" || destination.MainProducts != "齿轮、轴承" {
 		t.Fatalf("editable fields were not copied: %#v", destination)
 	}
 	if !destination.IsVisible || !destination.IsVerified || !destination.IsRecommended || destination.SortOrder != 12 || destination.ReviewStatus != "verified" {

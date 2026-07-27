@@ -54,9 +54,6 @@ func saveCategory(c *gin.Context, db *gorm.DB, id uint) {
 	} else {
 		category.PublicationStatus = "archived"
 	}
-	if !requireEmergencyPublishReason(c, category.PublicationStatus == "published") {
-		return
-	}
 	if err := database.EnsureCategorySlug(db, &category); err != nil {
 		Fail(c, http.StatusConflict, 409, "分类页面标识冲突")
 		return
@@ -74,7 +71,7 @@ func saveCategory(c *gin.Context, db *gorm.DB, id uint) {
 		}
 		category.IsEnabled = false
 	}
-	logOperationReason(db, c.GetString("username"), upsertAction(id), "categories", category.ID, c.GetString("publishReason"))
+	logOperation(db, c.GetString("username"), upsertAction(id), "categories", category.ID)
 	OK(c, category)
 }
 

@@ -5,8 +5,10 @@ import { AdminLayout } from "../../components/admin/AdminLayout";
 import { Pagination } from "../../components/public/Pagination";
 import type { Vendor } from "../../types/api";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
+import { vendorPath } from "../../utils/vendorPath";
 
 const comparedFields: Array<{ key: keyof Vendor; label: string }> = [
+	{ key: "slug", label: "厂商网站地址标识" },
   { key: "name", label: "厂商名称" }, { key: "shortName", label: "简称" }, { key: "logo", label: "Logo" }, { key: "coverImage", label: "封面图" },
   { key: "province", label: "省份" }, { key: "city", label: "城市" }, { key: "county", label: "区县" }, { key: "address", label: "地址" },
   { key: "mainProducts", label: "主营产品" }, { key: "serviceModels", label: "适配机型" }, { key: "serviceAdvantages", label: "服务优势" }, { key: "description", label: "公司简介" },
@@ -60,7 +62,7 @@ function ReviewCard({ row, note, setNote, review, disabled }: { row: VendorSubmi
   const mediaChanged = JSON.stringify(normalizeMedia(row.vendor?.media || [])) !== JSON.stringify(normalizeMedia(row.draft?.media || []));
   return (
     <article className="admin-panel vendor-review-card">
-      <header><div><span className={`review-status ${row.status}`}>{statusLabel(row.status)}</span><h2>{row.draft.name || row.vendor.name}</h2><p>提交账号：{row.submittedBy} · {new Date(row.updatedAt).toLocaleString()}</p></div><div className="review-summary"><strong>{changes.length + (mediaChanged ? 1 : 0)} 项变更</strong><a className="outline-btn small" href={`/vendors/${row.vendorId}`} rel="noreferrer" target="_blank"><ExternalLink size={14} />查看当前页面</a></div></header>
+      <header><div><span className={`review-status ${row.status}`}>{statusLabel(row.status)}</span><h2>{row.draft.name || row.vendor.name}</h2><p>提交账号：{row.submittedBy} · {new Date(row.updatedAt).toLocaleString()}</p></div><div className="review-summary"><strong>{changes.length + (mediaChanged ? 1 : 0)} 项变更</strong><a className="outline-btn small" href={vendorPath(row.vendor)} rel="noreferrer" target="_blank"><ExternalLink size={14} />查看当前页面</a></div></header>
       <div className="review-diff-table">
         <div className="diff-head">字段</div><div className="diff-head">当前前台内容</div><div className="diff-head">厂商提交内容</div>
         {(changes.length ? changes : comparedFields.slice(0, 3)).map(({ key, label }) => <div className="diff-row" key={key}><strong>{label}</strong><span>{formatValue(row.vendor?.[key])}</span><span>{formatValue(row.draft?.[key])}</span></div>)}

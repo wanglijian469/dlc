@@ -31,7 +31,7 @@ describe("ProductCard", () => {
     expect(screen.getByText(/分类：传动配件/)).toBeInTheDocument();
     expect(screen.getByText(/供应厂商：河北金瑞农机制造有限公司/)).toBeInTheDocument();
     expect(screen.getByText(/价格：面议 \/ 批量报价/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "供应厂商" })).toHaveAttribute("href", "/vendors/1");
+    expect(screen.getByRole("link", { name: "供应厂商" })).toHaveAttribute("href", "/v/1");
     expect(screen.getByRole("link", { name: "产品详情" })).toHaveAttribute("href", "/products/9");
   });
 

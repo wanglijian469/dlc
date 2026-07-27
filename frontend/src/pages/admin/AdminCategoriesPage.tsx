@@ -17,10 +17,9 @@ type CategoryForm = {
   seoDescription: string;
   sortOrder: number;
   isEnabled: boolean;
-  publishReason: string;
 };
 
-const emptyForm: CategoryForm = { name: "", slug: "", level: "root", parentId: 0, icon: "", seoTitle: "", seoDescription: "", sortOrder: 0, isEnabled: true, publishReason: "" };
+const emptyForm: CategoryForm = { name: "", slug: "", level: "root", parentId: 0, icon: "", seoTitle: "", seoDescription: "", sortOrder: 0, isEnabled: true };
 
 export function AdminCategoriesPage() {
   const isEditor = localStorage.getItem("cms_role") === "editor";
@@ -63,7 +62,6 @@ export function AdminCategoriesPage() {
       seoDescription: category.seoDescription || "",
       sortOrder: category.sortOrder || 0,
       isEnabled: category.isEnabled !== false,
-      publishReason: "",
     });
     setMessage("");
     setEditorOpen(true);
@@ -142,7 +140,6 @@ export function AdminCategoriesPage() {
           <label className="field-wide">SEO 摘要<textarea value={form.seoDescription} onChange={(event) => setForm({ ...form, seoDescription: event.target.value })} /></label>
           <label>排序<input type="number" value={form.sortOrder} onChange={(event) => setForm({ ...form, sortOrder: Number(event.target.value) })} /></label>
           <label className="admin-toggle-field"><input aria-label="启用分类" checked={form.isEnabled} type="checkbox" onChange={(event) => setForm({ ...form, isEnabled: event.target.checked })} /><span><strong>启用分类</strong><small>停用一级分类会同时从前台隐藏其全部二级分类</small></span></label>
-          <label className="field-wide">发布说明<textarea aria-label="发布说明" placeholder="启用并发布到前台时必填" value={form.publishReason} onChange={(event) => setForm({ ...form, publishReason: event.target.value })} /></label>
         </div></fieldset><div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" disabled={saving} type="submit">{saving ? "保存中…" : "保存分类"}</button></div></form>
       </AdminModal>}
     </AdminLayout>

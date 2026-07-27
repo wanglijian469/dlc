@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, LoadingState } from "../components/public/State
 import type { Category, Product, SearchPayload, Vendor } from "../types/api";
 import { trackAnalytics } from "../analytics";
 import { MobileDirectorySearch } from "../components/public/MobileDirectorySearch";
+import { vendorPath } from "../utils/vendorPath";
 
 function regionOf(vendor?: Vendor) {
   return [vendor?.province, vendor?.city].filter(Boolean).join(" · ");
@@ -14,7 +15,7 @@ function regionOf(vendor?: Vendor) {
 
 function VendorSearchCard({ vendor }: { vendor: Vendor }) {
   return (
-    <Link className="search-card vendor-search-card" to={`/vendors/${vendor.slug || vendor.id}`}>
+    <Link className="search-card vendor-search-card" to={vendorPath(vendor)}>
       <div className="search-card-head">
         <strong>{vendor.name}</strong>
         {vendor.isVerified && <span className="tag-blue">平台认证</span>}

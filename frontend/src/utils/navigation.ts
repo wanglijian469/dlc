@@ -11,10 +11,10 @@ export function getMenuLabel(menus: Menu[], path: string, fallback: string): str
   return menus.find((menu) => menu.path === path)?.name.trim() || fallback;
 }
 
-export function getVendorEntryTarget(vendor: { id: number; websiteUrl?: string | null }) {
+export function getVendorEntryTarget(vendor: { id: number; slug?: string | null; websiteUrl?: string | null }) {
   const websiteUrl = vendor.websiteUrl?.trim();
   if (websiteUrl) {
     return { type: "external" as const, href: websiteUrl };
   }
-  return { type: "internal" as const, href: `/vendors/${vendor.id}` };
+  return { type: "internal" as const, href: `/v/${vendor.slug || vendor.id}` };
 }

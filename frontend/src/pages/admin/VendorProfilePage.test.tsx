@@ -45,8 +45,8 @@ describe("VendorProfilePage writing guidance", () => {
   beforeEach(() => {
     localStorage.setItem("cms_role", "vendor");
     mockedGetVendorProfile.mockResolvedValue({
-      vendor: { id: 7, name: "测试厂商", publicationStatus: "draft" },
-      draft: { id: 7, name: "测试厂商" },
+      vendor: { id: 7, slug: "test-vendor", name: "测试厂商", publicationStatus: "draft" },
+      draft: { id: 7, slug: "test-vendor", name: "测试厂商" },
     } as never);
     mockedSubmitVendorProfile.mockResolvedValue({} as never);
   });
@@ -61,6 +61,9 @@ describe("VendorProfilePage writing guidance", () => {
     render(<MemoryRouter initialEntries={["/admin/vendor-profile"]}><VendorProfilePage /></MemoryRouter>);
 
     await screen.findByDisplayValue("测试厂商");
+		expect(screen.getByText("我的厂商网站")).toBeInTheDocument();
+		expect(screen.getByText(`${window.location.origin}/v/test-vendor`)).toBeInTheDocument();
+		expect(screen.getByLabelText("厂商网站地址标识")).toHaveValue("test-vendor");
     expect(screen.queryByText("产品编辑器")).not.toBeInTheDocument();
     for (const [label, placeholder] of guidedFields) {
       const field = screen.getByLabelText(label);

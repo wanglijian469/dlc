@@ -19,6 +19,7 @@ function renderDetail(path = "/vendors/8") {
     <MemoryRouter initialEntries={[path]}>
       <Routes>
         <Route element={<VendorDetailPage />} path="/vendors/:id" />
+		<Route element={<VendorDetailPage />} path="/v/:id" />
       </Routes>
     </MemoryRouter>,
   );
@@ -125,5 +126,12 @@ describe("VendorDetailPage", () => {
     expect(screen.queryByText("在线询价")).not.toBeInTheDocument();
     expect(screen.queryByText("生产能力")).not.toBeInTheDocument();
   });
+
+	it("loads the branded vendor site route", async () => {
+		mockedGetVendor.mockResolvedValue({ id: 8, slug: "hanfeng-parts", name: "测试厂商" });
+		renderDetail("/v/hanfeng-parts");
+		await screen.findByRole("heading", { name: "测试厂商", level: 1 });
+		expect(mockedGetVendor).toHaveBeenCalledWith("hanfeng-parts");
+	});
 
 });

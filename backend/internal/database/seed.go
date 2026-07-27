@@ -257,8 +257,8 @@ func defaultCategories() []model.Category {
 
 func defaultProducts() []model.Product {
 	return []model.Product{
-		{Name: "收割机链条总成", CategoryID: 2, VendorID: model.ProductVendorID(1), CompatibleModels: "多型号收割机", Description: "高强度传动链条", DetailContent: "适合高频维修更换，支持批量采购。", SpecsRaw: `[{"name":"质保","value":"12个月"}]`, PriceNote: "面议 / 批量报价", InquiryText: "联系供应商", InquiryPath: "/vendors/1", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
-		{Name: "变速箱齿轮", CategoryID: 3, VendorID: model.ProductVendorID(2), CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", DetailContent: "支持来样加工和批量配套。", PriceNote: "面议", InquiryText: "联系供应商", InquiryPath: "/vendors/2", IsHot: true, SortOrder: 2, Status: 1},
+		{Name: "收割机链条总成", CategoryID: 2, VendorID: model.ProductVendorID(1), CompatibleModels: "多型号收割机", Description: "高强度传动链条", DetailContent: "适合高频维修更换，支持批量采购。", SpecsRaw: `[{"name":"质保","value":"12个月"}]`, PriceNote: "面议 / 批量报价", InquiryText: "联系供应商", InquiryPath: "/v/1", IsHot: true, IsRecommended: true, SortOrder: 1, Status: 1},
+		{Name: "变速箱齿轮", CategoryID: 3, VendorID: model.ProductVendorID(2), CompatibleModels: "拖拉机、收割机", Description: "耐磨齿轮件", DetailContent: "支持来样加工和批量配套。", PriceNote: "面议", InquiryText: "联系供应商", InquiryPath: "/v/2", IsHot: true, SortOrder: 2, Status: 1},
 	}
 }
 
@@ -314,7 +314,7 @@ func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
 }
 
 func hbJinongProducts(vendorID uint) []model.Product {
-	inquiryPath := fmt.Sprintf("/vendors/%d", vendorID)
+	inquiryPath := fmt.Sprintf("/v/%d", vendorID)
 	const hydraulicCategoryID = 5
 	return []model.Product{
 		{Name: "液压翻转犁1LF-360", CategoryID: hydraulicCategoryID, VendorID: model.ProductVendorID(vendorID), CompatibleModels: "拖拉机及耕整地作业场景", Description: "河北冀农官网公开展示的冀丰牌液压翻转犁代表产品。", DetailContent: "来源于河北冀农官网公开产品展示，型号和参数需人工复核后补充。", PriceNote: "面议 / 以厂商确认为准", InquiryText: "联系厂商", InquiryPath: inquiryPath, IsRecommended: true, SortOrder: 101, Status: 1},

@@ -421,6 +421,11 @@ func (h AdminHandler) importProducts(sheets map[string]xlsxSheet, username strin
 				result.RelationsUpdated++
 			}
 		}
+		for _, product := range processed {
+			if product.PublicationStatus == "published" && !hasPublishableSupplier(tx, product.ID, nil) {
+				return fmt.Errorf("产品“%s”发布前必须关联至少一家已发布且前台可见的厂商", product.Name)
+			}
+		}
 		return nil
 	})
 	if err != nil {

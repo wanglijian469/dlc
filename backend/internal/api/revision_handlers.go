@@ -15,6 +15,7 @@ import (
 )
 
 var errRevisionConflict = errors.New("content version conflict")
+var errProductRequiresVendor = errors.New("published product requires a visible published vendor")
 
 type revisionDraftRequest struct {
 	ResourceType string          `json:"resourceType"`
@@ -177,6 +178,8 @@ func (h AdminHandler) ApproveRevision(c *gin.Context) {
 	if err := publishRevision(h.DB, &revision, username, strings.TrimSpace(req.Note)); err != nil {
 		if errors.Is(err, errRevisionConflict) {
 			Fail(c, http.StatusConflict, 409, "基础版本已变化，请重新比较并送审")
+		} else if errors.Is(err, errProductRequiresVendor) {
+			Fail(c, http.StatusBadRequest, 400, "产品发布前必须关联至少一家已发布且前台可见的厂商")
 		} else {
 			Fail(c, 500, 500, "发布事务失败")
 		}
@@ -367,6 +370,9 @@ func applyRevisionSnapshot(tx *gorm.DB, revision *model.ContentRevision, version
 			return err
 		}
 		item.ID, item.ContentVersion, item.PublicationStatus, item.Status, item.PublishedAt = revision.ResourceID, version, "published", 1, &publishedAt
+		if !hasPublishableSupplier(tx, item.ID, nil) {
+			return errProductRequiresVendor
+		}
 		if err := database.EnsureProductSlug(tx, &item); err != nil {
 			return err
 		}

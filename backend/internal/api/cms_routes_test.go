@@ -54,6 +54,8 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 		"GET /api/admin/products/:id/suppliers",
 		"POST /api/admin/products/:id/suppliers",
 		"DELETE /api/admin/products/:id/suppliers/:supplierId",
+		"GET /api/admin/vendor-options",
+		"POST /api/admin/product-suppliers/batch",
 		"PUT /api/admin/products/:id/merge",
 		"GET /api/admin/users",
 		"POST /api/admin/users",

@@ -3,6 +3,7 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { Download, FileUp, Plus, X } from "lucide-react";
 import {
   createResource,
+  batchSaveProductSuppliers,
   deleteResource,
 	 downloadRemoteImage,
   importWorkbook,
@@ -20,7 +21,7 @@ import {
   type BulkImportResult,
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import type { Category, Menu, SiteConfig, Vendor } from "../../types/api";
+import type { Category, Menu, Product, SiteConfig, Vendor, VendorOption } from "../../types/api";
 import type { VendorMedia } from "../../types/api";
 import { AdminModal } from "../../components/admin/AdminModal";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
@@ -28,6 +29,7 @@ import { BlocksEditor, GalleryEditor, SpecsEditor, VendorMediaEditor } from "../
 import { Pagination } from "../../components/public/Pagination";
 import { AdminProductSuppliersEditor } from "../../components/admin/AdminProductSuppliersEditor";
 import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProductsPanel";
+import { NewProductVendorPicker, VendorOptionSearch } from "../../components/admin/VendorOptionSearch";
 import { AdminCategoriesPage } from "./AdminCategoriesPage";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { getApiErrorMessage } from "../../api/client";
@@ -112,7 +114,6 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "isRecommended", label: "推荐厂商", type: "checkbox", description: "在推荐厂商区域优先展示" },
       { key: "isVerified", label: "平台认证", type: "checkbox", description: "在前台显示认证标识" },
       { key: "isVisible", label: "前台显示", type: "checkbox", description: "勾选并保存后发布到前台" },
-      { key: "publishReason", label: "发布说明", type: "textarea", description: "发布到前台时必填，用于操作日志，例如：资料已核对，允许上线" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -153,9 +154,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "inquiryPath", label: "询价跳转路径" },
       { key: "isHot", label: "热门", type: "checkbox" },
       { key: "isRecommended", label: "推荐", type: "checkbox" },
-      { key: "status", label: "状态", type: "select", options: [{ label: "上架", value: 1 }, { label: "下架", value: 2 }] },
       { key: "publicationStatus", label: "目录发布状态", type: "select", options: [{ label: "已发布", value: "published" }, { label: "草稿", value: "draft" }, { label: "已隐藏", value: "hidden" }] },
-      { key: "publishReason", label: "发布说明", type: "textarea", description: "发布到前台时必填，用于操作日志" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -189,7 +188,6 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "relatedProductId", label: "关联产品", type: "select", refResource: "products" },
       { key: "relatedVendorId", label: "关联厂商", type: "select", refResource: "vendors" },
       { key: "isEnabled", label: "启用", type: "checkbox" },
-      { key: "publishReason", label: "发布说明", type: "textarea", description: "启用并发布到前台时必填，用于操作日志" },
       { key: "sortOrder", label: "排序", type: "number" },
     ],
   },
@@ -224,7 +222,9 @@ function extendSEOSchemas() {
     const fields = schemas[resource].fields;
     if (!fields.some((field) => field.key === "slug")) {
       const nameIndex = fields.findIndex((field) => field.key === "name");
-      fields.splice(nameIndex + 1, 0, { key: "slug", label: "短拼音标识", description: "发布后修改会自动保留 301 历史重定向" });
+		fields.splice(nameIndex + 1, 0, resource === "vendors"
+			? { key: "slug", label: "厂商网站地址标识", description: "公开地址为 /v/标识；修改后会自动保留 301 历史重定向" }
+			: { key: "slug", label: "短拼音标识", description: "发布后修改会自动保留 301 历史重定向" });
     }
   });
   const categoryFields = schemas.categories.fields;
@@ -260,6 +260,15 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
   const [keyword, setKeyword] = useState("");
 	const [statusFilter, setStatusFilter] = useState("");
 	const [provinceFilter, setProvinceFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState(0);
+  const [associationFilter, setAssociationFilter] = useState<"" | "linked" | "unlinked">("");
+  const [vendorFilter, setVendorFilter] = useState<VendorOption | null>(null);
+  const [selectedProductIds, setSelectedProductIds] = useState<Set<number>>(new Set());
+  const [batchEditorOpen, setBatchEditorOpen] = useState(false);
+  const [batchVendor, setBatchVendor] = useState<VendorOption | null>(null);
+  const [batchSaving, setBatchSaving] = useState(false);
+  const [batchMessage, setBatchMessage] = useState("");
+  const [newProductVendors, setNewProductVendors] = useState<VendorOption[]>([]);
   const [message, setMessage] = useState("");
   const [importResult, setImportResult] = useState<BulkImportResult | null>(null);
   const [importing, setImporting] = useState(false);
@@ -271,7 +280,14 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
 
   const load = () => {
     if (serverPaged) {
-	  const filters = name === "vendors" ? { publicationStatus: statusFilter || undefined, province: provinceFilter || undefined } : { status: statusFilter || undefined };
+	  const filters = name === "vendors"
+        ? { publicationStatus: statusFilter || undefined, province: provinceFilter || undefined }
+        : {
+            publicationStatus: statusFilter || undefined,
+            categoryId: categoryFilter || undefined,
+            vendorId: vendorFilter?.id,
+            associationStatus: associationFilter || undefined,
+          };
       return listResourcePage<ResourceRecord>(name, { page, pageSize: 20, search: debouncedKeyword.trim() || undefined, ...filters }).then((result) => { setRows(result.items); setTotal(result.total); });
     }
     return listResource<ResourceRecord>(name).then((items) => { setRows(items); setTotal(items.length); });
@@ -281,6 +297,11 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
     setForm(defaultForm(schema.fields));
     setEditingId(null);
     setEditorOpen(false);
+    setNewProductVendors([]);
+    setSelectedProductIds(new Set());
+    setVendorFilter(null);
+    setCategoryFilter(0);
+    setAssociationFilter("");
     setPage(1);
     void load();
     const resources = Array.from(new Set(schema.fields.map((field) => field.refResource).filter(Boolean))) as ResourceName[];
@@ -294,7 +315,7 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
 
   useEffect(() => {
     if (serverPaged) void load();
-  }, [page, debouncedKeyword, statusFilter, provinceFilter]);
+  }, [page, debouncedKeyword, statusFilter, provinceFilter, categoryFilter, associationFilter, vendorFilter?.id]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
@@ -310,6 +331,15 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
     if (name === "vendors") {
       payload.media = (form.media as VendorMedia[] | undefined) || [];
       (payload as { publicationStatus?: "published" | "hidden" }).publicationStatus = Boolean(form.isVisible) ? "published" : "hidden";
+    }
+    if (name === "products" && !editingId) {
+      (payload as Record<string, unknown>).vendorIds = newProductVendors.map((vendor) => vendor.id);
+      const publishing = (payload as Record<string, unknown>).publicationStatus === "published";
+      const hasPublishableVendor = newProductVendors.some((vendor) => vendor.publicationStatus === "published" && vendor.isVisible);
+      if (publishing && !hasPublishableVendor) {
+        setMessage("产品发布前必须关联至少一家前台已发布的厂商");
+        return;
+      }
     }
     const action = async () => {
       if (isEditor) {
@@ -333,6 +363,7 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
         setForm(defaultForm(schema.fields));
         setEditingId(null);
         setEditorOpen(false);
+        setNewProductVendors([]);
         setMessage(isEditor ? "修订已保存并送审" : "保存成功");
         void load();
       })
@@ -353,18 +384,40 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
 
   return (
     <AdminLayout title={schema.title}>
-      {message && <p className="admin-message">{message}</p>}
+      {message && !editorOpen && !batchEditorOpen && <p className="admin-message">{message}</p>}
       {name === "menus" && <section className="menu-management-note"><strong>分类导航已自动生成</strong><span>一级、二级配件分类请在“配件分类”维护；此处仅维护页面入口、非分类快捷项和“全部分类”等移动端入口。</span></section>}
       <div className="admin-toolbar admin-panel compact">
-        <input value={keyword} placeholder="搜索当前列表" onChange={(event) => setKeyword(event.target.value)} />
+        <input value={keyword} placeholder="搜索当前列表" onChange={(event) => { setKeyword(event.target.value); setPage(1); if (name === "products") setSelectedProductIds(new Set()); }} />
 		{name === "vendors" && <><select aria-label="发布状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部发布状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="hidden">已隐藏</option></select><input aria-label="地区筛选" placeholder="输入省份" value={provinceFilter} onChange={(event) => { setProvinceFilter(event.target.value); setPage(1); }} /></>}
-		{name === "products" && <select aria-label="产品状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); }}><option value="">全部产品状态</option><option value="1">已上架</option><option value="2">已下架</option></select>}
+		{name === "products" && <>
+          <select aria-label="产品发布状态筛选" value={statusFilter} onChange={(event) => { setStatusFilter(event.target.value); setPage(1); setSelectedProductIds(new Set()); }}><option value="">全部发布状态</option><option value="published">已发布</option><option value="draft">草稿</option><option value="hidden">已隐藏</option></select>
+          <select aria-label="产品分类筛选" value={categoryFilter || ""} onChange={(event) => { setCategoryFilter(Number(event.target.value)); setPage(1); setSelectedProductIds(new Set()); }}><option value="">全部分类</option>{hierarchicalCategoryOptions((refs.categories || []) as Category[]).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+          <select aria-label="厂商关联状态筛选" value={associationFilter} onChange={(event) => { setAssociationFilter(event.target.value as "" | "linked" | "unlinked"); setPage(1); setSelectedProductIds(new Set()); }}><option value="">全部关联状态</option><option value="linked">已关联厂商</option><option value="unlinked">未关联厂商</option></select>
+          <div className="product-vendor-filter">{vendorFilter ? <button className="filter-chip" type="button" onClick={() => { setVendorFilter(null); setPage(1); setSelectedProductIds(new Set()); }}>{vendorFilter.name}<X size={14} /></button> : <VendorOptionSearch label="按厂商筛选" onSelect={(vendor) => { setVendorFilter(vendor); setPage(1); setSelectedProductIds(new Set()); }} />}</div>
+        </>}
+        {!isEditor && name === "products" && selectedProductIds.size > 0 && <button className="outline-btn batch-associate-button" type="button" onClick={() => { setBatchVendor(null); setBatchMessage(""); setBatchEditorOpen(true); }}>批量关联厂商（{selectedProductIds.size}）</button>}
         {!isEditor && (name === "vendors" || name === "products") && <div className="admin-import-actions"><a className="outline-btn" download href="/templates/农机配件平台_厂商产品资料采集模板.xlsx"><Download size={16} />下载导入模板</a><label className={`outline-btn admin-import-button ${importing ? "disabled" : ""}`}><FileUp size={16} />{importing ? "正在导入…" : "批量导入 XLSX"}<input accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" disabled={importing} type="file" onChange={(event) => { const file = event.target.files?.[0]; event.target.value = ""; if (!file) return; setImporting(true); setImportResult(null); setMessage(""); void importWorkbook(name, file).then((result) => { setImportResult(result); if (result.imported) { setMessage("批量导入成功"); void load(); } }).catch((error) => setMessage(error?.response?.data?.message || "批量导入失败，请检查文件格式")).finally(() => setImporting(false)); }} /></label></div>}
-        {!isEditor && <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>}
+        {!isEditor && <button className="primary-btn" type="button" onClick={() => { setEditingId(null); setNewProductVendors([]); setForm({ ...defaultForm(schema.fields), ...(name === "vendors" ? { media: [] } : {}), ...(name === "products" ? { publicationStatus: "draft" } : {}) }); setEditorOpen(true); }}><Plus size={16} />新增{schema.title}</button>}
       </div>
       {importResult && <section className={`admin-import-result ${importResult.imported ? "success" : "error"}`}><strong>{importResult.imported ? "导入完成" : "表格校验未通过，未写入数据"}</strong><span>读取 {importResult.totalRows} 行 · 新增 {importResult.created} 条 · 更新 {importResult.updated} 条{name === "products" ? ` · 新增供应关系 ${importResult.relationsCreated} 条 · 更新供应关系 ${importResult.relationsUpdated} 条` : ""}</span>{importResult.issues.length > 0 && <ul>{importResult.issues.slice(0, 30).map((issue, index) => <li key={`${issue.sheet}-${issue.row}-${index}`}>{issue.sheet} 第 {issue.row} 行：{issue.message}</li>)}</ul>}{(importResult.warnings || []).length > 0 && <div className="admin-import-warnings"><strong>以下图片未能本地化，已保留原始链接：</strong><ul>{(importResult.warnings || []).slice(0, 30).map((warning, index) => <li key={`${warning.sheet}-${warning.row}-${index}`}>{warning.sheet} 第 {warning.row} 行：{warning.message}</li>)}</ul></div>}</section>}
       <div className="admin-table-panel">
-        <ResourceTable
+        {name === "products" ? <ProductResourceTable
+          rows={filteredRows as Product[]}
+          selectionEnabled={!isEditor}
+          selectedIds={selectedProductIds}
+          onSelectionChange={setSelectedProductIds}
+          onEdit={(row) => {
+            setEditingId(row.id);
+            setNewProductVendors([]);
+            setForm({ ...defaultForm(schema.fields), ...(row as unknown as FormState) });
+            setEditorOpen(true);
+          }}
+          onDelete={isEditor ? undefined : (id) => {
+            if (!window.confirm("确认删除这条产品记录？")) return;
+            void deleteResource(name, id).then(() => { setMessage("删除成功"); setSelectedProductIds((current) => { const next = new Set(current); next.delete(id); return next; }); void load(); }).catch(() => setMessage("删除失败"));
+          }}
+        /> : <ResourceTable
+		  resource={name}
           rows={filteredRows}
           onDelete={isEditor ? undefined : (id) => {
             if (!window.confirm("确认删除这条记录？")) return;
@@ -380,10 +433,10 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
             setForm({ ...defaultForm(schema.fields), ...(row as unknown as FormState) });
             setEditorOpen(true);
           }}
-        />
+        />}
         {serverPaged && <Pagination onChange={setPage} page={page} pageSize={20} total={total} />}
       </div>
-      {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header><form className="admin-form admin-grouped-form" onSubmit={submit}>
+      {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header>{message && <p className="admin-message admin-editor-message">{message}</p>}<form className="admin-form admin-grouped-form" onSubmit={submit}>
         {groupFields(name, schema.fields).map((group) => name === "vendors" && group.title === "SEO 优化建议" ? <fieldset className="vendor-seo-workbench" key={group.title}><legend>{group.title}</legend><VendorSEOEditor form={form} setForm={setForm} /></fieldset> : <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => {
           const fieldWide = ["textarea", "gallery", "specs", "blocks", "checkbox-group"].includes(field.type || "");
           if (field.type === "checkbox-group") return <div className={`admin-checkbox-group-field ${fieldWide ? "field-wide" : ""}`} key={`${field.key}-${field.optionTagType || "all"}`}><strong>{field.label}</strong>{field.description && <small>{field.description}</small>}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></div>;
@@ -391,9 +444,11 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
           return <label className={fieldWide ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>;
         })}</div></fieldset>)}
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
+        {!isEditor && name === "products" && !editingId && <NewProductVendorPicker value={newProductVendors} onChange={setNewProductVendors} />}
         {(["vendors", "products", "categories", "pages"] as ResourceName[]).includes(name) && <SEOPublishChecklist resource={name} form={form} />}
         <div className="admin-editor-actions"><button className="outline-btn" type="button" onClick={() => setEditorOpen(false)}>取消</button><button className="primary-btn" type="submit">{editingId ? "保存修改" : "创建记录"}</button></div>
-      </form>{!isEditor && name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} />}{!isEditor && name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
+      </form>{!isEditor && name === "products" && editingId && <AdminProductSuppliersEditor productId={editingId} onChanged={() => void load()} />}{!isEditor && name === "vendors" && editingId && <AdminVendorProductsPanel vendorId={editingId} />}</AdminModal>}
+      {batchEditorOpen && <AdminModal label="批量关联厂商" onClose={() => setBatchEditorOpen(false)}><header><div><span>批量操作</span><h2>为 {selectedProductIds.size} 个产品关联厂商</h2></div><button aria-label="关闭批量关联" type="button" onClick={() => setBatchEditorOpen(false)}><X size={20} /></button></header><section className="batch-association-panel"><p>本操作只追加一家厂商，不会替换产品已有的厂商关系。重复关系会自动跳过。</p>{batchMessage && <p className="admin-message">{batchMessage}</p>}{batchVendor ? <div className="batch-vendor-summary"><strong>{batchVendor.name}</strong><span>{[batchVendor.province, batchVendor.city, batchVendor.mainProducts].filter(Boolean).join(" · ")}</span><button type="button" onClick={() => setBatchVendor(null)}>重新选择</button></div> : <VendorOptionSearch label="搜索批量关联厂商" onSelect={setBatchVendor} />}<div className="admin-editor-actions batch-actions"><button className="outline-btn" type="button" onClick={() => setBatchEditorOpen(false)}>取消</button><button className="primary-btn" disabled={!batchVendor || batchSaving} type="button" onClick={() => { if (!batchVendor) return; setBatchSaving(true); setBatchMessage(""); void batchSaveProductSuppliers(Array.from(selectedProductIds), batchVendor.id).then((result) => { setMessage(`批量关联完成：新增 ${result.created} 条，已有 ${result.existing} 条`); setSelectedProductIds(new Set()); setBatchEditorOpen(false); void load(); }).catch((error) => setBatchMessage(getApiErrorMessage(error, "批量关联失败"))).finally(() => setBatchSaving(false)); }}>{batchSaving ? "正在关联…" : `确认关联 ${selectedProductIds.size} 个产品`}</button></div></section></AdminModal>}
     </AdminLayout>
   );
 }
@@ -454,6 +509,7 @@ function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch
 
   const title = String(form.seoTitle || "");
   const description = String(form.seoDescription || "");
+	const vendorSiteAddress = `${typeof window === "undefined" ? "https://example.com" : window.location.origin}/v/${String(form.slug || "vendor-slug")}`;
   const restore = (field: "title" | "description") => {
     if (field === "title") setForm((current) => ({ ...current, seoTitleManual: false, seoTitle: suggestion?.seoTitle || String(current.seoTitle || "") }));
     else setForm((current) => ({ ...current, seoDescriptionManual: false, seoDescription: suggestion?.seoDescription || String(current.seoDescription || "") }));
@@ -461,6 +517,7 @@ function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch
 
   return <div className="vendor-seo-editor">
     <p className="vendor-seo-intro">根据厂商名称、地区、主营产品、适配机型与加工能力生成。自动模式会随资料更新，人工设置后不再覆盖。</p>
+		<div className="vendor-site-address"><strong>厂商独立站地址</strong><code>{vendorSiteAddress}</code><button type="button" onClick={() => void navigator.clipboard.writeText(vendorSiteAddress)}>复制地址</button><a href={vendorSiteAddress} rel="noreferrer" target="_blank">预览网站</a></div>
     <div className="vendor-seo-fields">
       <label>
         <span className="vendor-seo-field-head"><strong>SEO 标题</strong><em className={titleManual ? "manual" : "auto"}>{titleManual ? "人工设置" : "自动生成"}</em></span>
@@ -473,7 +530,7 @@ function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch
         <small><span className={Array.from(description).length > 120 ? "over-limit" : ""}>{Array.from(description).length} / 120 字</span>{descriptionManual && <button type="button" onClick={() => restore("description")}>恢复自动生成</button>}</small>
       </label>
     </div>
-    <div className="vendor-seo-preview"><small>{loading ? "正在更新建议…" : `建议依据：${suggestion?.sourceFields.join("、") || "填写厂商资料后自动生成"}`}</small><h3>{title || "等待生成 SEO 标题"}</h3><span>https://example.com/vendors/{String(form.slug || "vendor-slug")}</span><p>{description || "等待生成 SEO 摘要"}</p></div>
+    <div className="vendor-seo-preview"><small>{loading ? "正在更新建议…" : `建议依据：${suggestion?.sourceFields.join("、") || "填写厂商资料后自动生成"}`}</small><h3>{title || "等待生成 SEO 标题"}</h3><span>{vendorSiteAddress}</span><p>{description || "等待生成 SEO 摘要"}</p></div>
   </div>;
 }
 
@@ -613,7 +670,7 @@ function numericSelect(field: Field) {
   return Boolean(field.refResource || field.key.endsWith("Id") || field.key === "status" || field.key === "parentId");
 }
 
-function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { rows: ResourceRecord[]; onEdit: (row: ResourceRecord) => void; onDelete?: (id: number) => void; categoryManagedMenuIDs?: Set<number> }) {
+function ResourceTable({ resource, rows, onEdit, onDelete, categoryManagedMenuIDs }: { resource: ResourceName; rows: ResourceRecord[]; onEdit: (row: ResourceRecord) => void; onDelete?: (id: number) => void; categoryManagedMenuIDs?: Set<number> }) {
   const keys = useMemo(() => Object.keys(rows[0] || {}).filter((key) => ["id", "name", "title", "slug", "province", "menuType", "path", "publicationStatus", "sortOrder", "isEnabled", "isVisible", "isRecommended"].includes(key)), [rows]);
 	const showSource = categoryManagedMenuIDs !== undefined;
   return (
@@ -621,7 +678,7 @@ function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { row
       <thead>
         <tr>
           {keys.map((key) => (
-            <th key={key}>{columnLabel(key)}</th>
+            <th key={key}>{columnLabel(key, resource)}</th>
           ))}
 			{showSource && <th>来源</th>}
           <th>操作</th>
@@ -631,7 +688,7 @@ function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { row
         {rows.map((row) => (
           <tr key={row.id}>
             {keys.map((key) => (
-              <td data-label={columnLabel(key)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key], key)}</td>
+              <td data-label={columnLabel(key, resource)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key], key)}</td>
             ))}
 			{showSource && <td data-label="来源">{categoryManagedMenuIDs.has(row.id) ? <span className="category-derived-badge">分类生成</span> : "人工维护"}</td>}
             <td data-label="操作">
@@ -639,6 +696,63 @@ function ResourceTable({ rows, onEdit, onDelete, categoryManagedMenuIDs }: { row
             </td>
           </tr>
         ))}
+      </tbody>
+    </table>
+  );
+}
+
+function ProductResourceTable({
+  rows,
+  selectionEnabled,
+  selectedIds,
+  onSelectionChange,
+  onEdit,
+  onDelete,
+}: {
+  rows: Product[];
+  selectionEnabled: boolean;
+  selectedIds: Set<number>;
+  onSelectionChange: Dispatch<SetStateAction<Set<number>>>;
+  onEdit: (row: Product) => void;
+  onDelete?: (id: number) => void;
+}) {
+  const currentIDs = rows.map((row) => row.id);
+  const allCurrentSelected = currentIDs.length > 0 && currentIDs.every((id) => selectedIds.has(id));
+  const toggleCurrentPage = () => onSelectionChange((current) => {
+    const next = new Set(current);
+    if (allCurrentSelected) currentIDs.forEach((id) => next.delete(id));
+    else currentIDs.forEach((id) => next.add(id));
+    return next;
+  });
+  return (
+    <table className="admin-table product-management-table">
+      <thead>
+        <tr>
+          {selectionEnabled && <th><input aria-label="选择当前页产品" checked={allCurrentSelected} type="checkbox" onChange={toggleCurrentPage} /></th>}
+          <th>产品</th>
+          <th>分类</th>
+          <th>发布状态</th>
+          <th>关联厂商</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((row) => {
+          const associated = row.associatedVendors || [];
+          const extra = Math.max(0, (row.associationCount || 0) - associated.length);
+          return (
+            <tr key={row.id}>
+              {selectionEnabled && <td data-label="选择"><input aria-label={`选择产品 ${row.name}`} checked={selectedIds.has(row.id)} type="checkbox" onChange={() => onSelectionChange((current) => { const next = new Set(current); if (next.has(row.id)) next.delete(row.id); else next.add(row.id); return next; })} /></td>}
+              <td data-label="产品"><strong>{row.name}</strong><small className="product-row-slug">{row.slug || `ID ${row.id}`}</small></td>
+              <td data-label="分类">{row.category?.name || "未分类"}</td>
+              <td data-label="发布状态"><span className={`publication-badge ${row.publicationStatus || "draft"}`}>{formatCell(row.publicationStatus, "publicationStatus")}</span></td>
+              <td data-label="关联厂商">
+                {associated.length ? <div className="associated-vendor-summary">{associated.map((vendor) => <span key={vendor.id}>{vendor.name}</span>)}{extra > 0 && <em>另有 {extra} 家</em>}<small>共 {row.associationCount || associated.length} 家</small></div> : <span className="unlinked-product-badge">未关联厂商</span>}
+              </td>
+              <td data-label="操作"><button type="button" onClick={() => onEdit(row)}>编辑</button>{onDelete && <button type="button" onClick={() => onDelete(row.id)}>删除</button>}</td>
+            </tr>
+          );
+        })}
       </tbody>
     </table>
   );
@@ -753,7 +867,8 @@ function payloadFromForm(fields: Field[], form: FormState) {
   return Object.fromEntries(fields.map((field) => [field.key, form[field.key]]));
 }
 
-function columnLabel(key: string) {
+function columnLabel(key: string, resource?: ResourceName) {
+	if (key === "slug" && resource === "vendors") return "厂商网站地址标识";
   return ({ id: "ID", name: "名称", title: "标题", slug: "URL 标识", province: "地区", menuType: "展示位置", path: "访问路径", publicationStatus: "发布状态", sortOrder: "排序", isEnabled: "启用", isVisible: "显示", isRecommended: "推荐" } as Record<string, string>)[key] || key;
 }
 

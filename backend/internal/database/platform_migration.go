@@ -3,6 +3,7 @@ package database
 import (
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -39,7 +40,7 @@ func BackfillPlatformData(db *gorm.DB) error {
 				return err
 			}
 			if old == "" {
-				_ = recordRedirect(tx, fmt.Sprintf("/vendors/%d", vendors[i].ID), "/vendors/"+vendors[i].Slug)
+				_ = recordRedirect(tx, fmt.Sprintf("/vendors/%d", vendors[i].ID), "/v/"+vendors[i].Slug)
 			}
 			if err := ensureInitialRevision(tx, "vendor", vendors[i].ID, vendors[i].ContentVersion, vendors[i]); err != nil {
 				return err
@@ -231,9 +232,48 @@ func EnsureVendorSlug(db *gorm.DB, item *model.Vendor) error {
 	}
 	item.Slug = uniqueSlug(db, "vendors", item.ID, firstNonEmptySlug(item.Slug, item.Name), "vendor")
 	if old != "" && old != item.Slug {
-		return recordRedirect(db, "/vendors/"+old, "/vendors/"+item.Slug)
+		if err := db.Model(&model.SEORedirect{}).Where("destination_path = ?", "/v/"+old).Update("destination_path", "/v/"+item.Slug).Error; err != nil {
+			return err
+		}
+		if err := recordRedirect(db, "/v/"+old, "/v/"+item.Slug); err != nil {
+			return err
+		}
+		if err := recordRedirect(db, "/vendors/"+old, "/v/"+item.Slug); err != nil {
+			return err
+		}
 	}
-	return nil
+	return recordRedirect(db, "/vendors/"+item.Slug, "/v/"+item.Slug)
+}
+
+var vendorSiteSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+
+// ValidateVendorSiteSlug keeps vendor-controlled site addresses predictable and
+// prevents a pending submission from silently being assigned a different URL.
+func ValidateVendorSiteSlug(db *gorm.DB, value string, vendorID uint) (string, error) {
+	slug, err := normalizeVendorSiteSlug(value)
+	if err != nil {
+		return "", err
+	}
+	var count int64
+	query := db.Model(&model.Vendor{}).Where("slug = ?", slug)
+	if vendorID > 0 {
+		query = query.Where("id <> ?", vendorID)
+	}
+	if err := query.Count(&count).Error; err != nil {
+		return "", err
+	}
+	if count > 0 {
+		return "", fmt.Errorf("该厂商网站地址标识已被使用")
+	}
+	return slug, nil
+}
+
+func normalizeVendorSiteSlug(value string) (string, error) {
+	slug := strings.ToLower(strings.TrimSpace(value))
+	if len(slug) == 0 || len(slug) > 72 || !vendorSiteSlugPattern.MatchString(slug) {
+		return "", fmt.Errorf("厂商网站地址标识仅支持小写英文、数字和连字符，且不能以连字符开头或结尾")
+	}
+	return slug, nil
 }
 
 func EnsureProductSlug(db *gorm.DB, item *model.Product) error {

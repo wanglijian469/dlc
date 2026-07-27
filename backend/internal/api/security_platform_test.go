@@ -3,7 +3,6 @@ package api
 import (
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -37,29 +36,6 @@ func TestRequireCSRFRejectsMissingToken(t *testing.T) {
 	router.ServeHTTP(rec, httptest.NewRequest(http.MethodPost, "/save", nil))
 	if rec.Code != http.StatusForbidden {
 		t.Fatalf("status = %d, want 403", rec.Code)
-	}
-}
-
-func TestEmergencyPublishReasonDecodesChineseHeader(t *testing.T) {
-	gin.SetMode(gin.TestMode)
-	router := gin.New()
-	router.Use(func(c *gin.Context) {
-		c.Set("role", "admin")
-		c.Next()
-	})
-	router.POST("/publish", func(c *gin.Context) {
-		if !requireEmergencyPublishReason(c, true) {
-			return
-		}
-		c.String(http.StatusOK, c.GetString("publishReason"))
-	})
-
-	req := httptest.NewRequest(http.MethodPost, "/publish", nil)
-	req.Header.Set("X-Publish-Reason", url.QueryEscape("资料已核对，允许上线"))
-	rec := httptest.NewRecorder()
-	router.ServeHTTP(rec, req)
-	if rec.Code != http.StatusOK || rec.Body.String() != "资料已核对，允许上线" {
-		t.Fatalf("status = %d body = %q", rec.Code, rec.Body.String())
 	}
 }
 
