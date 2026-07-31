@@ -27,8 +27,11 @@ import (
 )
 
 type AdminHandler struct {
-	DB     *gorm.DB
-	Config config.Config
+	DB               *gorm.DB
+	Config           config.Config
+	StaticPages      *StaticPageService
+	AccessProtection *AccessProtectionService
+	Watermarks       *WatermarkService
 }
 
 const (
@@ -724,6 +727,7 @@ func bindVendorImageAssets(db *gorm.DB, vendor *model.Vendor) error {
 	}{
 		{vendor.Logo, &vendor.LogoAssetID},
 		{vendor.CoverImage, &vendor.CoverAssetID},
+		{vendor.WechatQRCode, &vendor.WechatQRCodeAssetID},
 	} {
 		assetID := mediaAssetIDFromURL(item.url)
 		if assetID == 0 {
@@ -928,10 +932,7 @@ func upsertAdminProductSupplier(db *gorm.DB, product model.Product, vendorID uin
 }
 
 func publishProductMedia(db *gorm.DB, product model.Product) {
-	urls := []string{product.Image}
-	var gallery []string
-	_ = json.Unmarshal([]byte(product.GalleryRaw), &gallery)
-	urls = append(urls, gallery...)
+	urls := productMediaURLs(product)
 	ids := make([]uint, 0, len(urls))
 	for _, value := range urls {
 		if !strings.HasPrefix(value, "/api/media/") {
@@ -946,6 +947,19 @@ func publishProductMedia(db *gorm.DB, product model.Product) {
 		now := time.Now()
 		db.Model(&model.MediaAsset{}).Where("id IN ?", uniqueUintIDs(ids)).Updates(map[string]interface{}{"status": "published", "published_at": &now})
 	}
+}
+
+func productMediaURLs(product model.Product) []string {
+	urls := []string{product.Image}
+	var gallery []string
+	_ = json.Unmarshal([]byte(product.GalleryRaw), &gallery)
+	urls = append(urls, gallery...)
+	for _, spec := range product.Specs() {
+		if strings.TrimSpace(spec.Image) != "" {
+			urls = append(urls, spec.Image)
+		}
+	}
+	return urls
 }
 
 func savePage(c *gin.Context, db *gorm.DB, id uint) {

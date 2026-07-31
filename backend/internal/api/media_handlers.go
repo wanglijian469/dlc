@@ -183,7 +183,7 @@ func (h AdminHandler) assetBelongsToVendor(asset model.MediaAsset, vendorID uint
 		return true
 	}
 	var references int64
-	h.DB.Model(&model.Vendor{}).Where("id = ? AND (logo_asset_id = ? OR cover_asset_id = ?)", vendorID, asset.ID, asset.ID).Count(&references)
+	h.DB.Model(&model.Vendor{}).Where("id = ? AND (logo_asset_id = ? OR cover_asset_id = ? OR wechat_qr_code_asset_id = ?)", vendorID, asset.ID, asset.ID, asset.ID).Count(&references)
 	if references > 0 {
 		return true
 	}
@@ -204,18 +204,21 @@ func (h AdminHandler) assetBelongsToVendor(asset model.MediaAsset, vendorID uint
 
 func (h AdminHandler) PublicMedia(c *gin.Context) {
 	var asset model.MediaAsset
-	if err := h.DB.First(&asset, "id = ? AND status = ?", c.Param("id"), "published").Error; err != nil {
+	if err := h.DB.First(&asset, c.Param("id")).Error; err != nil {
 		Fail(c, 404, 404, "图片不存在")
 		return
 	}
 	var references int64
 	h.DB.Model(&model.Vendor{}).Where("(logo_asset_id = ? OR cover_asset_id = ?) AND is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", asset.ID, asset.ID, true, "published", time.Now()).Count(&references)
 	if references == 0 {
+		h.DB.Model(&model.Vendor{}).Where("wechat_qr_code_asset_id = ? AND wechat_public = ? AND is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", asset.ID, true, true, "published", time.Now()).Count(&references)
+	}
+	if references == 0 {
 		h.DB.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.asset_id = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", asset.ID, true, "published").Count(&references)
 	}
 	url := fmt.Sprintf("/api/media/%d", asset.ID)
 	if references == 0 {
-		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?) AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= ?))", "published", time.Now(), url, "%"+url+"%", time.Now()).Count(&references)
+		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?) AND (products.image = ? OR products.gallery LIKE ? OR products.specs LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= ?))", "published", time.Now(), url, "%"+url+"%", "%"+url+"%", time.Now()).Count(&references)
 		if references == 0 {
 			h.DB.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&references)
 		}
@@ -231,6 +234,16 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 		return
 	}
 	c.Header("Cache-Control", "public, max-age=86400")
-	c.Header("Content-Type", asset.MIME)
-	c.File(filepath.Join(h.Config.MediaDir, asset.StorageKey))
+	publicPath := filepath.Join(h.Config.MediaDir, asset.StorageKey)
+	publicMIME := asset.MIME
+	if h.Watermarks != nil {
+		var err error
+		publicPath, publicMIME, err = h.Watermarks.PublicPath(&asset)
+		if err != nil {
+			Fail(c, http.StatusServiceUnavailable, 503, "公开图片生成失败，请稍后重试")
+			return
+		}
+	}
+	c.Header("Content-Type", publicMIME)
+	c.File(publicPath)
 }

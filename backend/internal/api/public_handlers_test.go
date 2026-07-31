@@ -141,6 +141,28 @@ func TestMaskPhoneKeepsOnlyEnoughDigitsForRecognition(t *testing.T) {
 	}
 }
 
+func TestRedactVendorRespectsPerFieldPublicSettings(t *testing.T) {
+	vendor := model.Vendor{
+		Phone: "13812345678", Wechat: "secret-wechat", WechatQRCode: "/api/media/12", WechatQRCodeAssetID: uintPointer(12), ContactName: "王经理",
+		PhonePublic: false, WechatPublic: true, ContactNamePublic: false,
+	}
+	redactVendor(&vendor)
+	if vendor.Phone != "138******78" || vendor.Wechat != "secret-wechat" || vendor.WechatQRCode != "/api/media/12" || vendor.ContactName != "" {
+		t.Fatalf("unexpected public contact payload: %#v", vendor)
+	}
+	if !vendor.PhoneAvailable || !vendor.WechatAvailable || !vendor.ContactNameAvailable {
+		t.Fatalf("availability flags not preserved: %#v", vendor)
+	}
+
+	vendor.WechatPublic = false
+	redactVendor(&vendor)
+	if vendor.Wechat != "" || vendor.WechatQRCode != "" || vendor.WechatQRCodeAssetID != nil || !vendor.WechatAvailable {
+		t.Fatalf("private WeChat data leaked or availability was lost: %#v", vendor)
+	}
+}
+
+func uintPointer(value uint) *uint { return &value }
+
 func routeExists(routes gin.RoutesInfo, method string, path string) bool {
 	for _, route := range routes {
 		if route.Method == method && route.Path == path {

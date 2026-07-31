@@ -17,6 +17,18 @@ export const vendorFieldGuidance = {
 } as const;
 
 export const productFieldGuidance = {
+	name: "建议 8–30 字；示例：联合收割机传动链条总成",
+	image: "建议上传 1:1 清晰主图（JPG、PNG 或 WebP），主体居中且不含联系方式水印",
+	categoryId: "按产品主要用途选择最贴近的末级分类；示例：传动配件 / 液压系统配件",
+	compatibleModels: "建议 10–60 字，写清品牌、系列与机型；示例：适配雷沃谷神 GE60、GE70 系列联合收割机",
+	seoTitle: "建议 18–32 字；示例：联合收割机传动链条总成｜耐磨农机配件",
+	seoDescription: "建议 60–120 字，概括适配机型、材质和采购价值；示例：适配雷沃谷神系列收割机，合金钢链条总成，支持批量询价与型号确认。",
+	galleryRaw: "建议补充 3–6 张细节、尺寸、包装或安装场景图；图片应与当前产品一致",
+	specsRaw: "建议至少填写 3 项可核实参数；可为每项拍照上传铭牌、尺寸或材质图片。示例：材质｜20CrMnTi、节距｜38.1 mm、重量｜2.6 kg",
+	priceNote: "建议 8–40 字；示例：面议，100 件起订可按数量报价",
+	inquiryText: "建议 2–8 字；示例：立即询价、联系厂家",
+	inquiryPath: "填写站内路径；示例：/v/hanfeng-parts 或 /products/chain-assembly",
+	sortOrder: "数字越小越靠前；建议从 0 或 10 开始，便于后续插入排序",
   description: "建议 40–80 字，概括产品用途、材质和核心特点；示例：适用于联合收割机传动系统，采用优质合金钢，耐磨损、运行稳定",
   detailContent: "建议 100–300 字，分段说明适配范围、规格材质、性能特点、安装方法及维护注意事项",
 } as const;

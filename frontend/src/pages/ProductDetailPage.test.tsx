@@ -72,4 +72,38 @@ describe("ProductDetailPage", () => {
     expect(breadcrumbs.querySelector('a[href="/products?categoryId=5"]')).toHaveTextContent("液压系统配件");
     expect(mockedGetProduct).toHaveBeenCalledWith("7");
   });
+
+  it("uses static-page preload data without requesting detail APIs", async () => {
+    vi.clearAllMocks();
+    const node = document.createElement("script");
+    node.id = "static-page-data";
+    node.type = "application/json";
+    node.textContent = JSON.stringify({
+      kind: "product",
+      slug: "static-pump",
+      layout: {},
+      product: {
+        id: 12,
+        slug: "static-pump",
+        name: "静态液压泵",
+        categoryId: 5,
+        specs: [{ name: "压力", value: "20MPa" }],
+      },
+      suppliers: [],
+      related: [],
+    });
+    document.body.appendChild(node);
+
+    render(
+      <MemoryRouter initialEntries={["/products/static-pump"]}>
+        <Routes><Route element={<ProductDetailPage />} path="/products/:id" /></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "静态液压泵", level: 1 })).toBeInTheDocument();
+    expect(mockedGetProduct).not.toHaveBeenCalled();
+    expect(mockedGetProductSuppliers).not.toHaveBeenCalled();
+    expect(mockedListProducts).not.toHaveBeenCalled();
+    node.remove();
+  });
 });

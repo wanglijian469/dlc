@@ -319,3 +319,153 @@ export function updateCMSUser(id: number, payload: { username: string; password?
 export function deleteCMSUser(id: number) {
   return adminClient.delete<never, { deleted: boolean }>(`/api/admin/users/${id}`);
 }
+
+export type StaticPageBuildStatus = "unbuilt" | "generating" | "ready" | "stale" | "failed";
+
+export interface StaticPageResourceStatus {
+  resourceType: "vendor" | "product";
+  resourceId: number;
+  status: StaticPageBuildStatus;
+  slug?: string;
+  path?: string;
+  errorMessage?: string;
+  generatedAt?: string;
+  canGenerate: boolean;
+}
+
+export interface StaticBuildJob {
+  id: number;
+  scope: "single" | "all";
+  resourceType?: "vendor" | "product";
+  resourceIds?: number[];
+  status: "queued" | "running" | "completed" | "failed";
+  total: number;
+  processed: number;
+  succeeded: number;
+  failed: number;
+  errors?: string[];
+  requestedBy: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface StaticPageSummary {
+  available: boolean;
+  enabled: boolean;
+  counts: Record<StaticPageBuildStatus, number>;
+  latestJob?: StaticBuildJob;
+  outputDir: string;
+}
+
+export function getStaticPageSummary() {
+  return adminClient.get<never, StaticPageSummary>("/api/admin/static-pages/status");
+}
+
+export function updateStaticPageSettings(enabled: boolean) {
+  return adminClient.put<never, StaticPageSummary>("/api/admin/static-pages/settings", { enabled });
+}
+
+export function getStaticPageResourceStatuses(resourceType: "vendor" | "product", ids: number[]) {
+  return adminClient.get<never, StaticPageResourceStatus[]>("/api/admin/static-pages/resources", {
+    params: { resourceType, ids: ids.join(",") },
+  });
+}
+
+export function createStaticBuildJob(payload: { scope: "single" | "all"; resourceType?: "vendor" | "product"; resourceIds?: number[] }) {
+  return adminClient.post<never, StaticBuildJob>("/api/admin/static-pages/jobs", payload);
+}
+
+export function getStaticBuildJob(id: number) {
+  return adminClient.get<never, StaticBuildJob>(`/api/admin/static-pages/jobs/${id}`);
+}
+
+export interface ProtectionConfig {
+  enabled: boolean;
+  auditOnly: boolean;
+  windowMinutes: number;
+  distinctResourceLimit: number;
+  blockHours: number;
+  escalationStrikes: number;
+  escalatedBlockHours: number;
+  blockedAiAgents: string[];
+  allowCidrs: string[];
+  watermarkEnabled: boolean;
+  watermarkOpacity: number;
+  watermarkText: string;
+}
+
+export interface ProtectionStatus {
+  config: ProtectionConfig;
+  activeBlocks: number;
+  events24h: number;
+  contactViewsToday: number;
+  latestWatermarkJob?: WatermarkBuildJob;
+}
+
+export interface ScrapeRiskEvent {
+  id: number;
+  clientKeyHash: string;
+  ipPrefix: string;
+  path: string;
+  resourceType: string;
+  resourceKey: string;
+  action: "would_block" | "blocked";
+  reason: string;
+  createdAt: string;
+}
+
+export interface ScrapeClientBlock {
+  id: number;
+  clientKeyHash: string;
+  ipPrefix: string;
+  reason: string;
+  strikes: number;
+  blockedUntil: string;
+  releasedAt?: string;
+  manual: boolean;
+}
+
+export function getProtectionStatus() {
+  return adminClient.get<never, ProtectionStatus>("/api/admin/access-protection/status");
+}
+
+export function updateProtectionConfig(config: ProtectionConfig) {
+  return adminClient.put<never, ProtectionConfig>("/api/admin/access-protection/config", config);
+}
+
+export function listProtectionEvents(page = 1) {
+  return adminClient.get<never, PageResult<ScrapeRiskEvent>>("/api/admin/access-protection/events", { params: { page, pageSize: 20 } });
+}
+
+export function listProtectionBlocks(page = 1) {
+  return adminClient.get<never, PageResult<ScrapeClientBlock>>("/api/admin/access-protection/blocks", { params: { page, pageSize: 20 } });
+}
+
+export function releaseProtectionBlock(id: number) {
+  return adminClient.post<never, { released: boolean }>(`/api/admin/access-protection/blocks/${id}/release`);
+}
+
+export function createProtectionBlock(clientKeyHash: string, hours = 24, reason = "管理员根据风险记录手动封禁") {
+  return adminClient.post<never, ScrapeClientBlock>("/api/admin/access-protection/blocks", { clientKeyHash, hours, reason });
+}
+
+export interface WatermarkBuildJob {
+  id: number;
+  status: "queued" | "running" | "completed" | "completed_with_error" | "failed";
+  total: number;
+  processed: number;
+  succeeded: number;
+  skipped: number;
+  failed: number;
+  error?: string;
+  startedAt?: string;
+  finishedAt?: string;
+}
+
+export function createWatermarkBuildJob() {
+  return adminClient.post<never, WatermarkBuildJob>("/api/admin/access-protection/watermarks/jobs");
+}
+
+export function getWatermarkBuildJob(id: number) {
+  return adminClient.get<never, WatermarkBuildJob>(`/api/admin/access-protection/watermarks/jobs/${id}`);
+}

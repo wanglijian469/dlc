@@ -30,7 +30,7 @@ LockPersonality=true
 MemoryDenyWriteExecute=true
 CapabilityBoundingSet=
 AmbientCapabilities=
-ReadWritePaths=/var/lib/dalu-parts/media_storage
+ReadWritePaths=/var/lib/dalu-parts/media_storage /var/lib/dalu-parts/static-pages
 
 [Install]
 WantedBy=multi-user.target

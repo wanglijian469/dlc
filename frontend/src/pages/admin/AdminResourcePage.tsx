@@ -34,6 +34,8 @@ import { AdminCategoriesPage } from "./AdminCategoriesPage";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { getApiErrorMessage } from "../../api/client";
 import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
+import { StaticPageManager, StaticPageStatusCell, useStaticPageStatuses } from "../../components/admin/StaticPageControls";
+import { AccessProtectionManager } from "../../components/admin/AccessProtectionManager";
 
 type FormValue = string | number | boolean | number[] | VendorMedia[];
 type FormState = Record<string, FormValue>;
@@ -108,8 +110,12 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "reviewStatus", label: "复核状态", type: "select", options: reviewStatusOptions },
       { key: "websiteUrl", label: "厂商官网 URL" },
       { key: "phone", label: "联系电话" },
+      { key: "phonePublic", label: "电话公开展示", type: "checkbox", description: "公开后会直接出现在前台和静态页面中，可能被搜索引擎和第三方采集。" },
       { key: "wechat", label: "微信" },
+      { key: "wechatQrCode", label: "微信二维码", type: "image", description: "请上传清晰的正方形 PNG、JPG 或 WebP 图片；公开范围跟随“微信公开展示”。" },
+      { key: "wechatPublic", label: "微信公开展示", type: "checkbox", description: "公开后会直接出现在前台和静态页面中，可能被搜索引擎和第三方采集。" },
       { key: "contactName", label: "联系人" },
+      { key: "contactNamePublic", label: "联系人公开展示", type: "checkbox", description: "公开后会直接出现在前台和静态页面中，可能被搜索引擎和第三方采集。" },
       { key: "tagIds", label: "配件厂商标签", type: "checkbox-group", refResource: "tags", optionTagType: "vendor", group: "展示信息", description: "用于标识厂商经营与展示属性，可多选。" },
       { key: "isRecommended", label: "推荐厂商", type: "checkbox", description: "在推荐厂商区域优先展示" },
       { key: "isVerified", label: "平台认证", type: "checkbox", description: "在前台显示认证标识" },
@@ -216,6 +222,17 @@ const processingVendorFields: Field[] = [
 
 extendProcessingSchemas();
 extendSEOSchemas();
+extendProductGuidance();
+
+function extendProductGuidance() {
+	const structuredFields = new Set(["image", "categoryId", "galleryRaw", "specsRaw"]);
+	for (const field of schemas.products.fields) {
+		const guidance = productFieldGuidance[field.key as keyof typeof productFieldGuidance];
+		if (!guidance) continue;
+		field.placeholder = guidance;
+		if (structuredFields.has(field.key)) field.description = guidance;
+	}
+}
 
 function extendSEOSchemas() {
   (["vendors", "products", "categories"] as ResourceName[]).forEach((resource) => {
@@ -439,8 +456,11 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
       {editorOpen && <AdminModal label={`${editingId ? "编辑" : "新增"}${schema.title}`} onClose={() => setEditorOpen(false)}><header><div><span>{editingId ? "编辑记录" : "新增记录"}</span><h2>{schema.title}</h2></div><button aria-label="关闭编辑器" type="button" onClick={() => setEditorOpen(false)}><X size={20} /></button></header>{message && <p className="admin-message admin-editor-message">{message}</p>}<form className="admin-form admin-grouped-form" onSubmit={submit}>
         {groupFields(name, schema.fields).map((group) => name === "vendors" && group.title === "SEO 优化建议" ? <fieldset className="vendor-seo-workbench" key={group.title}><legend>{group.title}</legend><VendorSEOEditor form={form} setForm={setForm} /></fieldset> : <fieldset key={group.title}><legend>{group.title}</legend><div className="admin-field-grid">{group.fields.map((field) => {
           const fieldWide = ["textarea", "gallery", "specs", "blocks", "checkbox-group"].includes(field.type || "");
+          const structuredEditor = ["gallery", "specs", "blocks"].includes(field.type || "");
           if (field.type === "checkbox-group") return <div className={`admin-checkbox-group-field ${fieldWide ? "field-wide" : ""}`} key={`${field.key}-${field.optionTagType || "all"}`}><strong>{field.label}</strong>{field.description && <small>{field.description}</small>}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></div>;
           if (field.type === "checkbox" && field.description) return <label className="admin-toggle-field" key={field.key}><FieldInput field={field} form={form} refs={refs} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.description}</small></span></label>;
+          if (structuredEditor) return <div className={`admin-guided-field ${fieldWide ? "field-wide" : ""}`} key={field.key}><FieldInput field={field} form={form} refs={refs} setForm={setForm} />{field.description && <small className="field-guidance">{field.description}</small>}</div>;
+          if (field.description) return <div className={`admin-guided-field ${fieldWide ? "field-wide" : ""}`} key={field.key}><label>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label><small className="field-guidance">{field.description}</small></div>;
           return <label className={fieldWide ? "field-wide" : ""} key={field.key}>{field.label}<FieldInput field={field} form={form} refs={refs} setForm={setForm} /></label>;
         })}</div></fieldset>)}
         {name === "vendors" && <fieldset><legend>企业图集</legend><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></fieldset>}
@@ -616,7 +636,7 @@ function ImageField({ field, form, setForm }: { field: Field; form: FormState; s
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState("");
   const value = String(form[field.key] ?? "");
-  const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : undefined;
+  const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : field.key === "wechatQrCode" ? "wechatQrCodeAssetId" : undefined;
   const mediaMatch = value.match(/^\/api\/media\/(\d+)$/);
   const canDownload = /^https?:\/\//i.test(value);
 
@@ -645,6 +665,7 @@ function ImageField({ field, form, setForm }: { field: Field; form: FormState; s
           }}
         />
         <button className="outline-btn small" disabled={!canDownload || downloading} onClick={useLocalCopy} type="button">{downloading ? "正在下载…" : "下载到本地"}</button>
+        {value && <button className="outline-btn small danger" onClick={() => setForm({ ...form, [field.key]: "", ...(assetKey ? { [assetKey]: "" } : {}) })} type="button">删除图片</button>}
       </div>
       {downloadError && <small className="image-download-error">{downloadError}</small>}
       {value && <div className="image-field-preview"><span>{field.label} 图片预览</span><ProtectedMediaImage alt={`${field.label} 图片预览`} assetId={assetKey ? Number(form[assetKey] || 0) || (mediaMatch ? Number(mediaMatch[1]) : undefined) : mediaMatch ? Number(mediaMatch[1]) : undefined} src={value} /></div>}
@@ -673,6 +694,8 @@ function numericSelect(field: Field) {
 function ResourceTable({ resource, rows, onEdit, onDelete, categoryManagedMenuIDs }: { resource: ResourceName; rows: ResourceRecord[]; onEdit: (row: ResourceRecord) => void; onDelete?: (id: number) => void; categoryManagedMenuIDs?: Set<number> }) {
   const keys = useMemo(() => Object.keys(rows[0] || {}).filter((key) => ["id", "name", "title", "slug", "province", "menuType", "path", "publicationStatus", "sortOrder", "isEnabled", "isVisible", "isRecommended"].includes(key)), [rows]);
 	const showSource = categoryManagedMenuIDs !== undefined;
+  const showStaticPages = resource === "vendors" && localStorage.getItem("cms_role") === "admin";
+  const staticPages = useStaticPageStatuses("vendor", rows.map((row) => row.id), showStaticPages);
   return (
     <table className="admin-table">
       <thead>
@@ -681,6 +704,7 @@ function ResourceTable({ resource, rows, onEdit, onDelete, categoryManagedMenuID
             <th key={key}>{columnLabel(key, resource)}</th>
           ))}
 			{showSource && <th>来源</th>}
+          {showStaticPages && <th>静态页面</th>}
           <th>操作</th>
         </tr>
       </thead>
@@ -691,6 +715,7 @@ function ResourceTable({ resource, rows, onEdit, onDelete, categoryManagedMenuID
               <td data-label={columnLabel(key, resource)} key={key}>{formatCell((row as unknown as Record<string, unknown>)[key], key)}</td>
             ))}
 			{showSource && <td data-label="来源">{categoryManagedMenuIDs.has(row.id) ? <span className="category-derived-badge">分类生成</span> : "人工维护"}</td>}
+            {showStaticPages && <td data-label="静态页面"><StaticPageStatusCell generating={staticPages.generatingId === row.id} status={staticPages.statuses[row.id]} onGenerate={() => void staticPages.generate(row.id)} /></td>}
             <td data-label="操作">
 				{categoryManagedMenuIDs?.has(row.id) ? <span className="category-derived-note">请到“配件分类”维护</span> : <><button type="button" onClick={() => onEdit(row)}>编辑</button>{onDelete && <button type="button" onClick={() => onDelete(row.id)}>删除</button>}</>}
             </td>
@@ -716,6 +741,8 @@ function ProductResourceTable({
   onEdit: (row: Product) => void;
   onDelete?: (id: number) => void;
 }) {
+  const showStaticPages = localStorage.getItem("cms_role") === "admin";
+  const staticPages = useStaticPageStatuses("product", rows.map((row) => row.id), showStaticPages);
   const currentIDs = rows.map((row) => row.id);
   const allCurrentSelected = currentIDs.length > 0 && currentIDs.every((id) => selectedIds.has(id));
   const toggleCurrentPage = () => onSelectionChange((current) => {
@@ -733,6 +760,7 @@ function ProductResourceTable({
           <th>分类</th>
           <th>发布状态</th>
           <th>关联厂商</th>
+          {showStaticPages && <th>静态页面</th>}
           <th>操作</th>
         </tr>
       </thead>
@@ -749,6 +777,7 @@ function ProductResourceTable({
               <td data-label="关联厂商">
                 {associated.length ? <div className="associated-vendor-summary">{associated.map((vendor) => <span key={vendor.id}>{vendor.name}</span>)}{extra > 0 && <em>另有 {extra} 家</em>}<small>共 {row.associationCount || associated.length} 家</small></div> : <span className="unlinked-product-badge">未关联厂商</span>}
               </td>
+              {showStaticPages && <td data-label="静态页面"><StaticPageStatusCell generating={staticPages.generatingId === row.id} status={staticPages.statuses[row.id]} onGenerate={() => void staticPages.generate(row.id)} /></td>}
               <td data-label="操作"><button type="button" onClick={() => onEdit(row)}>编辑</button>{onDelete && <button type="button" onClick={() => onDelete(row.id)}>删除</button>}</td>
             </tr>
           );
@@ -758,12 +787,14 @@ function ProductResourceTable({
   );
 }
 
-type ConfigSection = "site" | "home" | "theme";
+type ConfigSection = "site" | "home" | "theme" | "static" | "security";
 
 const configSections: Array<{ key: ConfigSection; label: string; description: string; keys: string[] }> = [
   { key: "site", label: "站点与页脚", description: "品牌、页脚版权与备案信息", keys: ["site.meta"] },
   { key: "home", label: "首页展示", description: "管理当前前台实际展示的厂商与加工服务模块", keys: ["home.modules"] },
   { key: "theme", label: "主题样式", description: "前台主色与强调色", keys: ["site.theme"] },
+  { key: "static", label: "静态化与缓存", description: "手动生成厂商与产品公开静态页，管理更新与失败状态", keys: [] },
+  { key: "security", label: "访问与采集防护", description: "管理行为识别、封禁、AI 爬虫规则、联系方式额度和公开图片水印", keys: [] },
 ];
 
 function ConfigPage() {
@@ -787,7 +818,11 @@ function ConfigPage() {
         </nav>
       </section>
       <div className="config-list">
-        {visibleRows.map((row) => row.configKey === "home.modules" || row.configKey === "site.theme" ? <AdvancedConfigEditor key={row.configKey} row={row} onMessage={setMessage} /> : <ReadableConfigEditor key={row.configKey} row={row} onMessage={setMessage} />)}
+        {activeSection === "static"
+          ? <StaticPageManager />
+          : activeSection === "security"
+            ? <AccessProtectionManager />
+            : visibleRows.map((row) => row.configKey === "home.modules" || row.configKey === "site.theme" ? <AdvancedConfigEditor key={row.configKey} row={row} onMessage={setMessage} /> : <ReadableConfigEditor key={row.configKey} row={row} onMessage={setMessage} />)}
       </div>
     </AdminLayout>
   );
@@ -845,7 +880,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
       if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds"].includes(key)) return "展示信息";
       if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "afterSalesService"].includes(key)) return "生产与服务";
       if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
-      if (["websiteUrl", "phone", "wechat", "contactName"].includes(key)) return "联系方式";
+      if (["websiteUrl", "phone", "phonePublic", "wechat", "wechatQrCode", "wechatPublic", "contactName", "contactNamePublic"].includes(key)) return "联系方式";
       if (["seoTitle", "seoDescription", "seoTitleManual", "seoDescriptionManual"].includes(key)) return "SEO 优化建议";
       return "平台状态";
     }

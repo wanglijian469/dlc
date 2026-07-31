@@ -2,7 +2,8 @@
 
 This package targets Alibaba Cloud Linux 3.2104 LTS x86_64.
 
-1. Read `docs/INSTALL.md`.
+1. For a new host, read `docs/INSTALL.md`; for an existing installation, read
+   `docs/UPGRADE.md` and run `sudo ./scripts/upgrade.sh`.
 2. Verify/install MySQL Community 8.0.46 and create the application account.
 3. Run `sudo ./scripts/install-layout.sh`.
 4. Edit `/etc/dalu-parts/dlc.env`, run `scripts/migrate.sh`, configure the

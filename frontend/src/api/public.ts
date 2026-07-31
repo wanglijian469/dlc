@@ -34,6 +34,18 @@ export function getVendor(slug: string) {
   return publicClient.get<never, Vendor>(path);
 }
 
+export interface VendorContact {
+  vendorId: number;
+  phone?: string;
+  wechat?: string;
+  wechatQrCodeUrl?: string;
+  contactName?: string;
+}
+
+export function getVendorContact(vendorId: number) {
+  return publicClient.get<never, VendorContact>(`/api/vendors/${vendorId}/contact`);
+}
+
 export function getProduct(slug: string) {
   const path = /^\d+$/.test(slug) ? `/api/products/${slug}` : `/api/products/slug/${encodeURIComponent(slug)}`;
   return publicClient.get<never, Product>(path);

@@ -19,6 +19,7 @@ id dlc >/dev/null 2>&1 || useradd \
 install -d -o root -g root -m 0755 /opt/dalu-parts
 install -d -o root -g dlc -m 0750 /etc/dalu-parts
 install -d -o dlc -g dlc -m 0750 /var/lib/dalu-parts/media_storage
+install -d -o dlc -g dlc -m 0750 /var/lib/dalu-parts/static-pages
 install -d -o root -g root -m 0755 /opt/dalu-parts/public
 
 install -o root -g root -m 0755 "${PACKAGE_ROOT}/server" /opt/dalu-parts/server

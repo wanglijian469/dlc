@@ -1,5 +1,19 @@
 # Alibaba Cloud Linux 3.2104 LTS x86_64 deployment
 
+## 0. Extract the release package
+
+Upload the `tar.gz` release to the Linux host, extract it in a temporary
+directory, verify its contents, and enable its executable files. This `chmod`
+step is required when the package was created on Windows.
+
+```bash
+cd /tmp
+tar -xzf dlc-deploy-linux-x86_64-v2026.07.30-linux.1.tar.gz
+cd dlc-deploy-linux-x86_64-v2026.07.30-linux.1
+chmod +x server initdb scripts/*.sh
+sha256sum -c SHA256SUMS
+```
+
 ## 1. Host and network prerequisites
 
 - Use Alibaba Cloud Linux 3.2104 LTS x86_64 with current security updates.
@@ -69,7 +83,8 @@ The standard paths are:
 Replace every `CHANGE_ME`, set the formal HTTPS origin, and generate the
 signing secret with `openssl rand -hex 32`. Keep
 `HTTP_ADDR=127.0.0.1:8080`, `TRUSTED_PROXY_CIDRS=127.0.0.1,::1`, and
-`RUN_MIGRATIONS=false`. The environment-file syntax does not support arbitrary
+`RUN_MIGRATIONS=false` and use
+`STATIC_PAGE_DIR=/var/lib/dalu-parts/static-pages`. The environment-file syntax does not support arbitrary
 shell expressions; use literal values without newlines.
 
 ## 4. Initialize and migrate the database
@@ -124,7 +139,7 @@ sudo journalctl -u dalu-parts -n 100 --no-pager
 Verify the HTTPS home page, `/api/health`, admin login, media upload, restart
 persistence, HTTP-to-HTTPS redirect, and that ports 3306/8080 are not public.
 The systemd sandbox makes the service filesystem read-only except for the
-media directory.
+media and generated-static-page directories.
 
 ## 7. Firewall
 

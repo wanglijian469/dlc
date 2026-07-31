@@ -159,11 +159,7 @@ func (h AdminHandler) ApproveRevision(c *gin.Context) {
 	if !ok {
 		return
 	}
-	username, role := c.GetString("username"), c.GetString("role")
-	if revision.AuthorUsername == username && (role != "admin" || strings.TrimSpace(req.Note) == "") {
-		Fail(c, http.StatusForbidden, 403, "不能审核自己的修改；管理员紧急发布必须填写原因")
-		return
-	}
+	username := c.GetString("username")
 	if req.ScheduledAt != nil && req.ScheduledAt.After(time.Now()) {
 		updates := map[string]any{"status": "scheduled", "reviewer": username, "review_note": strings.TrimSpace(req.Note), "scheduled_at": req.ScheduledAt}
 		if err := h.DB.Model(&revision).Updates(updates).Error; err != nil {
@@ -230,11 +226,15 @@ func (h AdminHandler) reviewableRevision(c *gin.Context) (model.ContentRevision,
 		Fail(c, http.StatusConflict, 409, "修订当前不在审核中")
 		return revision, false
 	}
-	if revision.AuthorUsername == c.GetString("username") && c.GetString("role") != "admin" {
+	if !revisionReviewAllowed(revision.AuthorUsername, c.GetString("username"), c.GetString("role")) {
 		Fail(c, http.StatusForbidden, 403, "不能审核、退回或撤下自己的修改")
 		return revision, false
 	}
 	return revision, true
+}
+
+func revisionReviewAllowed(authorUsername, reviewerUsername, reviewerRole string) bool {
+	return authorUsername != reviewerUsername || reviewerRole == "admin"
 }
 
 func validRevisionType(value string) bool {
@@ -346,12 +346,15 @@ func applyRevisionSnapshot(tx *gorm.DB, revision *model.ContentRevision, version
 				return err
 			}
 		}
-		assetIDs := make([]uint, 0, len(media)+2)
+		assetIDs := make([]uint, 0, len(media)+3)
 		if item.LogoAssetID != nil {
 			assetIDs = append(assetIDs, *item.LogoAssetID)
 		}
 		if item.CoverAssetID != nil {
 			assetIDs = append(assetIDs, *item.CoverAssetID)
+		}
+		if item.WechatQRCodeAssetID != nil {
+			assetIDs = append(assetIDs, *item.WechatQRCodeAssetID)
 		}
 		for _, entry := range media {
 			if entry.AssetID != nil {

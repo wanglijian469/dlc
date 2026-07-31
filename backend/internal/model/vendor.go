@@ -45,7 +45,15 @@ type Vendor struct {
 	WebsiteURL           string         `gorm:"size:255" json:"websiteUrl"`
 	Phone                string         `gorm:"size:50" json:"phone"`
 	Wechat               string         `gorm:"size:100" json:"wechat"`
+	WechatQRCode         string         `gorm:"size:255" json:"wechatQrCode"`
+	WechatQRCodeAssetID  *uint          `gorm:"index" json:"wechatQrCodeAssetId,omitempty"`
 	ContactName          string         `gorm:"size:50" json:"contactName"`
+	PhonePublic          bool           `gorm:"not null;default:false" json:"phonePublic"`
+	WechatPublic         bool           `gorm:"not null;default:false" json:"wechatPublic"`
+	ContactNamePublic    bool           `gorm:"not null;default:false" json:"contactNamePublic"`
+	PhoneAvailable       bool           `gorm:"-" json:"phoneAvailable"`
+	WechatAvailable      bool           `gorm:"-" json:"wechatAvailable"`
+	ContactNameAvailable bool           `gorm:"-" json:"contactNameAvailable"`
 	IsRecommended        bool           `gorm:"default:false;index" json:"isRecommended"`
 	IsVerified           bool           `gorm:"default:false" json:"isVerified"`
 	IsVisible            bool           `gorm:"default:true;index" json:"isVisible"`

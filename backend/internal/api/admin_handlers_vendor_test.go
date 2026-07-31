@@ -28,6 +28,17 @@ func TestMediaAssetIDFromURL(t *testing.T) {
 	}
 }
 
+func TestProductMediaURLsIncludesSpecificationImages(t *testing.T) {
+	product := model.Product{
+		Image:      "/api/media/1",
+		GalleryRaw: `["/api/media/2"]`,
+		SpecsRaw:   `[{"name":"铭牌","value":"见图","image":"/api/media/3"}]`,
+	}
+	if got, want := productMediaURLs(product), []string{"/api/media/1", "/api/media/2", "/api/media/3"}; !reflect.DeepEqual(got, want) {
+		t.Fatalf("productMediaURLs() = %#v, want %#v", got, want)
+	}
+}
+
 func TestNormalizeVendorReviewStatusDefaultsBlankToPending(t *testing.T) {
 	vendor := model.Vendor{Name: "河北冀农农机具有限公司"}
 	if err := normalizeVendorReviewStatus(&vendor); err != nil {
@@ -81,5 +92,15 @@ func TestVendorProcessingFieldsBindToAdminPayload(t *testing.T) {
 	}
 	if vendor.ProcessingNotes != "来图来样均可" {
 		t.Fatalf("ProcessingNotes = %q", vendor.ProcessingNotes)
+	}
+}
+
+func TestApplyVendorEditableFieldsIncludesWechatQRCode(t *testing.T) {
+	assetID := uint(42)
+	source := model.Vendor{WechatQRCode: "/api/media/42", WechatQRCodeAssetID: &assetID, WechatPublic: true}
+	var target model.Vendor
+	applyVendorEditableFields(&target, source)
+	if target.WechatQRCode != source.WechatQRCode || target.WechatQRCodeAssetID == nil || *target.WechatQRCodeAssetID != assetID || !target.WechatPublic {
+		t.Fatalf("WeChat QR fields were not copied: %#v", target)
 	}
 }

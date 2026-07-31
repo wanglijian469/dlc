@@ -1,17 +1,19 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getHome, getVendor, listProducts } from "../api/public";
+import { getHome, getVendor, getVendorContact, listProducts } from "../api/public";
 import { VendorDetailPage } from "./VendorDetailPage";
 
 vi.mock("../api/public", () => ({
   getHome: vi.fn(),
   getVendor: vi.fn(),
+  getVendorContact: vi.fn(),
   listProducts: vi.fn(),
 }));
 
 const mockedGetHome = vi.mocked(getHome);
 const mockedGetVendor = vi.mocked(getVendor);
+const mockedGetVendorContact = vi.mocked(getVendorContact);
 const mockedListProducts = vi.mocked(listProducts);
 
 function renderDetail(path = "/vendors/8") {
@@ -133,5 +135,47 @@ describe("VendorDetailPage", () => {
 		await screen.findByRole("heading", { name: "测试厂商", level: 1 });
 		expect(mockedGetVendor).toHaveBeenCalledWith("hanfeng-parts");
 	});
+
+  it("reveals protected contact only after an authenticated contact request", async () => {
+    mockedGetVendor.mockResolvedValue({
+      id: 8,
+      name: "测试厂商",
+      phone: "138******78",
+      phonePublic: false,
+      phoneAvailable: true,
+    });
+    mockedGetVendorContact.mockResolvedValue({
+      vendorId: 8,
+      phone: "13812345678",
+      wechat: "hanfeng-parts",
+      wechatQrCodeUrl: "/api/vendors/8/contact-qr",
+    });
+    renderDetail();
+    const buttons = await screen.findAllByRole("button", { name: /登录查看完整?联系方式/ });
+    fireEvent.click(buttons[0]);
+    expect(await screen.findByRole("link", { name: "13812345678" })).toHaveAttribute("href", "tel:13812345678");
+    expect(screen.getByText("hanfeng-parts")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "测试厂商 微信二维码" })).toHaveAttribute("src", "/api/vendors/8/contact-qr");
+    expect(screen.queryByText(/今日还可查看/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /复制电话|复制微信/ })).not.toBeInTheDocument();
+    expect(mockedGetVendorContact).toHaveBeenCalledWith(8);
+  });
+
+  it("shows public phone, WeChat and QR code directly without copy actions", async () => {
+    mockedGetVendor.mockResolvedValue({
+      id: 10,
+      name: "公开联系厂商",
+      phone: "0319-5666294",
+      phonePublic: true,
+      wechat: "public-wechat",
+      wechatQrCode: "/api/media/88",
+      wechatPublic: true,
+    });
+    renderDetail("/v/public-vendor");
+    expect(await screen.findByRole("link", { name: "0319-5666294" })).toHaveAttribute("href", "tel:0319-5666294");
+    expect(screen.getByText("public-wechat")).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "公开联系厂商 微信二维码" })).toHaveAttribute("src", "/api/media/88");
+    expect(screen.queryByRole("button", { name: /复制电话|复制微信|电话联系/ })).not.toBeInTheDocument();
+  });
 
 });

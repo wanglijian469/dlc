@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 )
@@ -26,17 +27,29 @@ type Config struct {
 	SeedDemoData      bool
 	RunMigrations     bool
 	BaiduPushToken    string
+	StaticPagesEnabled bool
+	StaticPageDir      string
 }
 
 func Load() Config {
 	seedDemo, _ := strconv.ParseBool(env("SEED_DEMO_DATA", "false"))
 	runMigrations, _ := strconv.ParseBool(env("RUN_MIGRATIONS", ""))
+	staticPagesEnabled, _ := strconv.ParseBool(env("STATIC_PAGES_ENABLED", "true"))
 	environment := env("APP_ENV", "development")
 	if os.Getenv("RUN_MIGRATIONS") == "" {
 		runMigrations = !strings.EqualFold(environment, "production")
 	}
 	origins := strings.Split(env("CORS_ALLOWED_ORIGINS", "http://127.0.0.1:5173,http://localhost:5173"), ",")
 	trustedProxies := strings.Split(env("TRUSTED_PROXY_CIDRS", "127.0.0.1,::1"), ",")
+	publicDir := env("PUBLIC_DIR", "")
+	staticPageDir := env("STATIC_PAGE_DIR", "")
+	if staticPageDir == "" {
+		if publicDir != "" {
+			staticPageDir = filepath.Join(publicDir, "static-pages")
+		} else {
+			staticPageDir = "static_pages"
+		}
+	}
 	return Config{
 		HTTPAddr:          env("HTTP_ADDR", ":8080"),
 		DBHost:            env("DB_HOST", "127.0.0.1"),
@@ -47,7 +60,7 @@ func Load() Config {
 		AdminUsername:     env("ADMIN_USERNAME", "admin"),
 		AdminPassword:     env("ADMIN_PASSWORD", "admin123"),
 		AuthSecret:        env("AUTH_SECRET", "dev-secret-change-me"),
-		PublicDir:         env("PUBLIC_DIR", ""),
+		PublicDir:         publicDir,
 		MediaDir:          env("MEDIA_DIR", "media_storage"),
 		Environment:       environment,
 		AllowedOrigins:    origins,
@@ -56,6 +69,8 @@ func Load() Config {
 		SeedDemoData:      seedDemo,
 		RunMigrations:     runMigrations,
 		BaiduPushToken:    env("BAIDU_PUSH_TOKEN", ""),
+		StaticPagesEnabled: staticPagesEnabled,
+		StaticPageDir:      staticPageDir,
 	}
 }
 

@@ -22,7 +22,9 @@ const fields: Field[] = [
   { key: "annualCapacity", label: "年产能", type: "textarea", placeholder: vendorFieldGuidance.annualCapacity }, { key: "equipment", label: "主要设备", type: "textarea", placeholder: vendorFieldGuidance.equipment },
   { key: "certifications", label: "认证资质", type: "textarea", placeholder: vendorFieldGuidance.certifications },
   { key: "afterSalesService", label: "售后服务", type: "textarea", placeholder: vendorFieldGuidance.afterSalesService }, { key: "websiteUrl", label: "厂商官网" },
-  { key: "contactName", label: "联系人" }, { key: "phone", label: "联系电话" }, { key: "wechat", label: "微信" },
+  { key: "contactName", label: "联系人" }, { key: "contactNamePublic", label: "公开展示联系人", type: "checkbox" },
+  { key: "phone", label: "联系电话" }, { key: "phonePublic", label: "公开展示电话", type: "checkbox" },
+  { key: "wechat", label: "微信" }, { key: "wechatQrCode", label: "微信二维码", type: "image" }, { key: "wechatPublic", label: "公开展示微信", type: "checkbox" },
   { key: "providesProcessing", label: "提供来图来样加工", type: "checkbox" },
   { key: "processingServices", label: "加工服务", type: "textarea", placeholder: vendorFieldGuidance.processingServices }, { key: "processingMaterials", label: "加工材料 / 配件类型", type: "textarea", placeholder: vendorFieldGuidance.processingMaterials },
   { key: "processingEquipment", label: "加工设备", type: "textarea", placeholder: vendorFieldGuidance.processingEquipment }, { key: "processingCapacity", label: "加工产能 / 交期", type: "textarea", placeholder: vendorFieldGuidance.processingCapacity },
@@ -34,7 +36,7 @@ const groups: Array<{ title: string; keys: Array<keyof Vendor> }> = [
   { title: "展示素材", keys: ["logo", "coverImage", "serviceAdvantages"] },
   { title: "生产能力", keys: ["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications"] },
   { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes", "afterSalesService"] },
-  { title: "联系方式", keys: ["websiteUrl", "contactName", "phone", "wechat"] },
+  { title: "联系方式", keys: ["websiteUrl", "contactName", "contactNamePublic", "phone", "phonePublic", "wechat", "wechatQrCode", "wechatPublic"] },
 ];
 
 export function VendorProfilePage() {
@@ -92,7 +94,7 @@ export function VendorProfilePage() {
       {message && <p className="admin-message">{message}</p>}
       {loading ? <div className="admin-panel">正在加载…</div> : (
         <form className="admin-form vendor-profile-form vendor-profile-grouped" onSubmit={submit}>
-          {groups.map((group, groupIndex) => <details className="vendor-profile-section" key={group.title} open={groupIndex === 0}><summary>{group.title}</summary><div className="vendor-profile-fields">{fields.filter((field) => group.keys.includes(field.key)).map((field) => field.type === "checkbox" ? <label className="admin-toggle-field wide-field" key={field.key}><VendorField field={field} form={form} setForm={setForm} /><span><strong>{field.label}</strong><small>{processingToggleDescription}</small></span></label> : <label className={field.type === "textarea" ? "wide-field" : ""} key={field.key}>{field.label}<VendorField field={field} form={form} setForm={setForm} /></label>)}{group.title === "展示素材" && <div className="wide-field"><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></div>}</div></details>)}
+          {groups.map((group, groupIndex) => <details className="vendor-profile-section" key={group.title} open={groupIndex === 0}><summary>{group.title}</summary><div className="vendor-profile-fields">{fields.filter((field) => group.keys.includes(field.key)).map((field) => field.type === "checkbox" ? <label className="admin-toggle-field wide-field" key={field.key}><VendorField field={field} form={form} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.key === "providesProcessing" ? processingToggleDescription : "公开后可能被搜索引擎和第三方采集；修改将在管理员审核通过后生效。"}</small></span></label> : <label className={field.type === "textarea" ? "wide-field" : ""} key={field.key}>{field.label}<VendorField field={field} form={form} setForm={setForm} /></label>)}{group.title === "展示素材" && <div className="wide-field"><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></div>}</div></details>)}
           <div className="wide-field form-submit-row vendor-sticky-submit">
             <button className="primary-btn" disabled={saving || !dirty} type="submit"><Send size={16} />{saving ? "正在提交…" : "提交管理员审核"}</button>
             {dirty && <strong className="unsaved-indicator">有未保存修改</strong>}
@@ -113,10 +115,15 @@ function VendorField({ field, form, setForm }: { field: Field; form: Partial<Ven
       <input value={String(value || "")} placeholder="图片 URL" onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />
       <label className="outline-btn small upload-button"><ImageUp size={15} />上传<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(e) => {
         const file = e.target.files?.[0];
-        const assetKey = field.key === "logo" ? "logoAssetId" : "coverAssetId";
+        const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : "wechatQrCodeAssetId";
         if (file) void uploadFile(file).then((result) => setForm({ ...form, [field.key]: result.url, [assetKey]: result.assetId })).catch(() => window.alert("图片上传失败，请使用有效的 JPEG、PNG 或 WebP 图片"));
       }} /></label>
-      {value && <ProtectedMediaImage alt={`${field.label} 预览`} assetId={Number(form[field.key === "logo" ? "logoAssetId" : "coverAssetId"] || 0) || undefined} className="vendor-form-image" src={String(value)} />}
+      {value && <button className="outline-btn small danger" type="button" onClick={() => {
+        const assetKey = field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : "wechatQrCodeAssetId";
+        setForm({ ...form, [field.key]: "", [assetKey]: undefined });
+      }}>删除图片</button>}
+      {field.key === "wechatQrCode" && <small>请上传清晰的正方形 PNG、JPG 或 WebP 图片；公开范围跟随“公开展示微信”。</small>}
+      {value && <ProtectedMediaImage alt={`${field.label} 预览`} assetId={Number(form[field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : "wechatQrCodeAssetId"] || 0) || undefined} className="vendor-form-image" src={String(value)} />}
     </div>
   );
   return <input className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={String(value || "")} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />;

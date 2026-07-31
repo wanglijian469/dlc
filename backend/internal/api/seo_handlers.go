@@ -59,8 +59,29 @@ type seoBreadcrumb struct {
 
 func (h SEOHandler) Robots(c *gin.Context) {
 	base := h.baseURL(c)
+	cfg := DefaultProtectionConfig()
+	if h.DB != nil {
+		var row model.SiteConfig
+		if h.DB.Where("config_key = ?", protectionConfigKey).First(&row).Error == nil {
+			_ = json.Unmarshal([]byte(row.ConfigValue), &cfg)
+		}
+	}
+	var body strings.Builder
+	seen := map[string]bool{}
+	for _, agent := range cfg.BlockedAIAgents {
+		agent = strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(agent, "\r", ""), "\n", ""))
+		if agent == "" || seen[strings.ToLower(agent)] {
+			continue
+		}
+		seen[strings.ToLower(agent)] = true
+		body.WriteString("User-agent: " + agent + "\nDisallow: /\n\n")
+	}
+	searchRules := "Allow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /api/admin/\nDisallow: /search\n"
+	body.WriteString("User-agent: Googlebot\n" + searchRules + "\nUser-agent: Baiduspider\n" + searchRules + "\n")
+	body.WriteString("User-agent: *\n" + searchRules + "\n")
+	body.WriteString("Sitemap: " + base + "/sitemap.xml\n")
 	c.Header("Content-Type", "text/plain; charset=utf-8")
-	c.String(http.StatusOK, "User-agent: *\nAllow: /\nDisallow: /admin/\nDisallow: /account/\nDisallow: /api/admin/\nDisallow: /search\n\nSitemap: %s/sitemap.xml\n", base)
+	c.String(http.StatusOK, body.String())
 }
 
 type sitemapURL struct {

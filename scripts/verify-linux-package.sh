@@ -25,9 +25,9 @@ for required in \
   scripts/install-layout.sh scripts/install-mysql-8.0.46.sh \
   scripts/create-mysql-user.sh scripts/configure-site-url.sh \
   scripts/render-nginx-config.sh \
-  scripts/migrate.sh scripts/start.sh scripts/stop.sh \
+  scripts/migrate.sh scripts/upgrade.sh scripts/start.sh scripts/stop.sh \
   scripts/health-check.sh scripts/backup.sh \
-  docs/INSTALL.md docs/UPGRADE.md; do
+  docs/INSTALL.md docs/UPGRADE.md docs/RELEASE_NOTES.md; do
   test -e "${ROOT}/${required}" || {
     echo "missing package entry: ${required}" >&2
     exit 1

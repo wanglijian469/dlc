@@ -38,8 +38,20 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 	for _, asset := range assets {
 		url := fmt.Sprintf("/api/media/%d", asset.ID)
 		var references int64
-		if err := db.Model(&model.Product{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+		if err := db.Model(&model.Vendor{}).
+			Where("logo_asset_id = ? OR cover_asset_id = ? OR wechat_qr_code_asset_id = ?", asset.ID, asset.ID, asset.ID).
+			Count(&references).Error; err != nil {
 			return err
+		}
+		if references == 0 {
+			if err := db.Model(&model.VendorSubmission{}).Where("status = ? AND INSTR(payload, ?) > 0", "pending", url).Count(&references).Error; err != nil {
+				return err
+			}
+		}
+		if references == 0 {
+			if err := db.Model(&model.Product{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+				return err
+			}
 		}
 		if references == 0 {
 			if err := db.Model(&model.ProductSupplier{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
@@ -86,6 +98,12 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.SEORedirect{},
 		&model.AuthSession{},
 		&model.ContentRevision{},
+		&model.StaticPageBuild{},
+		&model.StaticBuildJob{},
+		&model.ContactAccessLog{},
+		&model.ScrapeRiskEvent{},
+		&model.ScrapeClientBlock{},
+		&model.WatermarkBuildJob{},
 	); err != nil {
 		return err
 	}
@@ -122,10 +140,27 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := migrateHomeDisplayConfiguration(db); err != nil {
 		return err
 	}
+	if err := ensureAccessProtectionConfig(db); err != nil {
+		return err
+	}
 	return ensureStructuredContent(db)
 }
 
-const CurrentSchemaVersion uint = 5
+func ensureAccessProtectionConfig(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&model.SiteConfig{}).Where("config_key = ?", "security.antiScrape").Count(&count).Error; err != nil || count > 0 {
+		return err
+	}
+	raw, _ := json.Marshal(map[string]any{
+		"enabled": true, "auditOnly": true, "windowMinutes": 10, "distinctResourceLimit": 120,
+		"blockHours": 1, "escalationStrikes": 3, "escalatedBlockHours": 24,
+		"blockedAiAgents": []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
+		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 32, "watermarkText": "大陆农机配件",
+	})
+	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
+}
+
+const CurrentSchemaVersion uint = 9
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -148,13 +183,20 @@ func Migrate(db *gorm.DB) error {
 			return err
 		}
 	}
+	if latest < 9 {
+		if err := db.Model(&model.StaticPageBuild{}).Where("status = ?", "ready").Updates(map[string]any{
+			"status": "stale", "error_message": "联系方式公开策略升级，请重新生成静态页面",
+		}).Error; err != nil {
+			return err
+		}
+	}
 	if err := BackfillPlatformData(db); err != nil {
 		return err
 	}
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-seo-auto-suggestions", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "public-access-hardening", AppliedAt: time.Now()}).Error
 }
 
 func CheckMigrations(db *gorm.DB) error {

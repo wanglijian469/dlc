@@ -27,7 +27,7 @@ func TestRobotsPublishesDiscoveryAndPrivatePathRules(t *testing.T) {
 	if rec.Code != http.StatusOK {
 		t.Fatalf("status = %d, want 200", rec.Code)
 	}
-	for _, want := range []string{"Disallow: /admin/", "Disallow: /api/admin/", "Disallow: /search", "Sitemap: http://parts.example.cn/sitemap.xml"} {
+	for _, want := range []string{"User-agent: GPTBot", "User-agent: Google-Extended", "User-agent: Googlebot\nAllow: /", "User-agent: Baiduspider\nAllow: /", "Disallow: /admin/", "Disallow: /api/admin/", "Disallow: /search", "Sitemap: http://parts.example.cn/sitemap.xml"} {
 		if !strings.Contains(rec.Body.String(), want) {
 			t.Fatalf("robots = %q, want %q", rec.Body.String(), want)
 		}

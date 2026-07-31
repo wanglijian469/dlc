@@ -10,6 +10,7 @@ import (
 type ProductSpec struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
+	Image string `json:"image,omitempty"`
 }
 
 type Product struct {

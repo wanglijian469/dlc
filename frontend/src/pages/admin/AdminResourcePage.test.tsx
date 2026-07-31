@@ -59,7 +59,7 @@ describe("AdminResourcePage CMS forms", () => {
       if (resource === "categories") return Promise.resolve([{ id: 5, name: "液压系统配件" }] as never);
       if (resource === "vendors") {
         return Promise.resolve([
-          { id: 3, name: "江苏东成农机配件有限公司", tagIds: [1], tags: [{ id: 1, name: "源头厂商" }] },
+          { id: 3, name: "江苏东成农机配件有限公司", isVisible: true, publicationStatus: "published", tagIds: [1], tags: [{ id: 1, name: "源头厂商" }] },
         ] as never);
       }
       return Promise.resolve([] as never);
@@ -97,12 +97,15 @@ describe("AdminResourcePage CMS forms", () => {
 
     fireEvent.click(await screen.findByRole("button", { name: "编辑" }));
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
+    expect(within(vendorForm).queryByLabelText("发布说明")).not.toBeInTheDocument();
     fireEvent.click(within(vendorForm).getByRole("button", { name: "保存修改" }));
 
     await waitFor(() => expect(mockedUpdateResource).toHaveBeenCalled());
     const payload = mockedUpdateResource.mock.calls[0][2] as Record<string, unknown>;
     expect(payload.tagIds).toEqual([1]);
     expect(payload).not.toHaveProperty("tags");
+    expect(payload).not.toHaveProperty("publishReason");
+    expect(payload).toMatchObject({ isVisible: true, publicationStatus: "published" });
   });
 
   it("shows logo and cover previews with their own image fields", async () => {
@@ -187,14 +190,15 @@ describe("AdminResourcePage CMS forms", () => {
     expect(screen.getByText("勾选并保存后发布到前台")).toBeInTheDocument();
     fireEvent.click(visibilityToggle);
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
+    expect(within(vendorForm).queryByLabelText("发布说明")).not.toBeInTheDocument();
     fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
 
-    await waitFor(() =>
-      expect(mockedCreateResource).toHaveBeenCalledWith(
-        "vendors",
-        expect.objectContaining({ name: "展示测试厂商", isVisible: true, publicationStatus: "published" }),
-      ),
+    await waitFor(() => expect(mockedCreateResource).toHaveBeenCalled());
+    expect(mockedCreateResource).toHaveBeenCalledWith(
+      "vendors",
+      expect.objectContaining({ name: "展示测试厂商", isVisible: true, publicationStatus: "published" }),
     );
+    expect(mockedCreateResource.mock.calls[0][1]).not.toHaveProperty("publishReason");
   });
 
   it("submits processing service fields for vendors", async () => {
@@ -239,8 +243,15 @@ describe("AdminResourcePage CMS forms", () => {
     renderAdmin("/admin/products");
     await openCreateEditor("新增配件产品");
 
+    expect(screen.getByLabelText("产品名称")).toHaveAttribute("placeholder", productFieldGuidance.name);
+    expect(screen.getByLabelText("适配机型")).toHaveAttribute("placeholder", productFieldGuidance.compatibleModels);
     expect(screen.getByLabelText("产品说明")).toHaveAttribute("placeholder", productFieldGuidance.description);
     expect(screen.getByLabelText("产品详细说明")).toHaveAttribute("placeholder", productFieldGuidance.detailContent);
+    expect(screen.getByLabelText("SEO 标题")).toHaveAttribute("placeholder", productFieldGuidance.seoTitle);
+    expect(screen.getByLabelText("SEO 摘要")).toHaveAttribute("placeholder", productFieldGuidance.seoDescription);
+    expect(screen.getByLabelText("价格说明")).toHaveAttribute("placeholder", productFieldGuidance.priceNote);
+    expect(screen.getByText(productFieldGuidance.image)).toBeInTheDocument();
+    expect(screen.getByText(productFieldGuidance.specsRaw)).toBeInTheDocument();
   });
 
   it("separates vendor and processing tags into checkbox groups", async () => {
@@ -294,6 +305,7 @@ describe("AdminResourcePage CMS forms", () => {
     fireEvent.change(screen.getByLabelText("所属分类"), { target: { value: "5" } });
     fireEvent.change(screen.getByLabelText("目录发布状态"), { target: { value: "published" } });
     const form = screen.getByLabelText("产品名称").closest("form") as HTMLFormElement;
+    expect(within(form).queryByLabelText("发布说明")).not.toBeInTheDocument();
     fireEvent.click(within(form).getByRole("button", { name: "创建记录" }));
     expect(await screen.findByText("产品发布前必须关联至少一家前台已发布的厂商")).toBeInTheDocument();
     expect(mockedCreateResource).not.toHaveBeenCalled();
@@ -307,6 +319,7 @@ describe("AdminResourcePage CMS forms", () => {
       publicationStatus: "published",
       vendorIds: [9],
     })));
+    expect(mockedCreateResource.mock.calls[0][1]).not.toHaveProperty("publishReason");
   });
 
   it("shows association summaries and batch-adds one vendor to selected products", async () => {

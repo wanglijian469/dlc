@@ -23,11 +23,9 @@ func (h PublicHandler) Home(c *gin.Context) {
 		Fail(c, 500, 500, "首页数据加载失败")
 		return
 	}
-	if !c.GetBool("authenticated") {
-		redactVendorSlice(payload.RecommendedVendors)
-		redactVendorSlice(payload.MoreVendors)
-		redactVendorSlice(payload.ProcessingVendors)
-	}
+	redactVendorSlice(payload.RecommendedVendors)
+	redactVendorSlice(payload.MoreVendors)
+	redactVendorSlice(payload.ProcessingVendors)
 	OK(c, payload)
 }
 
@@ -126,9 +124,7 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 		Fail(c, 500, 500, "厂商列表加载失败")
 		return
 	}
-	if !c.GetBool("authenticated") {
-		redactVendorSlice(vendors)
-	}
+	redactVendorSlice(vendors)
 	OK(c, result)
 }
 
@@ -157,9 +153,7 @@ func (h PublicHandler) ProcessingVendors(c *gin.Context) {
 		Fail(c, 500, 500, "加工厂商列表加载失败")
 		return
 	}
-	if !c.GetBool("authenticated") {
-		redactVendorSlice(vendors)
-	}
+	redactVendorSlice(vendors)
 	OK(c, result)
 }
 
@@ -174,9 +168,7 @@ func (h PublicHandler) ProcessingFilterOptions(c *gin.Context) {
 func (h PublicHandler) RecommendedVendors(c *gin.Context) {
 	var vendors []model.Vendor
 	publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
-	if !c.GetBool("authenticated") {
-		redactVendorSlice(vendors)
-	}
+	redactVendorSlice(vendors)
 	OK(c, vendors)
 }
 
@@ -189,9 +181,7 @@ func (h PublicHandler) VendorDetail(c *gin.Context) {
 	for _, tag := range vendor.Tags {
 		vendor.TagIDs = append(vendor.TagIDs, tag.ID)
 	}
-	if !c.GetBool("authenticated") {
-		redactVendor(&vendor)
-	}
+	redactVendor(&vendor)
 	OK(c, vendor)
 }
 
@@ -204,9 +194,7 @@ func (h PublicHandler) VendorBySlug(c *gin.Context) {
 	for _, tag := range vendor.Tags {
 		vendor.TagIDs = append(vendor.TagIDs, tag.ID)
 	}
-	if !c.GetBool("authenticated") {
-		redactVendor(&vendor)
-	}
+	redactVendor(&vendor)
 	OK(c, vendor)
 }
 
@@ -250,11 +238,9 @@ func (h PublicHandler) Products(c *gin.Context) {
 		return
 	}
 	enrichProductSummaries(h.DB, products, queryUint(c, "vendorId"))
-	if !c.GetBool("authenticated") {
-		for i := range products {
-			if products[i].Supplier != nil {
-				redactVendor(&products[i].Supplier.Vendor)
-			}
+	for i := range products {
+		if products[i].Supplier != nil {
+			redactVendor(&products[i].Supplier.Vendor)
 		}
 	}
 	OK(c, result)
@@ -321,10 +307,8 @@ func (h PublicHandler) ProductSuppliers(c *gin.Context) {
 		Fail(c, 500, 500, "供应商列表加载失败")
 		return
 	}
-	if !c.GetBool("authenticated") {
-		for i := range suppliers {
-			redactVendor(&suppliers[i].Vendor)
-		}
+	for i := range suppliers {
+		redactVendor(&suppliers[i].Vendor)
 	}
 	OK(c, suppliers)
 }
@@ -359,9 +343,7 @@ func (h PublicHandler) Search(c *gin.Context) {
 		return
 	}
 	enrichProductSummaries(h.DB, products, 0)
-	if !c.GetBool("authenticated") {
-		redactVendorSlice(vendors)
-	}
+	redactVendorSlice(vendors)
 	OK(c, gin.H{"vendors": vendorResult, "products": productResult, "categories": categoryResult})
 }
 
@@ -380,11 +362,20 @@ func redactProductVendors(products []model.Product) {
 }
 
 func redactVendor(vendor *model.Vendor) {
-	if vendor.Phone != "" {
+	vendor.PhoneAvailable = vendor.Phone != ""
+	vendor.WechatAvailable = vendor.Wechat != "" || vendor.WechatQRCode != ""
+	vendor.ContactNameAvailable = vendor.ContactName != ""
+	if !vendor.PhonePublic && vendor.Phone != "" {
 		vendor.Phone = maskPhone(vendor.Phone)
 	}
-	vendor.Wechat = ""
-	vendor.ContactName = ""
+	if !vendor.WechatPublic {
+		vendor.Wechat = ""
+		vendor.WechatQRCode = ""
+		vendor.WechatQRCodeAssetID = nil
+	}
+	if !vendor.ContactNamePublic {
+		vendor.ContactName = ""
+	}
 }
 
 func maskPhone(value string) string {

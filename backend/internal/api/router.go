@@ -23,6 +23,7 @@ type Deps struct {
 
 func NewRouter(deps Deps) *gin.Engine {
 	router := gin.New()
+	accessProtection := NewAccessProtectionService(deps.DB, deps.Config)
 	if err := router.SetTrustedProxies(deps.Config.TrustedProxyCIDRs); err != nil {
 		panic("invalid trusted proxy configuration: " + err.Error())
 	}
@@ -44,14 +45,18 @@ func NewRouter(deps Deps) *gin.Engine {
 		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "X-CSRF-Token"},
 		AllowCredentials: true,
 	}))
+	router.Use(accessProtection.Middleware())
 	RegisterHealthRoute(router)
 	RegisterPublicRoutesWithAuth(router, deps.DB, deps.Config.AuthSecret)
 	router.POST("/api/analytics/events", AnalyticsHandler{DB: deps.DB, Config: deps.Config}.RecordEvent)
-	RegisterAdminRoutes(router, deps.DB, deps.Config)
+	staticPages := NewStaticPageService(deps.DB, deps.Config)
+	watermarks := NewWatermarkService(deps.DB, deps.Config, accessProtection)
+	registerAdminRoutesWithServices(router, deps.DB, deps.Config, staticPages, accessProtection, watermarks)
 	RegisterSEORoutes(router, deps.DB, deps.Config)
-	mediaHandler := AdminHandler{DB: deps.DB, Config: deps.Config}
+	mediaHandler := AdminHandler{DB: deps.DB, Config: deps.Config, Watermarks: watermarks}
+	router.GET("/api/vendors/:id/contact-qr", CMSAuth(deps.DB, deps.Config.AuthSecret), mediaHandler.VendorContactQRCode)
 	router.GET("/api/media/:id", mediaHandler.PublicMedia)
-	RegisterStaticRoutes(router, deps.DB, deps.Config.PublicDir)
+	registerStaticRoutesWithServices(router, deps.DB, deps.Config.PublicDir, staticPages, watermarks)
 	return router
 }
 
@@ -81,6 +86,7 @@ func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string
 	api.GET("/vendors", handler.Vendors)
 	api.GET("/vendors/recommended", handler.RecommendedVendors)
 	api.GET("/vendors/slug/:slug", handler.VendorBySlug)
+	api.GET("/vendors/:id/contact", CMSAuth(db, secret), handler.VendorContact)
 	api.GET("/vendors/:id", handler.VendorDetail)
 	api.GET("/products", handler.Products)
 	api.GET("/products/slug/:slug", handler.ProductBySlug)
@@ -104,7 +110,12 @@ func OptionalCMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 }
 
 func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
-	handler := AdminHandler{DB: db, Config: cfg}
+	accessProtection := NewAccessProtectionService(db, cfg)
+	registerAdminRoutesWithServices(router, db, cfg, NewStaticPageService(db, cfg), accessProtection, NewWatermarkService(db, cfg, accessProtection))
+}
+
+func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config.Config, staticPages *StaticPageService, accessProtection *AccessProtectionService, watermarks *WatermarkService) {
+	handler := AdminHandler{DB: db, Config: cfg, StaticPages: staticPages, AccessProtection: accessProtection, Watermarks: watermarks}
 	authAPI := router.Group("/api/auth")
 	authAPI.POST("/login", handler.Login)
 	authAPI.POST("/register", handler.Register)
@@ -223,6 +234,19 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	adminOnly.DELETE("/friend-links/:id", handler.DeleteFriendLink)
 	adminOnly.GET("/configs", handler.ListConfigs)
 	adminOnly.PUT("/configs/:key", handler.UpdateConfig)
+	adminOnly.GET("/static-pages/status", handler.StaticPageSummary)
+	adminOnly.PUT("/static-pages/settings", handler.UpdateStaticPageSettings)
+	adminOnly.GET("/static-pages/resources", handler.StaticPageResourceStatuses)
+	adminOnly.POST("/static-pages/jobs", handler.CreateStaticBuildJob)
+	adminOnly.GET("/static-pages/jobs/:id", handler.StaticBuildJob)
+	adminOnly.GET("/access-protection/status", handler.ProtectionStatus)
+	adminOnly.PUT("/access-protection/config", handler.UpdateProtectionConfig)
+	adminOnly.GET("/access-protection/events", handler.ProtectionEvents)
+	adminOnly.GET("/access-protection/blocks", handler.ProtectionBlocks)
+	adminOnly.POST("/access-protection/blocks", handler.CreateProtectionBlock)
+	adminOnly.POST("/access-protection/blocks/:id/release", handler.ReleaseProtectionBlock)
+	adminOnly.POST("/access-protection/watermarks/jobs", handler.CreateWatermarkBuildJob)
+	adminOnly.GET("/access-protection/watermarks/jobs/:id", handler.WatermarkBuildJob)
 }
 
 func AdminAuth(secret string) gin.HandlerFunc {
@@ -334,7 +358,15 @@ func RequireAnyRole(roles ...string) gin.HandlerFunc {
 	}
 }
 
-func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
+func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string, staticPageServices ...*StaticPageService) {
+	var staticPages *StaticPageService
+	if len(staticPageServices) > 0 {
+		staticPages = staticPageServices[0]
+	}
+	registerStaticRoutesWithServices(router, db, publicDir, staticPages, nil)
+}
+
+func registerStaticRoutesWithServices(router *gin.Engine, db *gorm.DB, publicDir string, staticPages *StaticPageService, watermarks *WatermarkService) {
 	uploadsDir := "uploads"
 	if publicDir != "" {
 		uploadsDir = filepath.Join(publicDir, "uploads")
@@ -353,7 +385,7 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 				db.Model(&model.VendorMedia{}).Joins("JOIN vendors ON vendors.id = vendor_media.vendor_id").Where("vendor_media.url = ? AND vendors.is_visible = ? AND vendors.publication_status = ?", url, true, "published").Count(&count)
 			}
 			if count == 0 {
-				db.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%").Count(&count)
+				db.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ? OR products.specs LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%", "%"+url+"%").Count(&count)
 				if count == 0 {
 					db.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&count)
 				}
@@ -365,7 +397,20 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 				c.Status(http.StatusNotFound)
 				return
 			}
-			c.File(filepath.Join(uploadsDir, name))
+			publicPath := filepath.Join(uploadsDir, name)
+			if watermarks != nil {
+				var publicMIME string
+				var err error
+				publicPath, publicMIME, err = watermarks.PublicLegacyPath(publicPath, url)
+				if err != nil {
+					Fail(c, http.StatusServiceUnavailable, 503, "公开图片生成失败，请稍后重试")
+					return
+				}
+				if publicMIME != "" {
+					c.Header("Content-Type", publicMIME)
+				}
+			}
+			c.File(publicPath)
 		})
 	}
 	if publicDir == "" {
@@ -385,6 +430,9 @@ func RegisterStaticRoutes(router *gin.Engine, db *gorm.DB, publicDir string) {
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			Fail(c, http.StatusNotFound, 404, "接口不存在")
+			return
+		}
+		if staticPages != nil && staticPages.Serve(c) {
 			return
 		}
 		if RenderSEOApp(c, db, config.Config{PublicDir: publicDir}, publicDir) {

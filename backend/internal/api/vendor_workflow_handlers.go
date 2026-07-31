@@ -199,6 +199,9 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 			if draft.CoverAssetID != nil {
 				assetIDs = append(assetIDs, *draft.CoverAssetID)
 			}
+			if draft.WechatQRCodeAssetID != nil {
+				assetIDs = append(assetIDs, *draft.WechatQRCodeAssetID)
+			}
 			for _, media := range draft.Media {
 				if media.AssetID != nil {
 					assetIDs = append(assetIDs, *media.AssetID)
@@ -274,7 +277,12 @@ func applyVendorEditableFields(dst *model.Vendor, src model.Vendor) {
 	dst.WebsiteURL = strings.TrimSpace(src.WebsiteURL)
 	dst.Phone = src.Phone
 	dst.Wechat = src.Wechat
+	dst.WechatQRCode = src.WechatQRCode
+	dst.WechatQRCodeAssetID = src.WechatQRCodeAssetID
 	dst.ContactName = src.ContactName
+	dst.PhonePublic = src.PhonePublic
+	dst.WechatPublic = src.WechatPublic
+	dst.ContactNamePublic = src.ContactNamePublic
 }
 
 func sanitizeVendorMedia(rows []model.VendorMedia) ([]model.VendorMedia, error) {
@@ -304,7 +312,7 @@ func sanitizeVendorMedia(rows []model.VendorMedia) ([]model.VendorMedia, error) 
 }
 
 func (h AdminHandler) validateSubmissionAssets(c *gin.Context, vendorID uint, vendor model.Vendor) error {
-	assetIDs := []*uint{vendor.LogoAssetID, vendor.CoverAssetID}
+	assetIDs := []*uint{vendor.LogoAssetID, vendor.CoverAssetID, vendor.WechatQRCodeAssetID}
 	for _, row := range vendor.Media {
 		assetIDs = append(assetIDs, row.AssetID)
 	}
@@ -321,7 +329,7 @@ func (h AdminHandler) validateSubmissionAssets(c *gin.Context, vendorID uint, ve
 		}
 		if asset.Status == "published" {
 			var count int64
-			h.DB.Model(&model.Vendor{}).Where("id = ? AND (logo_asset_id = ? OR cover_asset_id = ?)", vendorID, asset.ID, asset.ID).Count(&count)
+			h.DB.Model(&model.Vendor{}).Where("id = ? AND (logo_asset_id = ? OR cover_asset_id = ? OR wechat_qr_code_asset_id = ?)", vendorID, asset.ID, asset.ID, asset.ID).Count(&count)
 			if count == 0 {
 				h.DB.Model(&model.VendorMedia{}).Where("vendor_id = ? AND asset_id = ?", vendorID, asset.ID).Count(&count)
 			}

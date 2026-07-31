@@ -20,12 +20,14 @@ describe("AdminLayout navigation", () => {
     for (const name of ["厂商信息", "资料审核", "产品审核", "配件产品"]) {
       expect(within(businessGroup).getByRole("link", { name: `导航：${name}` })).toBeInTheDocument();
     }
+		const businessLinks = within(businessGroup).getAllByRole("link").map((link) => link.getAttribute("href"));
+		expect(businessLinks.indexOf("/admin/products")).toBeLessThan(businessLinks.indexOf("/admin/product-reviews"));
     for (const name of ["页面与快捷导航", "厂商标签", "配件分类", "Banner 管理", "页面与行业文章", "友情链接"]) {
       expect(within(configGroup).getByRole("link", { name: `导航：${name}` })).toBeInTheDocument();
     }
     const systemGroup = screen.getByText("系统管理").closest(".admin-nav-group") as HTMLElement;
     const configSubmenu = within(systemGroup).getByLabelText("平台配置子菜单");
-    for (const name of ["站点与页脚", "首页展示", "主题样式"]) {
+    for (const name of ["站点与页脚", "首页展示", "主题样式", "静态化与缓存", "访问与采集防护"]) {
       expect(within(configSubmenu).getByRole("link", { name: `导航：${name}` })).toBeInTheDocument();
     }
   });

@@ -366,5 +366,11 @@ func defaultConfigs() []model.SiteConfig {
 	siteMeta, _ := json.Marshal(map[string]string{"siteName": "大陆农机配件", "brandMark": "农", "submitVendorText": "厂商入驻", "adminLoginText": "后台登录", "mobileBrandName": "大陆农机配件", "mobileBrandMark": "农", "copyrightOwner": "大陆农机配件", "copyrightYear": "2026", "filingNumber": "待运营方配置", "siteUrl": "", "defaultSeoTitle": "大陆农机配件｜农机配件厂家与加工服务目录", "defaultSeoDescription": "查找农机配件厂家、产品适配信息与加工服务，帮助采购商、维修门店和经销商快速对接真实供应资源。", "baiduVerification": "", "googleVerification": ""})
 	homeModules, _ := json.Marshal(service.DefaultHomeModules())
 	theme, _ := json.Marshal(map[string]string{"primaryColor": "#1559c7", "accentColor": "#0d8b6f"})
-	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}}
+	protection, _ := json.Marshal(map[string]any{
+		"enabled": true, "auditOnly": true, "windowMinutes": 10, "distinctResourceLimit": 120,
+		"blockHours": 1, "escalationStrikes": 3, "escalatedBlockHours": 24,
+		"blockedAiAgents": []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
+		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 32, "watermarkText": "大陆农机配件",
+	})
+	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}, {ConfigKey: "security.antiScrape", ConfigValue: string(protection), Description: "公开访问、AI 爬虫与图片水印保护配置"}}
 }

@@ -76,7 +76,15 @@ export interface Vendor {
   websiteUrl?: string;
   phone?: string;
   wechat?: string;
+  wechatQrCode?: string;
+  wechatQrCodeAssetId?: number;
   contactName?: string;
+  phonePublic?: boolean;
+  wechatPublic?: boolean;
+  contactNamePublic?: boolean;
+  phoneAvailable?: boolean;
+  wechatAvailable?: boolean;
+  contactNameAvailable?: boolean;
   isRecommended?: boolean;
   isVerified?: boolean;
   isVisible?: boolean;
@@ -119,6 +127,7 @@ export interface Category {
 export interface ProductSpec {
   name: string;
   value: string;
+  image?: string;
 }
 
 export interface Product {

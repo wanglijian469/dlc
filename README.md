@@ -20,7 +20,7 @@ CREATE DATABASE IF NOT EXISTS dl_nongji_parts DEFAULT CHARACTER SET utf8mb4 COLL
 root:root@127.0.0.1:13306/dl_nongji_parts
 ```
 
-可用环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`HTTP_ADDR`、`PUBLIC_DIR`。
+可用环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`HTTP_ADDR`、`PUBLIC_DIR`、`STATIC_PAGES_ENABLED`、`STATIC_PAGE_DIR`。
 
 ## 本地开发
 
@@ -74,6 +74,10 @@ powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
 ```text
 admin / admin123
 ```
+
+平台管理员可在“平台配置 → 访问与采集防护”维护 AI 爬虫名单、IP/CIDR 白名单、慢速采集阈值、封禁记录和图片水印任务。默认采用“仅记录”模式；生产上线观察 7 天并确认搜索引擎访问正常后，再关闭“仅记录”以启用自动封禁。
+
+Linux 入口限流和图片防盗链配置位于 `deploy/linux/nginx/dalu-parts.conf.template`。联系方式默认登录后可见，厂商提交公开范围变更后须经管理员审核。
 
 ## 验证
 
