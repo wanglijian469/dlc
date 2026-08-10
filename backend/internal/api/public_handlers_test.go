@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
@@ -95,6 +96,38 @@ func TestPublicRoutesExposeProcessingEndpoints(t *testing.T) {
 		if !routeExists(router.Routes(), http.MethodGet, want) {
 			t.Fatalf("GET %s route is not registered", want)
 		}
+	}
+}
+
+func TestPublicRoutesExposeVendorCategories(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	RegisterPublicRoutes(router, nil)
+	if !routeExists(router.Routes(), http.MethodGet, "/api/vendor-categories") {
+		t.Fatal("GET /api/vendor-categories route is not registered")
+	}
+}
+
+func TestNewlyJoinedVendorCutoffUsesAnExactNinetyDayWindow(t *testing.T) {
+	now := time.Date(2026, time.August, 10, 14, 30, 0, 0, time.FixedZone("CST", 8*60*60))
+	want := time.Date(2026, time.May, 12, 14, 30, 0, 0, now.Location())
+	if got := newlyJoinedVendorCutoff(now); !got.Equal(want) {
+		t.Fatalf("newlyJoinedVendorCutoff() = %s, want %s", got, want)
+	}
+}
+
+func TestBuildVendorCategoryTreeUsesRecursiveRootCounts(t *testing.T) {
+	categories := []model.VendorCategory{
+		{ID: 1, Name: "传动配件", IsEnabled: true},
+		{ID: 2, Name: "变速箱齿轮", ParentID: 1, IsEnabled: true},
+		{ID: 3, Name: "液压系统", IsEnabled: true},
+	}
+	tree := buildVendorCategoryTree(categories, map[uint]int64{1: 4}, map[uint]int64{2: 2})
+	if len(tree) != 2 || tree[0].VendorCount != 4 || len(tree[0].Children) != 1 || tree[0].Children[0].VendorCount != 2 {
+		t.Fatalf("vendor category tree = %#v", tree)
+	}
+	if tree[1].VendorCount != 0 {
+		t.Fatalf("empty category count = %d, want 0", tree[1].VendorCount)
 	}
 }
 

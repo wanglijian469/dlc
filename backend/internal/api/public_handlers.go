@@ -12,6 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
+const newlyJoinedVendorWindow = 90 * 24 * time.Hour
+
 type PublicHandler struct {
 	DB          *gorm.DB
 	HomeService service.HomeService
@@ -97,7 +99,10 @@ func (h PublicHandler) FriendLinks(c *gin.Context) {
 func (h PublicHandler) Vendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
+	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
+	if newlyJoined := strings.TrimSpace(c.Query("newlyJoined")); newlyJoined == "1" || strings.EqualFold(newlyJoined, "true") {
+		query = query.Where("COALESCE(published_at, created_at) >= ?", newlyJoinedVendorCutoff(time.Now()))
+	}
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ?", like, like, like)
@@ -108,6 +113,10 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 	if tagID := queryUint(c, "tagId"); tagID > 0 {
 		query = query.Joins("JOIN vendor_tags ON vendor_tags.vendor_id = vendors.id AND vendor_tags.tag_id = ?", tagID)
 	}
+	if categoryID := queryUint(c, "vendorCategoryId"); categoryID > 0 {
+		ids := vendorCategoryFilterIDs(h.DB, categoryID)
+		query = query.Where("EXISTS (SELECT 1 FROM vendor_category_assignments vca WHERE vca.vendor_id = vendors.id AND vca.vendor_category_id IN ?)", ids)
+	}
 	if categoryID := queryUint(c, "categoryId"); categoryID > 0 {
 		var category model.Category
 		if err := h.DB.First(&category, categoryID).Error; err == nil && category.Name != "" {
@@ -115,7 +124,7 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 		}
 	}
 	if c.Query("sort") == "latest" {
-		query = query.Order("created_at desc")
+		query = query.Order("COALESCE(published_at, created_at) desc, id desc")
 	} else {
 		query = query.Order("is_recommended desc, sort_order asc, id asc")
 	}
@@ -128,10 +137,14 @@ func (h PublicHandler) Vendors(c *gin.Context) {
 	OK(c, result)
 }
 
+func newlyJoinedVendorCutoff(now time.Time) time.Time {
+	return now.Add(-newlyJoinedVendorWindow)
+}
+
 func (h PublicHandler) ProcessingVendors(c *gin.Context) {
 	var vendors []model.Vendor
 	page, pageSize := pageParams(c, 12)
-	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("provides_processing = ?", true)
+	query := publishedVendorQuery(h.DB).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("provides_processing = ?", true)
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ? OR processing_services LIKE ? OR processing_materials LIKE ? OR processing_equipment LIKE ? OR processing_capacity LIKE ? OR processing_regions LIKE ? OR processing_notes LIKE ?", like, like, like, like, like, like, like, like, like)
@@ -167,14 +180,14 @@ func (h PublicHandler) ProcessingFilterOptions(c *gin.Context) {
 
 func (h PublicHandler) RecommendedVendors(c *gin.Context) {
 	var vendors []model.Vendor
-	publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
+	publishedVendorQuery(h.DB).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_recommended = ?", true).Order("sort_order asc, id asc").Limit(5).Find(&vendors)
 	redactVendorSlice(vendors)
 	OK(c, vendors)
 }
 
 func (h PublicHandler) VendorDetail(c *gin.Context) {
 	var vendor model.Vendor
-	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "id = ?", c.Param("id")).Error; err != nil {
+	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "id = ?", c.Param("id")).Error; err != nil {
 		Fail(c, 404, 404, "厂商不存在")
 		return
 	}
@@ -187,7 +200,7 @@ func (h PublicHandler) VendorDetail(c *gin.Context) {
 
 func (h PublicHandler) VendorBySlug(c *gin.Context) {
 	var vendor model.Vendor
-	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "slug = ?", c.Param("slug")).Error; err != nil {
+	if err := publishedVendorQuery(h.DB).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, "slug = ?", c.Param("slug")).Error; err != nil {
 		Fail(c, http.StatusNotFound, 404, "厂商不存在")
 		return
 	}

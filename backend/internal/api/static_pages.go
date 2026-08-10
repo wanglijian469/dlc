@@ -415,7 +415,7 @@ func (s *StaticPageService) buildPayload(target staticBuildTarget) (StaticPagePa
 	switch target.ResourceType {
 	case "vendor":
 		var vendor model.Vendor
-		if err := publishedVendorQuery(s.db).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, target.ResourceID).Error; err != nil {
+		if err := publishedVendorQuery(s.db).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, target.ResourceID).Error; err != nil {
 			return payload, "", 0, "", errors.New("厂商未发布或前台不可见")
 		}
 		for _, tag := range vendor.Tags {

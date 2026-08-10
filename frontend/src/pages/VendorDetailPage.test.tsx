@@ -108,7 +108,7 @@ describe("VendorDetailPage", () => {
     expect(screen.getByText(/数控车床、焊接工位/)).toBeInTheDocument();
     expect(screen.getByText("液压油缸总成")).toBeInTheDocument();
     const breadcrumbs = screen.getByRole("navigation", { name: "面包屑" });
-    expect(breadcrumbs.querySelector('a[href="/vendors"]')).toHaveTextContent("厂商目录");
+    expect(breadcrumbs.querySelector('a[href="/vendors"]')).toHaveTextContent("厂商资源");
     await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith({ vendorId: "8", pageSize: 6 }));
   });
 

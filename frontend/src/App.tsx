@@ -73,7 +73,7 @@ export function App() {
       <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/analytics" element={<ProtectedAdminRoute roles={["admin"]}><AdminAnalyticsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/seo" element={<ProtectedAdminRoute roles={["admin"]}><AdminSEOPage /></ProtectedAdminRoute>} />
-      {(["vendors", "products", "categories", "pages"] as const).map((resource) => (
+      {(["vendors", "products", "categories", "vendor-categories", "pages"] as const).map((resource) => (
         <Route
           key={resource}
           path={`/admin/${resource}`}

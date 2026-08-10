@@ -265,7 +265,7 @@ func managedCategoryIDForMenu(db *gorm.DB, menu model.Menu) uint {
 
 func (h AdminHandler) ListVendors(c *gin.Context) {
 	var rows []model.Vendor
-	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
+	query := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") })
 	if search := strings.TrimSpace(c.Query("search")); search != "" {
 		like := "%" + search + "%"
 		query = query.Where("name LIKE ? OR short_name LIKE ? OR main_products LIKE ?", like, like, like)
@@ -288,6 +288,7 @@ func (h AdminHandler) ListVendors(c *gin.Context) {
 		}
 		for i := range rows {
 			rows[i].TagIDs = tagIDsFromTags(rows[i].Tags)
+			rows[i].VendorCategoryIDs = vendorCategoryIDsFromRows(rows[i].VendorCategories)
 		}
 		OK(c, result)
 		return
@@ -298,6 +299,7 @@ func (h AdminHandler) ListVendors(c *gin.Context) {
 	}
 	for i := range rows {
 		rows[i].TagIDs = tagIDsFromTags(rows[i].Tags)
+		rows[i].VendorCategoryIDs = vendorCategoryIDsFromRows(rows[i].VendorCategories)
 	}
 	OK(c, rows)
 }
@@ -612,7 +614,7 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 	var input model.Vendor
 	var previousVersion uint
 	if id > 0 {
-		if err := db.Preload("Tags").Preload("Media").First(&input, id).Error; err != nil {
+		if err := db.Preload("Tags").Preload("VendorCategories").Preload("Media").First(&input, id).Error; err != nil {
 			Fail(c, http.StatusNotFound, 404, "厂商不存在")
 			return
 		}
@@ -671,9 +673,12 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		input.PublishedAt = &now
 	}
 	tagIDs := uniqueUintIDs(input.TagIDs)
+	vendorCategoryIDs := uniqueUintIDs(input.VendorCategoryIDs)
 	media := input.Media
 	input.TagIDs = tagIDs
+	input.VendorCategoryIDs = vendorCategoryIDs
 	input.Tags = nil
+	input.VendorCategories = nil
 	input.Media = nil
 	tx := db.Begin()
 	committed := false
@@ -682,7 +687,7 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 			tx.Rollback()
 		}
 	}()
-	if err := tx.Omit("Tags", "Media").Save(&input).Error; err != nil {
+	if err := tx.Omit("Tags", "VendorCategories", "Media").Save(&input).Error; err != nil {
 		Fail(c, http.StatusInternalServerError, 500, "淇濆瓨澶辫触")
 		return
 	}
@@ -709,13 +714,31 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 			return
 		}
 	}
+	if vendorCategoryIDs != nil {
+		var categories []model.VendorCategory
+		if len(vendorCategoryIDs) > 0 {
+			if err := tx.Where("id IN ?", vendorCategoryIDs).Find(&categories).Error; err != nil {
+				Fail(c, http.StatusInternalServerError, 500, "厂商分类读取失败")
+				return
+			}
+			if len(categories) != len(vendorCategoryIDs) {
+				Fail(c, http.StatusBadRequest, 400, "厂商分类不存在")
+				return
+			}
+		}
+		if err := tx.Model(&input).Association("VendorCategories").Replace(categories); err != nil {
+			Fail(c, http.StatusInternalServerError, 500, "厂商分类保存失败")
+			return
+		}
+	}
 	if err := tx.Commit().Error; err != nil {
 		Fail(c, 500, 500, "厂商资料保存失败")
 		return
 	}
 	committed = true
-	db.Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&input, input.ID)
+	db.Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&input, input.ID)
 	input.TagIDs = tagIDsFromTags(input.Tags)
+	input.VendorCategoryIDs = vendorCategoryIDsFromRows(input.VendorCategories)
 	logOperation(db, c.GetString("username"), upsertAction(id), "vendors", input.ID)
 	OK(c, input)
 }

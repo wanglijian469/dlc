@@ -73,7 +73,7 @@ export function VendorDetailPage() {
   ].filter((row) => row[1]);
 
   return (
-    <PageFrame breadcrumbs={[{ label: vendorsLabel, path: "/vendors" }]} title={vendor.name} subtitle={region || "源头农机配件厂商"}>
+    <PageFrame breadcrumbs={[{ label: vendorsLabel, path: "/vendors" }]} navigationCategoryIds={(vendor.vendorCategories || []).map((category) => category.id)} title={vendor.name} subtitle={region || "源头农机配件厂商"}>
       <section className="vendor-showcase-hero">
         <VendorCover variant="detail" vendor={vendor} />
         <div className="vendor-showcase-copy">

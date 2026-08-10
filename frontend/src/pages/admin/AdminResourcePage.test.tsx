@@ -57,6 +57,7 @@ describe("AdminResourcePage CMS forms", () => {
     mockedListResource.mockImplementation((resource) => {
       if (resource === "tags") return Promise.resolve([{ id: 1, name: "源头厂商", tagType: "vendor" }, { id: 2, name: "数控车削", tagType: "processing" }] as never);
       if (resource === "categories") return Promise.resolve([{ id: 5, name: "液压系统配件" }] as never);
+	  if (resource === "vendor-categories") return Promise.resolve([{ id: 10, name: "传动配件" }, { id: 11, name: "变速箱齿轮", parentId: 10 }] as never);
       if (resource === "vendors") {
         return Promise.resolve([
           { id: 3, name: "江苏东成农机配件有限公司", isVisible: true, publicationStatus: "published", tagIds: [1], tags: [{ id: 1, name: "源头厂商" }] },
@@ -142,13 +143,15 @@ describe("AdminResourcePage CMS forms", () => {
     fireEvent.change(screen.getByLabelText("厂商官网 URL"), { target: { value: "https://vendor.example.com" } });
     const vendorTags = screen.getByRole("group", { name: "配件厂商标签" });
     fireEvent.click(within(vendorTags).getByRole("checkbox", { name: "源头厂商" }));
+	const vendorCategories = screen.getByRole("group", { name: "厂商分类" });
+	fireEvent.click(within(vendorCategories).getByRole("checkbox", { name: "└ 变速箱齿轮" }));
     const vendorForm = screen.getByLabelText("厂商名称").closest("form") as HTMLFormElement;
     fireEvent.click(within(vendorForm).getByRole("button", { name: "创建记录" }));
 
     await waitFor(() =>
       expect(mockedCreateResource).toHaveBeenCalledWith(
         "vendors",
-        expect.objectContaining({ name: "浙江汉丰农机有限公司", websiteUrl: "https://vendor.example.com", tagIds: [1] }),
+		expect.objectContaining({ name: "浙江汉丰农机有限公司", websiteUrl: "https://vendor.example.com", tagIds: [1], vendorCategoryIds: [11] }),
       ),
     );
   });

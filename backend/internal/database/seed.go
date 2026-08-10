@@ -71,6 +71,15 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 		if err := backfillCategoryMenuLinks(db); err != nil {
 			return err
 		}
+		if err := InitializeVendorCategories(db); err != nil {
+			return err
+		}
+		if err := InitializeVendorCategoryTaxonomyV2(db); err != nil {
+			return err
+		}
+		if err := CleanupDisabledVendorCategoriesV3(db); err != nil {
+			return err
+		}
 		return ensureInitialAdminUser(db, cfg)
 	}
 
@@ -136,6 +145,15 @@ func SeedDefaults(db *gorm.DB, cfg config.Config) error {
 	if err := backfillCategoryMenuLinks(db); err != nil {
 		return err
 	}
+	if err := InitializeVendorCategories(db); err != nil {
+		return err
+	}
+	if err := InitializeVendorCategoryTaxonomyV2(db); err != nil {
+		return err
+	}
+	if err := CleanupDisabledVendorCategoriesV3(db); err != nil {
+		return err
+	}
 	return ensureInitialAdminUser(db, cfg)
 }
 
@@ -191,8 +209,8 @@ func attachDefaultTags(db *gorm.DB, vendor *model.Vendor) error {
 func defaultMenus() []SeedMenu {
 	menus := []SeedMenu{
 		{Key: "top-home", Name: "首页", Icon: "home", MenuType: "top", Path: "/", SortOrder: 1},
-		{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 2},
-		{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 3},
+		{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 2},
+		{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 3},
 		{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
 		{Key: "top-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
 		{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
@@ -209,8 +227,8 @@ func defaultMenus() []SeedMenu {
 		{Key: "aux-links", Name: "友情链接", Icon: "link", MenuType: "auxiliary", Path: "/links", SortOrder: 2},
 		{Key: "aux-about", Name: "关于平台", Icon: "info", MenuType: "auxiliary", Path: "/about", SortOrder: 3},
 		{Key: "bottom-home", Name: "首页", Icon: "home", MenuType: "mobile_bottom", Path: "/", SortOrder: 1},
-		{Key: "bottom-products", Name: "分类", Icon: "grid", MenuType: "mobile_bottom", Path: "/products", SortOrder: 2},
-		{Key: "bottom-vendors", Name: "厂商", Icon: "factory", MenuType: "mobile_bottom", Path: "/vendors", SortOrder: 3},
+		{Key: "bottom-vendors", Name: "厂商", Icon: "factory", MenuType: "mobile_bottom", Path: "/vendors", SortOrder: 2},
+		{Key: "bottom-products", Name: "配件", Icon: "grid", MenuType: "mobile_bottom", Path: "/products", SortOrder: 3},
 		{Key: "bottom-service", Name: "加工服务", Icon: "settings", MenuType: "mobile_bottom", Path: "/service", SortOrder: 4},
 		{Key: "bottom-account", Name: "厂商", Icon: "user", MenuType: "mobile_bottom", Path: "/account/login", SortOrder: 5},
 	}

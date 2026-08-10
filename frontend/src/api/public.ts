@@ -1,5 +1,5 @@
 ﻿import { publicClient } from "./client";
-import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor } from "../types/api";
+import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor, VendorCategory } from "../types/api";
 
 export function getHome() {
   return publicClient.get<never, HomePayload>("/api/home");
@@ -60,6 +60,8 @@ export interface VendorListParams {
   province?: string;
   tagId?: number | string;
   categoryId?: number | string;
+	vendorCategoryId?: number | string;
+	newlyJoined?: boolean;
   sort?: "recommended" | "latest";
   page?: number;
   pageSize?: number;
@@ -79,6 +81,10 @@ export interface ProductListParams {
 
 export function listVendors(params: VendorListParams = {}) {
   return publicClient.get<never, PageResult<Vendor>>("/api/vendors", { params });
+}
+
+export function getVendorCategories() {
+	return publicClient.get<never, VendorCategory[]>("/api/vendor-categories");
 }
 
 export function listProcessingVendors(params: VendorListParams = {}) {

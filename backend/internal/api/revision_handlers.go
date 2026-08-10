@@ -322,9 +322,9 @@ func applyRevisionSnapshot(tx *gorm.DB, revision *model.ContentRevision, version
 		if err := database.EnsureVendorSlug(tx, &item); err != nil {
 			return err
 		}
-		tagIDs, media := uniqueUintIDs(item.TagIDs), item.Media
-		item.Tags, item.Media = nil, nil
-		if err := optimisticSave(tx, &item, revision.ResourceID, revision.BaseVersion, "Tags", "Media"); err != nil {
+		tagIDs, vendorCategoryIDs, media := uniqueUintIDs(item.TagIDs), uniqueUintIDs(item.VendorCategoryIDs), item.Media
+		item.Tags, item.VendorCategories, item.Media = nil, nil, nil
+		if err := optimisticSave(tx, &item, revision.ResourceID, revision.BaseVersion, "Tags", "VendorCategories", "Media"); err != nil {
 			return err
 		}
 		if media != nil {
@@ -343,6 +343,20 @@ func applyRevisionSnapshot(tx *gorm.DB, revision *model.ContentRevision, version
 				}
 			}
 			if err := tx.Model(&item).Association("Tags").Replace(tags); err != nil {
+				return err
+			}
+		}
+		if vendorCategoryIDs != nil {
+			var categories []model.VendorCategory
+			if len(vendorCategoryIDs) > 0 {
+				if err := tx.Where("id IN ?", vendorCategoryIDs).Find(&categories).Error; err != nil {
+					return err
+				}
+				if len(categories) != len(vendorCategoryIDs) {
+					return gorm.ErrRecordNotFound
+				}
+			}
+			if err := tx.Model(&item).Association("VendorCategories").Replace(categories); err != nil {
 				return err
 			}
 		}

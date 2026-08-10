@@ -79,6 +79,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.SchemaMigration{},
 		&model.Menu{},
 		&model.Tag{},
+		&model.VendorCategory{},
+		&model.VendorCategoryAssignment{},
 		&model.Vendor{},
 		&model.MediaAsset{},
 		&model.VendorMedia{},
@@ -160,7 +162,7 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
 }
 
-const CurrentSchemaVersion uint = 9
+const CurrentSchemaVersion uint = 12
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -190,13 +192,31 @@ func Migrate(db *gorm.DB) error {
 			return err
 		}
 	}
+	if latest < 10 {
+		if err := InitializeVendorCategories(db); err != nil {
+			return err
+		}
+		if err := InitializeVendorCategoryTaxonomyV2(db); err != nil {
+			return err
+		}
+	}
+	if latest < 11 {
+		if err := CleanupDisabledVendorCategoriesV3(db); err != nil {
+			return err
+		}
+	}
+	if latest < 12 {
+		if err := PrioritizeVendorPublicNavigationV4(db); err != nil {
+			return err
+		}
+	}
 	if err := BackfillPlatformData(db); err != nil {
 		return err
 	}
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "public-access-hardening", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-first-public-navigation-v4", AppliedAt: time.Now()}).Error
 }
 
 func CheckMigrations(db *gorm.DB) error {

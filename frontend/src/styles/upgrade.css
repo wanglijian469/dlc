@@ -100,9 +100,11 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 .product-card .card-actions a { flex: 1; }
 
 .mobile-filter-toggle { display: none; }
+.sr-only { clip: rect(0, 0, 0, 0); clip-path: inset(50%); height: 1px; overflow: hidden; position: absolute; white-space: nowrap; width: 1px; }
 .active-filter-row { align-items: center; display: flex; flex-wrap: wrap; gap: 8px; margin: -5px 0 14px; }
 .active-filter-row > span { background: #eaf2ff; border-radius: 999px; color: #1559c7; font-size: 13px; padding: 5px 10px; }
 .active-filter-row button { align-items: center; background: none; border: 0; color: #68798e; cursor: pointer; display: inline-flex; gap: 4px; }
+.active-filter-row .filter-chip { background: #edf5ff; border: 1px solid #9ac2f5; border-radius: 999px; color: #1559c7; padding: 6px 10px; }
 .pagination { align-items: center; display: flex; gap: 14px; justify-content: center; margin: 22px 0; }
 .pagination button { background: #fff; border: 1px solid #cbd8e8; border-radius: 8px; color: var(--primary-blue); cursor: pointer; min-height: 38px; padding: 8px 16px; }
 .pagination button:disabled { cursor: not-allowed; opacity: .45; }
@@ -184,7 +186,7 @@ dt { color: var(--text-sub); } dd { margin: 0; }
   .mobile-menu-drawer.open { transform:translateX(0); }
   .mobile-menu-drawer > header { align-items:center;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;padding:16px; }.mobile-menu-drawer > header button{background:none;border:0;min-height:40px;min-width:40px}
   .mobile-menu-drawer nav { flex:1;overflow:auto;padding:10px; }.mobile-drawer-item button,.mobile-drawer-item>a{align-items:center;background:none;border:0;border-radius:8px;color:var(--text-main);display:flex;gap:10px;justify-content:space-between;padding:12px;text-align:left;width:100%}.mobile-drawer-item button>span{align-items:center;display:flex;gap:10px}.mobile-drawer-child{color:var(--text-sub)!important;padding-left:44px!important}
-  .mobile-menu-drawer footer{border-top:1px solid var(--border-color);display:flex;gap:14px;padding:16px}.mobile-menu-drawer footer a{color:var(--primary-blue);font-size:13px}
+  .mobile-menu-drawer footer{border-top:1px solid var(--border-color);display:block;padding:12px 16px 14px}.mobile-menu-drawer footer .mobile-drawer-join{align-items:center;background:var(--primary-blue);border-radius:8px;color:#fff;display:flex;font-size:14px;font-weight:800;gap:8px;justify-content:center;padding:10px 12px}.mobile-menu-drawer footer>div{display:flex;gap:16px;justify-content:center;padding-top:10px}.mobile-menu-drawer footer>div a{color:var(--primary-blue);font-size:12px}
   .content { padding: 14px 14px 88px; }
   .content:has(.mobile-contact-bar) { padding-bottom: 132px; }
   .hero-search { border-radius: 10px; display: block; min-height: auto; }.hero-copy { padding: 18px; }.hero-copy h1,.hero-copy p,.hot-keywords,.hero-machine { display:none; }
@@ -252,6 +254,9 @@ dt { color: var(--text-sub); } dd { margin: 0; }
   scrollbar-color: rgba(21, 89, 199, .22) transparent;
   scrollbar-width: thin;
 }
+.sidebar-directory-title{color:#17304f;font-size:16px;font-weight:800;padding:8px 10px 12px}.directory-count-badge{background:#eef4fb;border-radius:999px;color:#55708f;font-size:11px;font-weight:700;margin-left:auto;padding:2px 7px;white-space:nowrap}.submenu a{justify-content:flex-start}.submenu a .directory-count-badge{margin-left:auto;margin-right:8px}.sidebar.collapsed .sidebar-directory-title,.sidebar.collapsed .directory-count-badge{display:none}.mobile-drawer-item .directory-count-badge{margin-left:auto}.mobile-drawer-item>a>span,.mobile-drawer-child>span{align-items:center;display:flex;gap:10px}
+.directory-context-badge{background:#e4f7ee;border:1px solid #b8e8d2;border-radius:999px;color:#087455;font-size:10px;font-weight:800;line-height:1.4;padding:1px 5px;white-space:nowrap}.submenu a.context-active{background:#f0faf6;border-radius:6px;color:#087455;font-weight:800;padding-left:6px}.submenu a>span{min-width:0}.sidebar.collapsed .directory-context-badge{display:none}.mobile-drawer-item.context-active>button,.mobile-drawer-item.context-active>a,.mobile-drawer-child.context-active{background:#f0faf6;color:#087455}.mobile-drawer-item .directory-context-badge{margin-left:2px}
+.vendor-category-empty{text-align:center}.vendor-category-empty .state-page{min-height:180px}.vendor-category-empty .primary-btn{display:inline-flex;margin-bottom:24px}
 .sidebar-main-scroll::-webkit-scrollbar-thumb {
   background: transparent;
 }

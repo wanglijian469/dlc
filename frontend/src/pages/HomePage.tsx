@@ -11,6 +11,8 @@ import { SidebarNav } from "../components/public/SidebarNav";
 import { StatsFooter } from "../components/public/StatsFooter";
 import { ProcessingSection } from "../components/public/HomeMarketplaceSections";
 import type { HomeModule, HomePayload, Vendor } from "../types/api";
+import { useSite } from "../contexts/SiteContext";
+import { buildVendorNavigationMenus } from "../utils/vendorNavigation";
 
 export function HomePage() {
   const [home, setHome] = useState<HomePayload | null>(null);
@@ -49,6 +51,8 @@ export function dedupeHome(home: HomePayload): HomePayload {
 }
 
 export function HomeView({ home }: { home: HomePayload }) {
+  const { vendorCategories } = useSite();
+  const vendorMenus = buildVendorNavigationMenus(vendorCategories);
   const configured = home.modules || [];
   const moduleOf = (type: HomeModule["type"], fallback: HomeModule) => configured.find((item) => item.type === type) || fallback;
   const recommended = moduleOf("recommendedVendors", { type: "recommendedVendors", title: "推荐厂商", visible: true, limit: 5, path: "/vendors", sortOrder: 10 });
@@ -59,9 +63,9 @@ export function HomeView({ home }: { home: HomePayload }) {
   return (
     <div className="site-shell">
       <PublicHeader menus={home.topMenus} siteMeta={home.siteMeta} />
-      <MobileHeader auxiliaryMenus={home.auxiliaryMenus} menus={home.sidebarMenus} siteMeta={home.siteMeta} />
+      <MobileHeader auxiliaryMenus={home.auxiliaryMenus} menus={vendorMenus} navigationTitle="厂商分类" siteMeta={home.siteMeta} />
       <main className="site-body">
-        <SidebarNav auxiliaryMenus={[]} menus={home.sidebarMenus} />
+        <SidebarNav menus={vendorMenus} title="厂商分类" />
         <div className="content">
           <HeroSearch banner={home.banner} />
           <MobileCategoryGrid menus={home.mobileMenus} />

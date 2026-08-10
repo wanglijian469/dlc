@@ -1,5 +1,5 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorOption, VendorProductRecord } from "../types/api";
+import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductRecord } from "../types/api";
 
 export type AccountRole = "admin" | "editor" | "reviewer" | "vendor";
 
@@ -151,10 +151,10 @@ export function previewRevision(id: number) { return adminClient.get<never, { re
 export interface OperationLog { id: number; username: string; action: string; resource: string; recordId: number; reason?: string; createdAt: string }
 export function listOperationLogs(params: { page: number; pageSize: number; search?: string }) { return adminClient.get<never, PageResult<OperationLog>>("/api/admin/operation-logs", { params }); }
 
-export type ResourceName = "menus" | "vendors" | "tags" | "categories" | "products" | "banners" | "pages" | "friend-links";
-export type ResourceRecord = (Menu | Vendor | Tag | Category | Product | Banner | ContentPageRecord | FriendLink) & { id: number };
+export type ResourceName = "menus" | "vendors" | "tags" | "categories" | "vendor-categories" | "products" | "banners" | "pages" | "friend-links";
+export type ResourceRecord = (Menu | Vendor | Tag | Category | VendorCategory | Product | Banner | ContentPageRecord | FriendLink) & { id: number };
 
-const editorialResources = new Set<ResourceName>(["vendors", "products", "categories", "pages", "tags"]);
+const editorialResources = new Set<ResourceName>(["vendors", "products", "categories", "vendor-categories", "pages", "tags"]);
 
 function resourceListPath(resource: ResourceName) {
   const role = typeof window === "undefined" ? "admin" : window.localStorage.getItem("cms_role");

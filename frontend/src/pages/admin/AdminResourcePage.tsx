@@ -21,7 +21,7 @@ import {
   type BulkImportResult,
 } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
-import type { Category, Menu, Product, SiteConfig, Vendor, VendorOption } from "../../types/api";
+import type { Category, Menu, Product, SiteConfig, Vendor, VendorCategory, VendorOption } from "../../types/api";
 import type { VendorMedia } from "../../types/api";
 import { AdminModal } from "../../components/admin/AdminModal";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
@@ -31,6 +31,7 @@ import { AdminProductSuppliersEditor } from "../../components/admin/AdminProduct
 import { AdminVendorProductsPanel } from "../../components/admin/AdminVendorProductsPanel";
 import { NewProductVendorPicker, VendorOptionSearch } from "../../components/admin/VendorOptionSearch";
 import { AdminCategoriesPage } from "./AdminCategoriesPage";
+import { AdminVendorCategoriesPage } from "./AdminVendorCategoriesPage";
 import { hierarchicalCategoryOptions } from "../../utils/categories";
 import { getApiErrorMessage } from "../../api/client";
 import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
@@ -117,6 +118,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "contactName", label: "联系人" },
       { key: "contactNamePublic", label: "联系人公开展示", type: "checkbox", description: "公开后会直接出现在前台和静态页面中，可能被搜索引擎和第三方采集。" },
       { key: "tagIds", label: "配件厂商标签", type: "checkbox-group", refResource: "tags", optionTagType: "vendor", group: "展示信息", description: "用于标识厂商经营与展示属性，可多选。" },
+	  { key: "vendorCategoryIds", label: "厂商分类", type: "checkbox-group", refResource: "vendor-categories", group: "展示信息", description: "用于确定企业在厂商资源导航中的展示位置，可多选。" },
       { key: "isRecommended", label: "推荐厂商", type: "checkbox", description: "在推荐厂商区域优先展示" },
       { key: "isVerified", label: "平台认证", type: "checkbox", description: "在前台显示认证标识" },
       { key: "isVisible", label: "前台显示", type: "checkbox", description: "勾选并保存后发布到前台" },
@@ -142,6 +144,7 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "isEnabled", label: "启用", type: "checkbox" },
     ],
   },
+	"vendor-categories": { title: "厂商分类", fields: [] },
   products: {
     title: "配件产品",
     fields: [
@@ -267,6 +270,7 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
   const resource = resourceName || routeResource;
   if (resource === "configs") return <ConfigPage />;
   if (resource === "categories") return <AdminCategoriesPage />;
+	if (resource === "vendor-categories") return <AdminVendorCategoriesPage />;
   const name = (schemas[resource as ResourceName] ? resource : "menus") as ResourceName;
   const schema = schemas[name];
   const isEditor = localStorage.getItem("cms_role") === "editor";
@@ -676,7 +680,8 @@ function ImageField({ field, form, setForm }: { field: Field; form: FormState; s
 function optionsFor(field: Field, refs: Partial<Record<ResourceName, ResourceRecord[]>>) {
   if (field.options) return field.options;
   if (!field.refResource) return [];
-  if (field.refResource === "categories") return hierarchicalCategoryOptions((refs.categories || []) as Category[]);
+	if (field.refResource === "categories") return hierarchicalCategoryOptions((refs.categories || []) as Category[]);
+	if (field.refResource === "vendor-categories") return hierarchicalVendorCategoryOptions((refs["vendor-categories"] || []) as VendorCategory[]);
 	if (field.refResource === "menus") return (refs.menus || []).map((item) => {
 		const menu = item as Menu;
 		const label = menu.categoryId ? `分类快捷项：${menu.name}` : menu.name;
@@ -877,7 +882,7 @@ function groupFields(resource: ResourceName, fields: Field[]) {
   const groupTitle = (key: string) => {
     if (resource === "vendors") {
       if (["name", "shortName", "province", "city", "county", "address", "description"].includes(key)) return "基础资料";
-      if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds"].includes(key)) return "展示信息";
+		if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds", "vendorCategoryIds"].includes(key)) return "展示信息";
       if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "afterSalesService"].includes(key)) return "生产与服务";
       if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
       if (["websiteUrl", "phone", "phonePublic", "wechat", "wechatQrCode", "wechatPublic", "contactName", "contactNamePublic"].includes(key)) return "联系方式";
@@ -900,6 +905,14 @@ function groupFields(resource: ResourceName, fields: Field[]) {
 
 function payloadFromForm(fields: Field[], form: FormState) {
   return Object.fromEntries(fields.map((field) => [field.key, form[field.key]]));
+}
+
+function hierarchicalVendorCategoryOptions(rows: VendorCategory[]) {
+	const roots = rows.filter((row) => !row.parentId).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.id - b.id);
+	return roots.flatMap((root) => [
+		{ label: root.name, value: root.id },
+		...rows.filter((row) => row.parentId === root.id).sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0) || a.id - b.id).map((child) => ({ label: `└ ${child.name}`, value: child.id })),
+	]);
 }
 
 function columnLabel(key: string, resource?: ResourceName) {

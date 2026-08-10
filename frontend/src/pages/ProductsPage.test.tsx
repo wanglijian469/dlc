@@ -60,7 +60,7 @@ describe("ProductsPage", () => {
       </MemoryRouter>,
     );
 
-    expect(await screen.findByRole("heading", { name: "配件产品" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "配件货源" })).toBeInTheDocument();
     expect(await screen.findByText("变速箱齿轮总成")).toBeInTheDocument();
     expect(screen.getByText(/支持供应商：2 家/)).toBeInTheDocument();
     expect(screen.getByText(/供应地区：河北 · 山东/)).toBeInTheDocument();

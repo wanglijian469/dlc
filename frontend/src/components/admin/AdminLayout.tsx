@@ -23,6 +23,7 @@ const links: AdminLink[] = [
   { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
   { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置", roles: ["admin", "editor"] },
+  { label: "厂商分类", path: "/admin/vendor-categories", icon: ListTree, group: "基础配置", roles: ["admin", "editor"] },
   { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "基础配置" },
   { label: "页面与行业文章", path: "/admin/pages", icon: FileText, group: "基础配置", roles: ["admin", "editor"] },
   { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "基础配置" },

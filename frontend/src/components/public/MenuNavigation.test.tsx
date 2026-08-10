@@ -13,7 +13,7 @@ const menus: Menu[] = [
     { id: 22, name: "后桥差速器", icon: "dot", path: "/products?keyword=差速器" },
   ] },
 ];
-const renderSidebar = (path = "/") => render(<MemoryRouter initialEntries={[path]}><SidebarNav auxiliaryMenus={[]} menus={menus} /></MemoryRouter>);
+const renderSidebar = (path = "/") => render(<MemoryRouter initialEntries={[path]}><SidebarNav menus={menus} /></MemoryRouter>);
 afterEach(cleanup);
 
 describe("menu navigation", () => {
@@ -40,5 +40,5 @@ describe("menu navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "传动配件" })); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();
   });
   it("matches a structured parent URL", () => { const { container } = renderSidebar("/products?categoryId=2"); expect(container.querySelector(".menu-row.selected")).toHaveTextContent("传动配件"); });
-  it("auto-expands and highlights a matching child URL", () => { renderSidebar("/products?keyword=齿轮"); expect(screen.getByText("变速箱齿轮")).toHaveClass("active"); });
+  it("auto-expands and highlights a matching child URL", () => { renderSidebar("/products?keyword=齿轮"); expect(screen.getByText("变速箱齿轮").closest("a")).toHaveClass("active"); });
 });

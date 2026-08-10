@@ -84,6 +84,7 @@ func RegisterPublicRoutesWithAuth(router *gin.Engine, db *gorm.DB, secret string
 	api.GET("/processing-vendors", handler.ProcessingVendors)
 	api.GET("/processing-filter-options", handler.ProcessingFilterOptions)
 	api.GET("/vendors", handler.Vendors)
+	api.GET("/vendor-categories", handler.VendorCategories)
 	api.GET("/vendors/recommended", handler.RecommendedVendors)
 	api.GET("/vendors/slug/:slug", handler.VendorBySlug)
 	api.GET("/vendors/:id/contact", CMSAuth(db, secret), handler.VendorContact)
@@ -141,6 +142,7 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	workflowReaders.GET("/editorial/vendor-options", handler.ListVendorOptions)
 	workflowReaders.GET("/editorial/products", handler.ListProducts)
 	workflowReaders.GET("/editorial/categories", handler.ListCategories)
+	workflowReaders.GET("/editorial/vendor-categories", handler.ListVendorCategories)
 	workflowReaders.GET("/editorial/pages", handler.ListPages)
 	workflowReaders.GET("/editorial/tags", handler.ListTags)
 
@@ -149,6 +151,10 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	workflowEditors.POST("/seo-suggestions/vendor", handler.SuggestVendorSEO)
 	workflowEditors.POST("/revisions", handler.SaveRevision)
 	workflowEditors.POST("/revisions/:id/submit", handler.SubmitRevision)
+	workflowEditors.GET("/vendor-categories", handler.ListVendorCategories)
+	workflowEditors.POST("/vendor-categories", handler.CreateVendorCategory)
+	workflowEditors.PUT("/vendor-categories/:id", handler.UpdateVendorCategory)
+	workflowEditors.DELETE("/vendor-categories/:id", handler.DeleteVendorCategory)
 
 	workflowReviewers := protected.Group("")
 	workflowReviewers.Use(RequireAnyRole("admin", "reviewer"))

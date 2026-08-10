@@ -17,6 +17,19 @@ export interface Menu {
   isTop?: boolean;
   isDefaultOpen?: boolean;
   children?: Menu[];
+	badge?: string;
+	contextActive?: boolean;
+}
+
+export interface VendorCategory {
+	id: number;
+	name: string;
+	parentId?: number;
+	icon?: string;
+	sortOrder?: number;
+	isEnabled?: boolean;
+	vendorCount?: number;
+	children?: VendorCategory[];
 }
 
 export interface Tag {
@@ -96,6 +109,8 @@ export interface Vendor {
   tags?: Tag[];
   media?: VendorMedia[];
   tagIds?: number[];
+	vendorCategories?: VendorCategory[];
+	vendorCategoryIds?: number[];
 }
 
 export interface VendorOption {

@@ -5,8 +5,8 @@ import type { Menu } from "../../types/api";
 const iconMap = { home: Home, grid: Grid2X2, factory: Warehouse, warehouse: Warehouse, settings: Settings, user: UserRound };
 const fallbackItems: Menu[] = [
   { id: 1, name: "首页", path: "/", icon: "home" },
-  { id: 2, name: "分类", path: "/products", icon: "grid" },
   { id: 3, name: "厂商", path: "/vendors", icon: "factory" },
+  { id: 2, name: "配件", path: "/products", icon: "grid" },
   { id: 4, name: "加工服务", path: "/service", icon: "settings" },
   { id: 5, name: "厂商", path: "/account/login", icon: "user" },
 ];
