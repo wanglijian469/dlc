@@ -20,6 +20,7 @@ const links: AdminLink[] = [
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容", roles: ["admin", "editor"] },
   { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
+  { label: "供求治理", path: "/admin/market-posts", icon: ClipboardCheck, group: "业务内容", roles: ["admin", "reviewer"] },
   { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
   { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置", roles: ["admin", "editor"] },

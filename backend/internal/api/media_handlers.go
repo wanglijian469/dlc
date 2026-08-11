@@ -92,7 +92,7 @@ func (h AdminHandler) SecureUpload(c *gin.Context) {
 		return
 	}
 	status := "published"
-	if c.GetString("role") == "vendor" {
+	if c.GetString("role") == "vendor" || c.GetString("role") == "buyer" {
 		status = "staged"
 	}
 	var vendorID *uint
@@ -228,6 +228,11 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 	}
 	if references == 0 {
 		h.DB.Model(&model.SiteConfig{}).Where("config_key = ? AND config_value LIKE ?", "site.meta", "%"+url+"%").Count(&references)
+	}
+	if references == 0 {
+		h.DB.Model(&model.MarketPostMedia{}).
+			Joins("JOIN market_posts ON market_posts.id = market_post_media.market_post_id").
+			Where("market_post_media.asset_id = ? AND market_posts.status = ? AND market_posts.expires_at > ?", asset.ID, "published", time.Now()).Count(&references)
 	}
 	if references == 0 {
 		Fail(c, 404, 404, "图片不存在")

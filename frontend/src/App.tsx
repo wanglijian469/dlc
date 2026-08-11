@@ -27,6 +27,14 @@ const AdminLogsPage = lazy(() => import("./pages/admin/AdminLogsPage").then((mod
 const ProductReviewsPage = lazy(() => import("./pages/admin/ProductReviewsPage").then((module) => ({ default: module.ProductReviewsPage })));
 const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage").then((module) => ({ default: module.AdminAnalyticsPage })));
 const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage").then((module) => ({ default: module.AdminSEOPage })));
+const MarketPostReviewsPage = lazy(() => import("./pages/admin/MarketPostReviewsPage").then((module) => ({ default: module.MarketPostReviewsPage })));
+const AccountLoginPage = lazy(() => import("./pages/AccountLoginPage").then((module) => ({ default: module.AccountLoginPage })));
+const MarketPostDetailPage = lazy(() => import("./pages/MarketPostDetailPage").then((module) => ({ default: module.MarketPostDetailPage })));
+const MarketPostEditorPage = lazy(() => import("./pages/MarketPostEditorPage").then((module) => ({ default: module.MarketPostEditorPage })));
+const MarketPostsPage = lazy(() => import("./pages/MarketPostsPage").then((module) => ({ default: module.MarketPostsPage })));
+const MobileCategoriesPage = lazy(() => import("./pages/MobileCategoriesPage").then((module) => ({ default: module.MobileCategoriesPage })));
+const MyMarketPostsPage = lazy(() => import("./pages/MyMarketPostsPage").then((module) => ({ default: module.MyMarketPostsPage })));
+const BuyerProfilePage = lazy(() => import("./pages/BuyerProfilePage").then((module) => ({ default: module.BuyerProfilePage })));
 
 export function App() {
   const location = useLocation();
@@ -45,7 +53,13 @@ export function App() {
       <Route path="/join" element={<ContentPage slug="join" />} />
       <Route path="/about" element={<ContentPage slug="about" />} />
       <Route path="/service" element={<ProcessingServicesPage />} />
-      <Route path="/purchase" element={<ContentPage slug="purchase" />} />
+      <Route path="/purchase" element={<MarketPostsPage />} />
+      <Route path="/purchase/:id" element={<MarketPostDetailPage />} />
+      <Route path="/categories" element={<MobileCategoriesPage />} />
+      <Route path="/publish" element={<MarketPostEditorPage />} />
+      <Route path="/publish/:id" element={<MarketPostEditorPage />} />
+      <Route path="/account/posts" element={<MyMarketPostsPage />} />
+      <Route path="/account/profile" element={<BuyerProfilePage />} />
       <Route path="/links" element={<ContentPage slug="links" />} />
       <Route path="/privacy" element={<ContentPage slug="privacy" />} />
 
@@ -53,7 +67,7 @@ export function App() {
       <Route path="/guides/:slug" element={<GuideRoute />} />
       <Route path="/contact" element={<PlaceholderPage title="联系我们" description="如需平台合作、资料更正或厂商认证，请通过平台运营方公布的联系方式与我们联系。" />} />
       <Route path="/feedback" element={<PlaceholderPage title="反馈建议" description="欢迎反馈错误资料、使用问题和功能建议。反馈入口将在运营联系方式配置后开放。" />} />
-      <Route path="/account/login" element={<AdminLoginPage />} />
+      <Route path="/account/login" element={<AccountLoginPage />} />
       <Route path="/admin/login" element={<AdminLoginPage staffOnly />} />
       <Route
         path="/admin/dashboard"
@@ -69,6 +83,7 @@ export function App() {
       <Route path="/admin/account-security" element={<ProtectedAdminRoute roles={["vendor"]}><AccountSecurityPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/market-posts" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><MarketPostReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
       <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/analytics" element={<ProtectedAdminRoute roles={["admin"]}><AdminAnalyticsPage /></ProtectedAdminRoute>} />

@@ -41,6 +41,11 @@ jobs:
           node-version: 24
           cache: npm
           cache-dependency-path: frontend/package-lock.json
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.9
+          channel: stable
+          cache: true
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -59,6 +64,27 @@ jobs:
       - name: Production dependency audit
         working-directory: frontend
         run: npm audit --omit=dev
+      - name: Flutter dependencies
+        working-directory: mobile
+        run: flutter pub get
+      - name: Validate shared OpenAPI contract
+        working-directory: mobile
+        run: dart --packages=.dart_tool/package_config.json ../shared/tool/validate_openapi.dart ../shared/contracts/openapi.yaml
+      - name: Flutter analyze and tests
+        working-directory: mobile
+        run: flutter analyze && flutter test
+      - name: Android debug build
+        working-directory: mobile
+        run: flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:8080
+      - name: Android release build
+        working-directory: mobile
+        run: flutter build apk --release --dart-define=PRODUCTION=true --dart-define=API_BASE_URL=https://api.example.invalid
+      - name: Upload Android release package
+        uses: actions/upload-artifact@v4
+        with:
+          name: dlc-mobile-android-release
+          path: mobile/build/app/outputs/flutter-apk/app-release.apk
+          if-no-files-found: error
       - name: Dynamic SEO response smoke test
         shell: bash
         run: |

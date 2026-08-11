@@ -99,6 +99,11 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.AnalyticsEvent{},
 		&model.SEORedirect{},
 		&model.AuthSession{},
+		&model.BuyerProfile{},
+		&model.AppSession{},
+		&model.MarketPost{},
+		&model.MarketPostMedia{},
+		&model.MarketContactAccessLog{},
 		&model.ContentRevision{},
 		&model.StaticPageBuild{},
 		&model.StaticBuildJob{},
@@ -162,7 +167,7 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
 }
 
-const CurrentSchemaVersion uint = 12
+const CurrentSchemaVersion uint = 13
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -216,7 +221,7 @@ func Migrate(db *gorm.DB) error {
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-first-public-navigation-v4", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "mobile-marketplace-v1", AppliedAt: time.Now()}).Error
 }
 
 func CheckMigrations(db *gorm.DB) error {

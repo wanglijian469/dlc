@@ -126,6 +126,20 @@ func authenticateRequest(c *gin.Context, db *gorm.DB, secret string) (model.Admi
 		}
 	}
 	header := c.GetHeader("Authorization")
+	if strings.HasPrefix(header, "Bearer ") {
+		value := strings.TrimSpace(strings.TrimPrefix(header, "Bearer "))
+		var session model.AppSession
+		if value != "" && db.Where("access_token_hash = ? AND revoked_at IS NULL AND access_expires_at > ?", credentialHash(value), time.Now()).First(&session).Error == nil {
+			var user model.AdminUser
+			if db.Where("id = ? AND is_enabled = ?", session.UserID, true).First(&user).Error == nil {
+				c.Set("appSessionId", session.ID)
+				if time.Since(session.LastSeenAt) > 5*time.Minute {
+					db.Model(&session).Update("last_seen_at", time.Now())
+				}
+				return user, true
+			}
+		}
+	}
 	if secret != "" && strings.HasPrefix(header, "Bearer ") {
 		if username, err := auth.ParseToken(strings.TrimPrefix(header, "Bearer "), secret); err == nil {
 			var user model.AdminUser

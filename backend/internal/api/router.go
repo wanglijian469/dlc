@@ -48,6 +48,7 @@ func NewRouter(deps Deps) *gin.Engine {
 	router.Use(accessProtection.Middleware())
 	RegisterHealthRoute(router)
 	RegisterPublicRoutesWithAuth(router, deps.DB, deps.Config.AuthSecret)
+	RegisterMarketplaceRoutes(router, deps.DB, deps.Config)
 	router.POST("/api/analytics/events", AnalyticsHandler{DB: deps.DB, Config: deps.Config}.RecordEvent)
 	staticPages := NewStaticPageService(deps.DB, deps.Config)
 	watermarks := NewWatermarkService(deps.DB, deps.Config, accessProtection)
@@ -115,6 +116,41 @@ func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	registerAdminRoutesWithServices(router, db, cfg, NewStaticPageService(db, cfg), accessProtection, NewWatermarkService(db, cfg, accessProtection))
 }
 
+// RegisterMarketplaceRoutes contains only additive v1 endpoints. Existing web
+// and CMS routes remain unchanged and can be deployed before either new client.
+func RegisterMarketplaceRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
+	handler := AdminHandler{DB: db, Config: cfg}
+	appAuth := router.Group("/api/v1/app/auth")
+	appAuth.POST("/register", handler.AppRegister)
+	appAuth.POST("/login", handler.AppLogin)
+	appAuth.POST("/refresh", handler.AppRefresh)
+	appProtected := appAuth.Group("")
+	appProtected.Use(CMSAuth(db, cfg.AuthSecret))
+	appProtected.POST("/logout", handler.AppLogout)
+	appProtected.GET("/me", handler.AppMe)
+
+	market := router.Group("/api/v1/market-posts")
+	market.GET("", handler.ListMarketPosts)
+	market.GET("/:id", handler.MarketPostDetail)
+	marketContact := market.Group("")
+	marketContact.Use(CMSAuth(db, cfg.AuthSecret))
+	marketContact.GET("/:id/contact", handler.MarketPostContact)
+
+	account := router.Group("/api/v1/me")
+	account.Use(CMSAuth(db, cfg.AuthSecret), RequireCSRF(), RequireAnyRole("buyer", "vendor"))
+	account.GET("/market-posts", handler.ListOwnMarketPosts)
+	account.GET("/market-posts/:id", handler.OwnMarketPost)
+	account.POST("/market-posts", handler.CreateOwnMarketPost)
+	account.PUT("/market-posts/:id", handler.UpdateOwnMarketPost)
+	account.DELETE("/market-posts/:id", handler.WithdrawOwnMarketPost)
+	account.GET("/profile", handler.AccountProfile)
+	account.PUT("/profile", handler.UpdateAccountProfile)
+
+	media := router.Group("/api/v1")
+	media.Use(CMSAuth(db, cfg.AuthSecret), RequireCSRF(), RequireAnyRole("buyer", "vendor"))
+	media.POST("/media", handler.SecureUpload)
+}
+
 func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config.Config, staticPages *StaticPageService, accessProtection *AccessProtectionService, watermarks *WatermarkService) {
 	handler := AdminHandler{DB: db, Config: cfg, StaticPages: staticPages, AccessProtection: accessProtection, Watermarks: watermarks}
 	authAPI := router.Group("/api/auth")
@@ -161,6 +197,8 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	workflowReviewers.POST("/revisions/:id/approve", handler.ApproveRevision)
 	workflowReviewers.POST("/revisions/:id/reject", handler.RejectRevision)
 	workflowReviewers.POST("/revisions/:id/archive", handler.ArchiveRevisionResource)
+	workflowReviewers.GET("/market-posts", handler.AdminListMarketPosts)
+	workflowReviewers.PUT("/market-posts/:id/status", handler.AdminUpdateMarketPostStatus)
 
 	mediaUsers := protected.Group("")
 	mediaUsers.Use(RequireAnyRole("admin", "editor", "reviewer", "vendor"))

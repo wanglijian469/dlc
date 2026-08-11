@@ -25,14 +25,16 @@ describe("menu navigation", () => {
     expect(container.querySelectorAll(".mobile-category-grid a")).toHaveLength(8);
     expect(screen.getByRole("link", { name: "全部分类" })).toHaveAttribute("href", "/products");
   });
-  it("labels the account destination as vendor center", () => {
+  it("uses the fixed mobile marketplace navigation", () => {
     render(<MemoryRouter><MobileBottomNav menus={[
       { id: 1, name: "首页", path: "/", icon: "home" },
       { id: 2, name: "厂商", path: "/vendors", icon: "factory" },
       { id: 3, name: "厂商", path: "/account/login", icon: "user" },
     ]} /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: "厂商" })).toHaveAttribute("href", "/vendors");
-    expect(screen.getByRole("link", { name: "厂商中心" })).toHaveAttribute("href", "/account/login");
+    expect(screen.getByRole("link", { name: "分类" })).toHaveAttribute("href", "/categories");
+    expect(screen.getByRole("link", { name: "发布" })).toHaveAttribute("href", "/publish");
+    expect(screen.getByRole("link", { name: "供求" })).toHaveAttribute("href", "/purchase");
+    expect(screen.getByRole("link", { name: "我的" })).toHaveAttribute("href", "/account/posts");
   });
   it("honors isDefaultOpen and toggles the whole parent row", () => {
     renderSidebar(); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();

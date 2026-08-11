@@ -1,0 +1,21 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "items": [{
+      "id": 1,
+      "type": "demand",
+      "title": "求购收割机链条总成",
+      "description": "长期采购，具体型号和数量电话沟通。",
+      "publisherName": "示例采购商",
+      "status": "published",
+      "images": [],
+      "expiresAt": "2026-09-09T00:00:00+08:00",
+      "createdAt": "2026-08-10T00:00:00+08:00",
+      "updatedAt": "2026-08-10T00:00:00+08:00"
+    }],
+    "page": 1,
+    "pageSize": 20,
+    "total": 1
+  }
+}

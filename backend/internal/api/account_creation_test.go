@@ -48,14 +48,14 @@ func TestPublicRegistrationRejectsOrdinaryUsers(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/auth/register", strings.NewReader(`{"username":"member","password":"secret1","role":"user"}`))
 	req.Header.Set("Content-Type", "application/json")
 	router.ServeHTTP(recorder, req)
-	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "仅支持厂商入驻") {
+	if recorder.Code != http.StatusBadRequest || !strings.Contains(recorder.Body.String(), "采购商注册或厂商入驻") {
 		t.Fatalf("status = %d body = %s", recorder.Code, recorder.Body.String())
 	}
 }
 
-func TestLoginAudienceAllowsOnlyVendorAndStaffRoles(t *testing.T) {
-	if !loginAudienceAllows("vendor", "vendor") || loginAudienceAllows("vendor", "user") || loginAudienceAllows("vendor", "admin") {
-		t.Fatal("vendor login audience accepted an invalid role")
+func TestLoginAudienceAllowsOnlyMarketplaceAndStaffRoles(t *testing.T) {
+	if !loginAudienceAllows("account", "vendor") || !loginAudienceAllows("account", "buyer") || loginAudienceAllows("account", "user") || loginAudienceAllows("account", "admin") {
+		t.Fatal("account login audience accepted an invalid role")
 	}
 	if !loginAudienceAllows("staff", "admin") || !loginAudienceAllows("staff", "editor") || !loginAudienceAllows("staff", "reviewer") || loginAudienceAllows("staff", "vendor") {
 		t.Fatal("staff login audience roles are incorrect")

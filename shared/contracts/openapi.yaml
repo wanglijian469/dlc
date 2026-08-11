@@ -1,0 +1,343 @@
+openapi: 3.1.0
+info:
+  title: 大陆农机配件公共 REST API
+  version: 1.0.0
+  description: 新增移动端与供求接口的语言无关契约；既有 /api 接口保持兼容。
+servers:
+  - url: /
+paths:
+  /api/v1/app/auth/register:
+    post:
+      operationId: appRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppRegistration' }
+      responses:
+        '200': { $ref: '#/components/responses/AppTokens' }
+  /api/v1/app/auth/login:
+    post:
+      operationId: appLogin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/AppLogin' }
+      responses:
+        '200': { $ref: '#/components/responses/AppTokens' }
+  /api/v1/app/auth/refresh:
+    post:
+      operationId: appRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties: { refreshToken: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/AppTokens' }
+  /api/v1/app/auth/logout:
+    post:
+      operationId: appLogout
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/app/auth/me:
+    get:
+      operationId: appMe
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/market-posts:
+    get:
+      operationId: listMarketPosts
+      parameters:
+        - { name: type, in: query, schema: { $ref: '#/components/schemas/MarketPostType' } }
+        - { name: keyword, in: query, schema: { type: string } }
+        - { name: categoryId, in: query, schema: { type: integer } }
+        - { name: province, in: query, schema: { type: string } }
+        - { name: publishedAfter, in: query, schema: { type: string, format: date-time } }
+        - { name: publishedBefore, in: query, schema: { type: string, format: date-time } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1, default: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100, default: 20 } }
+      responses:
+        '200':
+          description: 公开供求列表，不含联系方式
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/ApiResponse' }
+                  - type: object
+                    properties:
+                      data: { $ref: '#/components/schemas/MarketPostPage' }
+  /api/v1/market-posts/{id}:
+    get:
+      operationId: getMarketPost
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: 公开供求详情，不含联系方式
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/ApiResponse' }
+                  - type: object
+                    properties: { data: { $ref: '#/components/schemas/MarketPost' } }
+  /api/v1/market-posts/{id}/contact:
+    get:
+      operationId: getMarketPostContact
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200':
+          description: 登录并通过访问限频后返回
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - { $ref: '#/components/schemas/ApiResponse' }
+                  - type: object
+                    properties: { data: { $ref: '#/components/schemas/MarketPostContact' } }
+  /api/v1/me/market-posts:
+    get:
+      operationId: listOwnMarketPosts
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      operationId: createMarketPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarketPostInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/market-posts/{id}:
+    get:
+      operationId: getOwnMarketPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    put:
+      operationId: updateOwnMarketPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MarketPostInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    delete:
+      operationId: withdrawOwnMarketPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/profile:
+    get:
+      operationId: getAccountProfile
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    put:
+      operationId: updateBuyerProfile
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/BuyerProfileInput' }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/media:
+    post:
+      operationId: uploadMarketMedia
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/market-posts:
+    get:
+      operationId: adminListMarketPosts
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters:
+        - { name: status, in: query, schema: { $ref: '#/components/schemas/MarketPostStatus' } }
+        - { name: keyword, in: query, schema: { type: string } }
+        - { name: page, in: query, schema: { type: integer, minimum: 1 } }
+        - { name: pageSize, in: query, schema: { type: integer, minimum: 1, maximum: 100 } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/market-posts/{id}/status:
+    put:
+      operationId: adminUpdateMarketPostStatus
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [published, removed] }
+                reason: { type: string, maxLength: 500 }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer }
+    cookieAuth: { type: apiKey, in: cookie, name: dlc_session }
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+  responses:
+    Success:
+      description: 成功
+      content: { application/json: { schema: { $ref: '#/components/schemas/ApiResponse' } } }
+    AppTokens:
+      description: App 登录或刷新成功
+      content:
+        application/json:
+          schema:
+            allOf:
+              - { $ref: '#/components/schemas/ApiResponse' }
+              - type: object
+                properties: { data: { $ref: '#/components/schemas/AppSessionTokens' } }
+  schemas:
+    ApiResponse:
+      type: object
+      required: [code, message]
+      properties:
+        code: { type: integer }
+        message: { type: string }
+        data: {}
+    AccountRole:
+      type: string
+      enum: [admin, editor, reviewer, vendor, buyer]
+    MarketPostType:
+      type: string
+      enum: [supply, demand]
+    MarketPostStatus:
+      type: string
+      enum: [published, withdrawn, removed, expired]
+    AccountSummary:
+      type: object
+      required: [username, role]
+      properties:
+        username: { type: string }
+        role: { $ref: '#/components/schemas/AccountRole' }
+        vendorId: { type: integer }
+    AppLogin:
+      type: object
+      required: [username, password]
+      properties:
+        username: { type: string }
+        password: { type: string, format: password }
+        deviceName: { type: string, maxLength: 120 }
+    AppRegistration:
+      allOf:
+        - { $ref: '#/components/schemas/AppLogin' }
+        - type: object
+          properties:
+            role: { type: string, enum: [buyer, vendor], default: buyer }
+            companyName: { type: string }
+            displayName: { type: string }
+            contactName: { type: string }
+            phone: { type: string }
+            province: { type: string }
+            city: { type: string }
+    AppSessionTokens:
+      type: object
+      required: [accessToken, refreshToken, accessExpiresAt, refreshExpiresAt, user]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        accessExpiresAt: { type: string, format: date-time }
+        refreshExpiresAt: { type: string, format: date-time }
+        user: { $ref: '#/components/schemas/AccountSummary' }
+    BuyerProfileInput:
+      type: object
+      properties:
+        displayName: { type: string, maxLength: 80 }
+        contactName: { type: string, maxLength: 80 }
+        phone: { type: string, maxLength: 40 }
+        province: { type: string, maxLength: 50 }
+        city: { type: string, maxLength: 50 }
+    CategorySummary:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+    MarketPost:
+      type: object
+      required: [id, type, title, description, publisherName, status, images, expiresAt, createdAt, updatedAt]
+      properties:
+        id: { type: integer }
+        type: { $ref: '#/components/schemas/MarketPostType' }
+        title: { type: string }
+        categoryId: { type: integer }
+        category: { $ref: '#/components/schemas/CategorySummary' }
+        compatibleModels: { type: string }
+        province: { type: string }
+        city: { type: string }
+        quantity: { type: string }
+        deliveryNote: { type: string }
+        description: { type: string }
+        publisherName: { type: string }
+        vendorId: { type: integer }
+        status: { $ref: '#/components/schemas/MarketPostStatus' }
+        images: { type: array, maxItems: 6, items: { type: string } }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    MarketPostInput:
+      type: object
+      required: [type, title, description, contactName, contactPhone]
+      properties:
+        type: { $ref: '#/components/schemas/MarketPostType' }
+        title: { type: string, minLength: 4, maxLength: 160 }
+        categoryId: { type: integer }
+        compatibleModels: { type: string, maxLength: 500 }
+        province: { type: string, maxLength: 50 }
+        city: { type: string, maxLength: 50 }
+        quantity: { type: string, maxLength: 100 }
+        deliveryNote: { type: string, maxLength: 255 }
+        description: { type: string, minLength: 10, maxLength: 5000 }
+        contactName: { type: string, maxLength: 80 }
+        contactPhone: { type: string, minLength: 6, maxLength: 40 }
+        expiresInDays: { type: integer, minimum: 1, maximum: 90, default: 30 }
+        assetIds: { type: array, maxItems: 6, items: { type: integer } }
+    MarketPostContact:
+      type: object
+      required: [marketPostId, contactName, phone]
+      properties:
+        marketPostId: { type: integer }
+        contactName: { type: string }
+        phone: { type: string }
+    MarketPostPage:
+      type: object
+      required: [items, page, pageSize, total]
+      properties:
+        items: { type: array, items: { $ref: '#/components/schemas/MarketPost' } }
+        page: { type: integer }
+        pageSize: { type: integer }
+        total: { type: integer }

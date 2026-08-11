@@ -41,7 +41,7 @@ const (
 )
 
 func (h AdminHandler) Login(c *gin.Context) {
-	h.login(c, "vendor")
+	h.login(c, "account")
 }
 
 func (h AdminHandler) StaffLogin(c *gin.Context) {
@@ -74,7 +74,7 @@ func (h AdminHandler) login(c *gin.Context, audience string) {
 	}
 	if !loginAudienceAllows(audience, role) {
 		recordLoginFailure(key, time.Now())
-		message := "该入口仅供厂商账号使用"
+		message := "该入口仅供采购商或厂商账号使用"
 		if audience == "staff" {
 			message = "该入口仅供 CMS 员工账号使用"
 		}
@@ -94,7 +94,7 @@ func loginAudienceAllows(audience, role string) bool {
 	if audience == "staff" {
 		return role == "admin" || role == "editor" || role == "reviewer"
 	}
-	return audience == "vendor" && role == "vendor"
+	return audience == "account" && (role == "vendor" || role == "buyer")
 }
 
 func (h AdminHandler) Profile(c *gin.Context) {

@@ -1,0 +1,9 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "DLC shared enums",
+  "$defs": {
+    "AccountRole": { "enum": ["admin", "editor", "reviewer", "vendor", "buyer"] },
+    "MarketPostType": { "enum": ["supply", "demand"] },
+    "MarketPostStatus": { "enum": ["published", "withdrawn", "removed", "expired"] }
+  }
+}

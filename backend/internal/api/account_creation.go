@@ -64,7 +64,7 @@ func normalizeAccountCreateInput(input accountCreateInput) (accountCreateInput, 
 
 func isAccountRole(role string) bool {
 	switch role {
-	case "admin", "editor", "reviewer", "vendor":
+	case "admin", "editor", "reviewer", "vendor", "buyer":
 		return true
 	default:
 		return false
@@ -156,22 +156,35 @@ func (h AdminHandler) Register(c *gin.Context) {
 		Password    string `json:"password"`
 		Role        string `json:"role"`
 		CompanyName string `json:"companyName"`
+		DisplayName string `json:"displayName"`
+		ContactName string `json:"contactName"`
+		Phone       string `json:"phone"`
+		Province    string `json:"province"`
+		City        string `json:"city"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		Fail(c, http.StatusBadRequest, 400, "注册信息格式不正确")
 		return
 	}
-	if req.Role != "vendor" {
-		Fail(c, http.StatusBadRequest, 400, "平台仅支持厂商入驻")
+	if req.Role != "vendor" && req.Role != "buyer" {
+		Fail(c, http.StatusBadRequest, 400, "平台仅支持采购商注册或厂商入驻")
 		return
 	}
-	user, err := createAccount(h.DB, accountCreateInput{
-		Username:    req.Username,
-		Password:    req.Password,
-		Role:        req.Role,
-		CompanyName: req.CompanyName,
-		IsEnabled:   true,
-		DataOrigin:  "vendor_submission",
+	var user model.AdminUser
+	err := h.DB.Transaction(func(tx *gorm.DB) error {
+		created, err := createAccount(tx, accountCreateInput{Username: req.Username, Password: req.Password, Role: req.Role, CompanyName: req.CompanyName, IsEnabled: true, DataOrigin: "vendor_submission"})
+		if err != nil {
+			return err
+		}
+		user = created
+		if req.Role == "buyer" {
+			profile := model.BuyerProfile{UserID: user.ID, DisplayName: clean(req.DisplayName, 80), ContactName: clean(req.ContactName, 80), Phone: clean(req.Phone, 40), Province: clean(req.Province, 50), City: clean(req.City, 50)}
+			if profile.DisplayName == "" {
+				profile.DisplayName = user.Username
+			}
+			return tx.Create(&profile).Error
+		}
+		return nil
 	})
 	if err != nil {
 		writeAccountCreateError(c, err)

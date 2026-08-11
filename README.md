@@ -89,3 +89,26 @@ cd ..\frontend
 npm run test
 npm run build
 ```
+
+## Monorepo 移动端
+
+- `backend`：Gin + GORM + MySQL 公共后端，保留既有 `/api` 契约并新增 `/api/v1`。
+- `frontend`：React PC 与同 URL 响应式移动网页（需求中的 `web`）。
+- `mobile`：Android 首发、iOS 构建兼容的 Flutter App。
+- `shared`：OpenAPI、JSON Schema 与脱敏契约样例，不存放 UI 或业务状态。
+
+Flutter 首次准备与验证：
+
+```powershell
+cd mobile
+flutter pub get
+flutter analyze
+flutter test
+flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:8080
+```
+
+仓库通过 `mobile/.fvmrc` 和 CI 固定 Flutter `3.44.9`。本地 Android 构建需先安装
+Android SDK；CI 会同时生成 debug/release APK，并上传 release 构建产物。
+
+供求信息通过 `/purchase` 在 PC 与移动网页共享同一 URL。采购商只能发布求购，
+厂商只能发布供应；联系方式不在公开列表和详情响应中返回，必须登录后单独获取。

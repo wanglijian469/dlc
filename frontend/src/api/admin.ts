@@ -1,7 +1,7 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductRecord } from "../types/api";
+import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductRecord } from "../types/api";
 
-export type AccountRole = "admin" | "editor" | "reviewer" | "vendor";
+export type { AccountRole } from "../types/api";
 
 export interface LoginResponse {
   username: string;
@@ -57,7 +57,7 @@ export function staffLogin(username: string, password: string) {
   return publicClient.post<never, LoginResponse>("/api/admin/login", { username, password });
 }
 
-export function register(payload: { username: string; password: string; role: "vendor"; companyName: string }) {
+export function register(payload: { username: string; password: string; role: "vendor" | "buyer"; companyName?: string; displayName?: string; contactName?: string; phone?: string; province?: string; city?: string }) {
   return publicClient.post<never, LoginResponse>("/api/auth/register", payload);
 }
 
@@ -75,6 +75,14 @@ export function changePassword(currentPassword: string, newPassword: string) {
 
 export function getDashboardStats() {
   return adminClient.get<never, { vendors: number; products: number; pendingReviews: number; pendingProductReviews: number; missingImages: number }>("/api/admin/dashboard");
+}
+
+export function listAdminMarketPosts(params: { page: number; pageSize: number; status?: string; keyword?: string }) {
+  return adminClient.get<never, PageResult<MarketPost>>("/api/admin/market-posts", { params });
+}
+
+export function updateAdminMarketPostStatus(id: number, status: "published" | "removed", reason = "") {
+  return adminClient.put<never, MarketPost>(`/api/admin/market-posts/${id}/status`, { status, reason });
 }
 
 export interface AnalyticsSummary {

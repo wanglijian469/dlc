@@ -13,6 +13,8 @@ import { ProcessingSection } from "../components/public/HomeMarketplaceSections"
 import type { HomeModule, HomePayload, Vendor } from "../types/api";
 import { useSite } from "../contexts/SiteContext";
 import { buildVendorNavigationMenus } from "../utils/vendorNavigation";
+import { MobileMarketHome } from "../components/public/MobileMarketHome";
+import { useMobileLayout } from "../utils/useMobileLayout";
 
 export function HomePage() {
   const [home, setHome] = useState<HomePayload | null>(null);
@@ -51,6 +53,7 @@ export function dedupeHome(home: HomePayload): HomePayload {
 }
 
 export function HomeView({ home }: { home: HomePayload }) {
+  const mobileLayout = useMobileLayout();
   const { vendorCategories } = useSite();
   const vendorMenus = buildVendorNavigationMenus(vendorCategories);
   const configured = home.modules || [];
@@ -67,13 +70,14 @@ export function HomeView({ home }: { home: HomePayload }) {
       <main className="site-body">
         <SidebarNav menus={vendorMenus} title="厂商分类" />
         <div className="content">
-          <HeroSearch banner={home.banner} />
+          {mobileLayout && <MobileMarketHome home={home} />}
+          <div className="desktop-home-flow"><HeroSearch banner={home.banner} />
           <MobileCategoryGrid menus={home.mobileMenus} />
           {!hasVendors ? <section className="home-empty-directory"><h2>公开厂商资料正在完善</h2><p>厂商资料经核验或提交审核通过后，将在这里公开展示。</p><a className="primary-btn" href="/vendors">查看厂商目录</a></section> : <>
             {recommended.visible && home.recommendedVendors.length > 0 && <RecommendedVendors homeSections={{ recommendedTitle: recommended.title || "推荐厂商", recommendedLink: recommended.path }} vendors={home.recommendedVendors.slice(0, recommended.limit || 4)} />}
             {regular.visible && home.moreVendors.length > 0 && <MoreVendors homeSections={{ moreTitle: regular.title || "农机配件厂商", moreLink: regular.path }} vendors={home.moreVendors.slice(0, regular.limit || 8)} />}
             {processing.visible && <ProcessingSection module={processing} vendors={home.processingVendors || []} />}
-          </>}
+          </>}</div>
         </div>
       </main>
       <StatsFooter stats={home.stats} siteMeta={home.siteMeta} />

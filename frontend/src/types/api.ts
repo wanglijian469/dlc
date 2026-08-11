@@ -4,6 +4,61 @@ export interface ApiResponse<T> {
   data: T;
 }
 
+export type AccountRole = "admin" | "editor" | "reviewer" | "vendor" | "buyer";
+export type MarketPostType = "supply" | "demand";
+export type MarketPostStatus = "published" | "withdrawn" | "removed" | "expired";
+
+export interface MarketPost {
+  id: number;
+  type: MarketPostType;
+  title: string;
+  categoryId?: number;
+  category?: Category;
+  compatibleModels?: string;
+  province?: string;
+  city?: string;
+  quantity?: string;
+  deliveryNote?: string;
+  description: string;
+  publisherName: string;
+  vendorId?: number;
+  status: MarketPostStatus;
+  images: string[];
+  expiresAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MarketPostContact {
+  marketPostId: number;
+  contactName: string;
+  phone: string;
+}
+
+export interface MarketPostInput {
+  type: MarketPostType;
+  title: string;
+  categoryId?: number;
+  compatibleModels?: string;
+  province?: string;
+  city?: string;
+  quantity?: string;
+  deliveryNote?: string;
+  description: string;
+  contactName: string;
+  contactPhone: string;
+  expiresInDays?: number;
+  assetIds?: number[];
+}
+
+export interface AppSessionTokens {
+  accessToken: string;
+  refreshToken: string;
+  accessExpiresAt: string;
+  refreshExpiresAt: string;
+  user: { username: string; role: AccountRole; vendorId?: number };
+}
+
 export interface Menu {
   id: number;
   name: string;
