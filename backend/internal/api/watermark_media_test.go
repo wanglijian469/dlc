@@ -48,7 +48,16 @@ func TestWatermarkLabelKeepsChineseAndPathStaysInMediaRoot(t *testing.T) {
 		t.Fatalf("unexpected watermark label: %q", label)
 	}
 	root := t.TempDir()
-	if _, err := safeMediaPath(root, "..\\outside.png"); err == nil {
-		t.Fatal("unsafe media path was accepted")
+	for _, storageKey := range []string{"../outside.png", "..\\outside.png", "/outside.png", "C:\\outside.png"} {
+		if _, err := safeMediaPath(root, storageKey); err == nil {
+			t.Fatalf("unsafe media path was accepted: %q", storageKey)
+		}
+	}
+	valid, err := safeMediaPath(root, "public-watermarks\\display.png")
+	if err != nil {
+		t.Fatalf("valid nested media path was rejected: %v", err)
+	}
+	if valid != filepath.Join(root, "public-watermarks", "display.png") {
+		t.Fatalf("unexpected normalized media path: %q", valid)
 	}
 }

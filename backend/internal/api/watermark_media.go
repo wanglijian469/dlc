@@ -11,6 +11,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -249,7 +250,13 @@ func safeMediaPath(mediaDir, storageKey string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	target, err := filepath.Abs(filepath.Join(root, filepath.Clean(storageKey)))
+	normalizedKey := strings.ReplaceAll(strings.TrimSpace(storageKey), "\\", "/")
+	cleanKey := path.Clean(normalizedKey)
+	hasWindowsVolume := len(cleanKey) >= 2 && ((cleanKey[0] >= 'a' && cleanKey[0] <= 'z') || (cleanKey[0] >= 'A' && cleanKey[0] <= 'Z')) && cleanKey[1] == ':'
+	if normalizedKey == "" || strings.ContainsRune(normalizedKey, '\x00') || path.IsAbs(cleanKey) || hasWindowsVolume || cleanKey == "." || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
+		return "", fmt.Errorf("媒体文件路径无效")
+	}
+	target, err := filepath.Abs(filepath.Join(root, filepath.FromSlash(cleanKey)))
 	if err != nil {
 		return "", err
 	}
