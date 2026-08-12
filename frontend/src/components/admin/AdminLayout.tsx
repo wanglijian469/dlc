@@ -67,7 +67,7 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
       {menuOpen && <button aria-label="关闭后台导航" className="admin-nav-backdrop" type="button" onClick={() => setMenuOpen(false)} />}
       <aside className={`admin-sidebar ${menuOpen ? "open" : ""}`} aria-label="后台导航">
         <div className="admin-brand-block">
-          <span className="admin-brand-mark">农</span>
+          <img alt="" className="admin-brand-mark" src="/favicon.svg?v=2" />
           <div>
             <strong>大陆农机配件 CMS</strong>
           </div>

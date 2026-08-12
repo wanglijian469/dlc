@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">大陆农机配件</title>
+  <rect x="2" y="2" width="60" height="60" rx="14" fill="#1559c7"/>
+  <g fill="#fff">
+    <path d="M16.7 24.9a19 19 0 1 0 30.6 0l-5.6 4.2a12 12 0 1 1-19.4 0z"/>
+    <rect x="8" y="31" width="9" height="6" rx="1.8"/>
+    <rect x="47" y="31" width="9" height="6" rx="1.8"/>
+    <rect x="13" y="43" width="9" height="6" rx="1.8" transform="rotate(-39 17.5 46)"/>
+    <rect x="42" y="43" width="9" height="6" rx="1.8" transform="rotate(39 46.5 46)"/>
+    <rect x="28.8" y="49" width="6.4" height="9" rx="1.8"/>
+  </g>
+  <g fill="#ffbd2e">
+    <path d="M32 11.5c-5 5-5.3 10-.1 15.2 5.2-5.2 5.1-10.2.1-15.2z"/>
+    <path d="M29.7 27c-6.2-.9-9.6-4.3-9.8-9.4 6.1.9 9.4 4.2 9.8 9.4z"/>
+    <path d="M34.3 27c6.2-.9 9.6-4.3 9.8-9.4-6.1.9-9.4 4.2-9.8 9.4z"/>
+    <path d="M29.7 36.3c-6.2-.9-9.6-4.3-9.8-9.4 6.1.9 9.4 4.2 9.8 9.4z"/>
+    <path d="M34.3 36.3c6.2-.9 9.6-4.3 9.8-9.4-6.1.9-9.4 4.2-9.8 9.4z"/>
+    <rect x="30.3" y="23" width="3.4" height="25" rx="1.7"/>
+  </g>
+</svg>

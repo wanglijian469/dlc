@@ -7,12 +7,12 @@ describe("buildVendorNavigationMenus", () => {
 	{ id: 2, name: "配件生产厂", vendorCount: 3, children: [{ id: 21, parentId: 2, name: "传动系统厂商", vendorCount: 0 }] },
   ];
 
-  it("builds the fixed vendor-first order with counts and enrollment placeholders", () => {
+  it("builds the fixed vendor-first order without category badges", () => {
 	const menus = buildVendorNavigationMenus(categories);
 	expect(menus.map((menu) => menu.name)).toEqual(["全部厂商", "大陆村农机配件市场厂商", "配件生产厂", "新入驻厂商"]);
-	expect(menus[1].badge).toBe("2 家");
+	expect(menus[1].badge).toBeUndefined();
 	expect(menus[2].children?.map((menu) => menu.name)).toEqual(["全部配件生产厂", "传动系统厂商"]);
-	expect(menus[2].children?.[1].badge).toBe("招商中");
+	expect(menus[2].children?.every((menu) => menu.badge === undefined)).toBe(true);
 	expect(menus.at(-1)?.path).toBe("/vendors?newlyJoined=true&sort=latest");
   });
 

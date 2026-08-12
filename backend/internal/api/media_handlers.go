@@ -192,13 +192,13 @@ func (h AdminHandler) assetBelongsToVendor(asset model.MediaAsset, vendorID uint
 		return true
 	}
 	url := fmt.Sprintf("/api/media/%d", asset.ID)
-	h.DB.Model(&model.ProductSupplier{}).Where("vendor_id = ? AND (image = ? OR gallery LIKE ?)", vendorID, url, "%"+url+"%").Count(&references)
+	h.DB.Model(&model.ProductSupplier{}).Where("vendor_id = ? AND (image = ? OR gallery LIKE ? OR specs LIKE ?)", vendorID, url, "%"+url+"%", "%"+url+"%").Count(&references)
 	if references > 0 {
 		return true
 	}
 	h.DB.Model(&model.ProductSupplier{}).
 		Joins("JOIN products ON products.id = product_suppliers.product_id").
-		Where("product_suppliers.vendor_id = ? AND (products.image = ? OR products.gallery LIKE ?)", vendorID, url, "%"+url+"%").Count(&references)
+		Where("product_suppliers.vendor_id = ? AND (products.image = ? OR products.gallery LIKE ? OR products.specs LIKE ?)", vendorID, url, "%"+url+"%", "%"+url+"%").Count(&references)
 	return references > 0
 }
 
@@ -220,7 +220,7 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 	if references == 0 {
 		h.DB.Model(&model.Product{}).Where("products.publication_status = ? AND (products.published_at IS NULL OR products.published_at <= ?) AND (products.image = ? OR products.gallery LIKE ? OR products.specs LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= ?))", "published", time.Now(), url, "%"+url+"%", "%"+url+"%", time.Now()).Count(&references)
 		if references == 0 {
-			h.DB.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&references)
+			h.DB.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ? OR product_suppliers.specs LIKE ?)", "approved", true, "published", url, "%"+url+"%", "%"+url+"%").Count(&references)
 		}
 	}
 	if references == 0 {

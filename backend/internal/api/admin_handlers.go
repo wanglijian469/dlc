@@ -635,6 +635,18 @@ func saveVendor(c *gin.Context, db *gorm.DB, id uint) {
 		Fail(c, http.StatusBadRequest, 400, "官网地址格式不正确")
 		return
 	}
+	if err := validateVendorProfileContent(input); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	if strings.TrimSpace(input.Slug) != "" {
+		slug, err := database.ValidateVendorSiteSlug(db, input.Slug, input.ID)
+		if err != nil {
+			Fail(c, http.StatusBadRequest, 400, err.Error())
+			return
+		}
+		input.Slug = slug
+	}
 	if err := normalizeVendorReviewStatus(&input); err != nil {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return

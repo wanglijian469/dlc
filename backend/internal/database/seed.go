@@ -285,7 +285,7 @@ func defaultVendors() []model.Vendor {
 	provinces := []string{"山东", "河北"}
 	vendors := make([]model.Vendor, 0, len(names))
 	for i, name := range names {
-		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceModels: "收割机、拖拉机、播种机", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", AfterSalesService: "质保 12 个月，提供选型咨询和售后技术支持", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
+		vendors = append(vendors, model.Vendor{Name: name, ShortName: strings.TrimSuffix(strings.TrimSuffix(name, "有限公司"), "有限责任公司"), Province: provinces[i], City: "产业基地", Address: provinces[i] + "农机产业园", MainProducts: "变速箱、链条、齿轮、轴承、液压件", ServiceAdvantages: "质量稳定，服务完善，发货及时", Description: "专注农机配件生产与供应，支持批量采购和定制加工。", EstablishedYear: "2012 年", FactoryArea: "12000 平方米", EmployeeCount: "80 人", AnnualCapacity: "年产农机配件 20 万套", Equipment: "数控车床、自动焊接线、热处理设备、液压测试台", Certifications: "ISO9001 质量管理体系", Phone: "", ContactName: "", IsRecommended: i < 5, IsVerified: false, IsVisible: true, SortOrder: i + 1})
 	}
 	for i := range vendors {
 		vendors[i].DataOrigin = "demo"
@@ -307,7 +307,6 @@ func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
 		County:            "宁晋县",
 		Address:           "河北省邢台市宁晋县大陆村工业园区",
 		MainProducts:      "液压翻转犁、旋耕机、驱动耙、机械五金",
-		ServiceModels:     "拖拉机、耕整地机械、农机具配套",
 		ServiceAdvantages: "1985年始建，生产流通一体，具备农机具生产设备与区域销售服务网络",
 		Description:       "河北冀农农机具有限公司始建于1985年，坐落于全国十大农机市场之一的河北宁晋，现已发展为集生产、流通为一体的中型农机企业，专业生产“冀丰”牌翻转犁。",
 		EstablishedYear:   "1985 年",
@@ -315,7 +314,6 @@ func withHBJinongVendor(vendors []model.Vendor) []model.Vendor {
 		EmployeeCount:     "职工 200 余人，专业技术人员 40 余人",
 		AnnualCapacity:    "拥有各种生产设备 180 台套，满足农机生产",
 		Equipment:         "官网公开信息显示拥有各种生产设备 180 台套，具体设备清单待人工复核补充。",
-		AfterSalesService: "官网公开信息提到可靠售后服务信誉，具体质保政策待人工复核。",
 		ReviewStatus:      "pending",
 		WebsiteURL:        sourceURL,
 		Phone:             "0319-5666294",
@@ -388,7 +386,7 @@ func defaultConfigs() []model.SiteConfig {
 		"enabled": true, "auditOnly": true, "windowMinutes": 10, "distinctResourceLimit": 120,
 		"blockHours": 1, "escalationStrikes": 3, "escalatedBlockHours": 24,
 		"blockedAiAgents": []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
-		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 32, "watermarkText": "大陆农机配件",
+		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 25, "watermarkText": "大陆农机配件",
 	})
 	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}, {ConfigKey: "security.antiScrape", ConfigValue: string(protection), Description: "公开访问、AI 爬虫与图片水印保护配置"}}
 }

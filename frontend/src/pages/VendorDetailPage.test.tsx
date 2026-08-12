@@ -1,19 +1,21 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getHome, getVendor, getVendorContact, listProducts } from "../api/public";
+import { getHome, getVendor, getVendorContact, getVendorContactQRCode, listProducts } from "../api/public";
 import { VendorDetailPage } from "./VendorDetailPage";
 
 vi.mock("../api/public", () => ({
   getHome: vi.fn(),
   getVendor: vi.fn(),
   getVendorContact: vi.fn(),
+  getVendorContactQRCode: vi.fn(),
   listProducts: vi.fn(),
 }));
 
 const mockedGetHome = vi.mocked(getHome);
 const mockedGetVendor = vi.mocked(getVendor);
 const mockedGetVendorContact = vi.mocked(getVendorContact);
+const mockedGetVendorContactQRCode = vi.mocked(getVendorContactQRCode);
 const mockedListProducts = vi.mocked(listProducts);
 
 function renderDetail(path = "/vendors/8") {
@@ -29,6 +31,8 @@ function renderDetail(path = "/vendors/8") {
 
 describe("VendorDetailPage", () => {
   beforeEach(() => {
+    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:vendor-qr") });
+    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     mockedGetHome.mockResolvedValue({
       topMenus: [],
       sidebarMenus: [],
@@ -68,7 +72,6 @@ describe("VendorDetailPage", () => {
       city: "宁波",
       address: "浙江宁波农机产业园",
       mainProducts: "液压油缸、液压油泵、高压油管",
-      serviceModels: "收割机、拖拉机、播种机",
       serviceAdvantages: "源头工厂、支持定制、交付稳定",
       description: "专注农机液压件生产与配套服务。",
       websiteUrl: "https://vendor.example.com",
@@ -81,7 +84,6 @@ describe("VendorDetailPage", () => {
       annualCapacity: "年产液压件 20 万套",
       equipment: "数控车床、自动焊接线、液压测试台",
       certifications: "ISO9001 质量管理体系",
-      afterSalesService: "质保 12 个月，提供技术选型支持",
       providesProcessing: true,
       processingServices: "数控车削、焊接加工",
       processingMaterials: "钢件、轴套、齿轮坯",
@@ -102,7 +104,6 @@ describe("VendorDetailPage", () => {
     expect(screen.getByText("年产液压件 20 万套")).toBeInTheDocument();
     expect(screen.getByText("数控车床、自动焊接线、液压测试台")).toBeInTheDocument();
     expect(screen.getByText("ISO9001 质量管理体系")).toBeInTheDocument();
-    expect(screen.getByText("质保 12 个月，提供技术选型支持")).toBeInTheDocument();
     expect(screen.getByText("加工服务能力")).toBeInTheDocument();
     expect(screen.getByText(/数控车削、焊接加工/)).toBeInTheDocument();
     expect(screen.getByText(/数控车床、焊接工位/)).toBeInTheDocument();
@@ -130,10 +131,10 @@ describe("VendorDetailPage", () => {
   });
 
 	it("loads the branded vendor site route", async () => {
-		mockedGetVendor.mockResolvedValue({ id: 8, slug: "hanfeng-parts", name: "测试厂商" });
-		renderDetail("/v/hanfeng-parts");
+		mockedGetVendor.mockResolvedValue({ id: 8, slug: "hanfeng", name: "测试厂商" });
+		renderDetail("/v/hanfeng");
 		await screen.findByRole("heading", { name: "测试厂商", level: 1 });
-		expect(mockedGetVendor).toHaveBeenCalledWith("hanfeng-parts");
+		expect(mockedGetVendor).toHaveBeenCalledWith("hanfeng");
 	});
 
   it("reveals protected contact only after an authenticated contact request", async () => {
@@ -150,12 +151,14 @@ describe("VendorDetailPage", () => {
       wechat: "hanfeng-parts",
       wechatQrCodeUrl: "/api/vendors/8/contact-qr",
     });
+    mockedGetVendorContactQRCode.mockResolvedValue(new Blob(["qr"], { type: "image/png" }));
     renderDetail();
-    const buttons = await screen.findAllByRole("button", { name: /登录查看完整?联系方式/ });
+    const buttons = await screen.findAllByRole("button", { name: "查看联系方式" });
     fireEvent.click(buttons[0]);
     expect(await screen.findByRole("link", { name: "13812345678" })).toHaveAttribute("href", "tel:13812345678");
+    fireEvent.click(screen.getByRole("button", { name: "微信联系" }));
     expect(screen.getByText("hanfeng-parts")).toBeInTheDocument();
-    expect(screen.getByRole("img", { name: "测试厂商 微信二维码" })).toHaveAttribute("src", "/api/vendors/8/contact-qr");
+    expect(await screen.findByRole("img", { name: "测试厂商 微信二维码" })).toHaveAttribute("src", "blob:vendor-qr");
     expect(screen.queryByText(/今日还可查看/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /复制电话|复制微信/ })).not.toBeInTheDocument();
     expect(mockedGetVendorContact).toHaveBeenCalledWith(8);
@@ -171,8 +174,9 @@ describe("VendorDetailPage", () => {
       wechatQrCode: "/api/media/88",
       wechatPublic: true,
     });
-    renderDetail("/v/public-vendor");
+    renderDetail("/v/publicvendor");
     expect(await screen.findByRole("link", { name: "0319-5666294" })).toHaveAttribute("href", "tel:0319-5666294");
+    fireEvent.click(screen.getByRole("button", { name: "微信联系" }));
     expect(screen.getByText("public-wechat")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "公开联系厂商 微信二维码" })).toHaveAttribute("src", "/api/media/88");
     expect(screen.queryByRole("button", { name: /复制电话|复制微信|电话联系/ })).not.toBeInTheDocument();

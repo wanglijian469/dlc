@@ -15,9 +15,9 @@ func TestStaticRouteOnlyAcceptsCanonicalDetailPaths(t *testing.T) {
 		path, resourceType, slug string
 		ok                       bool
 	}{
-		{"/v/abc-parts", "vendor", "abc-parts", true},
+		{"/v/abcparts", "vendor", "abcparts", true},
 		{"/products/hydraulic-pump", "product", "hydraulic-pump", true},
-		{"/vendors/abc-parts", "", "", false},
+		{"/vendors/abcparts", "", "", false},
 		{"/products", "", "", false},
 		{"/products/a/child", "", "", false},
 	}

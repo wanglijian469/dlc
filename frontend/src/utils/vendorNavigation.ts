@@ -21,17 +21,15 @@ export function buildVendorNavigationMenus(categories: VendorCategory[], options
         name: category.name,
         icon: category.icon || "factory",
         path: categoryPath(category.id),
-        badge: vendorCategoryBadge(category.vendorCount),
         contextActive: activeCategoryIds.has(category.id),
         isDefaultOpen: activeCategoryIds.has(category.id) || hasActiveChild,
         children: children.length ? [
-          { id: 1900000 + category.id, name: `全部${category.name}`, icon: "dot", path: categoryPath(category.id), badge: vendorCategoryBadge(category.vendorCount) },
+          { id: 1900000 + category.id, name: `全部${category.name}`, icon: "dot", path: categoryPath(category.id) },
           ...children.map((child) => ({
             id: 2900000 + child.id,
             name: child.name,
             icon: child.icon || "dot",
             path: categoryPath(child.id),
-            badge: vendorCategoryBadge(child.vendorCount),
             contextActive: activeCategoryIds.has(child.id),
           })),
         ] : undefined,
@@ -39,8 +37,4 @@ export function buildVendorNavigationMenus(categories: VendorCategory[], options
     }),
     { id: 890000, name: "新入驻厂商", icon: "clipboard-plus", path: newlyJoinedPath() },
   ];
-}
-
-export function vendorCategoryBadge(count?: number) {
-  return count && count > 0 ? `${count} 家` : "招商中";
 }

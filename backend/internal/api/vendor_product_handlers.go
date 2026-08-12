@@ -2,18 +2,59 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
+	"unicode"
 
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
+type vendorProductDraft struct {
+	VendorProductName string `json:"vendorProductName"`
+	VendorModel       string `json:"vendorModel"`
+	CategoryID        uint   `json:"categoryId"`
+	CompatibleModels  string `json:"compatibleModels"`
+	Description       string `json:"description"`
+	DetailContent     string `json:"detailContent"`
+	Image             string `json:"image"`
+	GalleryRaw        string `json:"galleryRaw"`
+	SpecsRaw          string `json:"specsRaw"`
+	PriceNote         string `json:"priceNote"`
+	SupplyAbility     string `json:"supplyAbility"`
+	InquiryText       string `json:"inquiryText"`
+}
+
 type vendorProductRecord struct {
-	Product          model.Product            `json:"product"`
-	Supplier         model.ProductSupplier    `json:"supplier"`
-	LatestSubmission *model.ProductSubmission `json:"latestSubmission,omitempty"`
+	ID                uint   `json:"id"`
+	RecordType        string `json:"recordType"`
+	VendorProductName string `json:"vendorProductName"`
+	VendorModel       string `json:"vendorModel"`
+	CategoryID        uint   `json:"categoryId,omitempty"`
+	CategoryName      string `json:"categoryName,omitempty"`
+	CompatibleModels  string `json:"compatibleModels"`
+	Description       string `json:"description"`
+	DetailContent     string `json:"detailContent"`
+	Image             string `json:"image"`
+	GalleryRaw        string `json:"galleryRaw,omitempty"`
+	SpecsRaw          string `json:"specsRaw,omitempty"`
+	PriceNote         string `json:"priceNote"`
+	SupplyAbility     string `json:"supplyAbility"`
+	InquiryText       string `json:"inquiryText"`
+	Status            string `json:"status"`
+	ReviewNote        string `json:"reviewNote,omitempty"`
+	SubmissionID      uint   `json:"submissionId,omitempty"`
+	SupplierID        uint   `json:"supplierId,omitempty"`
+}
+
+type vendorProductDuplicateItem struct {
+	ID         uint   `json:"id"`
+	RecordType string `json:"recordType"`
+	Name       string `json:"name"`
+	Model      string `json:"model"`
+	Status     string `json:"status"`
 }
 
 func vendorScope(c *gin.Context) (uint, bool) {
@@ -27,45 +68,28 @@ func (h AdminHandler) ListOwnProducts(c *gin.Context) {
 		Fail(c, http.StatusForbidden, 403, "账号未绑定厂商")
 		return
 	}
-	var suppliers []model.ProductSupplier
-	if err := h.DB.Preload("Product.Category").Where("vendor_id = ? AND status <> ?", vendorID, "disabled").Order("id desc").Find(&suppliers).Error; err != nil {
-		Fail(c, 500, 500, "产品资料加载失败")
+	rows, err := h.vendorProductRecords(vendorID)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "产品资料加载失败")
 		return
-	}
-	rows := make([]vendorProductRecord, 0, len(suppliers))
-	for _, supplier := range suppliers {
-		var latest model.ProductSubmission
-		var latestPtr *model.ProductSubmission
-		if h.DB.Where("vendor_id = ? AND supplier_id = ?", vendorID, supplier.ID).Order("id desc").First(&latest).Error == nil {
-			latestPtr = &latest
-		}
-		rows = append(rows, vendorProductRecord{Product: supplier.Product, Supplier: supplier, LatestSubmission: latestPtr})
 	}
 	OK(c, rows)
 }
 
-func (h AdminHandler) SearchVendorProductCatalog(c *gin.Context) {
-	if _, ok := vendorScope(c); !ok {
+func (h AdminHandler) CheckOwnProductDuplicate(c *gin.Context) {
+	vendorID, ok := vendorScope(c)
+	if !ok {
 		Fail(c, http.StatusForbidden, 403, "账号未绑定厂商")
 		return
 	}
-	keyword := strings.TrimSpace(c.Query("keyword"))
-	var products []model.Product
-	query := h.DB.Preload("Category").Where("publication_status = ?", "published")
-	if keyword != "" {
-		like := "%" + keyword + "%"
-		query = query.Where("name LIKE ? OR compatible_models LIKE ? OR description LIKE ?", like, like, like)
-	}
-	if err := query.Order("is_recommended desc, sort_order asc, id asc").Limit(20).Find(&products).Error; err != nil {
-		Fail(c, 500, 500, "产品目录搜索失败")
+	excludeType := strings.TrimSpace(c.Query("excludeType"))
+	excludeID := parseUint(c.Query("excludeId"))
+	exact, similar, err := h.checkVendorProductDuplicate(vendorID, c.Query("name"), c.Query("model"), excludeType, excludeID)
+	if err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "重复产品检查失败")
 		return
 	}
-	enrichProductSummaries(h.DB, products, 0)
-	OK(c, products)
-}
-
-func supplierFromProduct(input model.Product, productID, vendorID uint) model.ProductSupplier {
-	return model.ProductSupplier{ProductID: productID, VendorID: vendorID, VendorProductName: input.Name, VendorModel: input.CompatibleModels, Image: input.Image, GalleryRaw: input.GalleryRaw, CompatibleModels: input.CompatibleModels, Description: input.Description, PriceNote: input.PriceNote, InquiryText: input.InquiryText, InquiryPath: input.InquiryPath, Status: "pending", SourceType: "vendor", ContentVersion: 1}
+	OK(c, gin.H{"exact": exact, "similar": similar})
 }
 
 func (h AdminHandler) CreateOwnProduct(c *gin.Context) {
@@ -74,84 +98,91 @@ func (h AdminHandler) CreateOwnProduct(c *gin.Context) {
 		Fail(c, http.StatusForbidden, 403, "账号未绑定厂商")
 		return
 	}
-	var input model.Product
-	if err := c.ShouldBindJSON(&input); err != nil || strings.TrimSpace(input.Name) == "" {
-		Fail(c, 400, 400, "请填写产品名称")
+	var input vendorProductDraft
+	if c.ShouldBindJSON(&input) != nil {
+		Fail(c, http.StatusBadRequest, 400, "请填写本厂产品名称")
 		return
 	}
-	input.ID = 0
-	input.VendorID = model.ProductVendorID(vendorID)
-	input.Status = 2
-	input.PublicationStatus = "draft"
-	input.ContentVersion = 1
-	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Create(&input).Error; err != nil {
-			return err
-		}
-		supplier := supplierFromProduct(input, input.ID, vendorID)
-		if err := tx.Create(&supplier).Error; err != nil {
-			return err
-		}
-		return createProductSubmission(tx, c.GetString("username"), "new_product", input, supplier)
-	})
+	if err := validateVendorProductDraft(h.DB, input); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	if exact, _, err := h.checkVendorProductDuplicate(vendorID, input.VendorProductName, input.VendorModel, "", 0); err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "重复产品检查失败")
+		return
+	} else if exact {
+		Fail(c, http.StatusConflict, 409, "本厂已存在名称和型号相同的产品，请编辑原记录")
+		return
+	}
+	row, err := createStandaloneProductSubmission(h.DB, c.GetString("username"), vendorID, input)
 	if err != nil {
-		Fail(c, 500, 500, "产品资料保存失败")
+		Fail(c, http.StatusInternalServerError, 500, "产品资料提交失败")
 		return
 	}
-	logOperation(h.DB, c.GetString("username"), "submit", "product-submissions", input.ID)
-	var supplier model.ProductSupplier
-	h.DB.Where("product_id = ? AND vendor_id = ?", input.ID, vendorID).First(&supplier)
-	OK(c, vendorProductRecord{Product: input, Supplier: supplier})
+	logOperation(h.DB, c.GetString("username"), "submit", "product-submissions", row.ID)
+	OK(c, recordFromSubmission(row))
 }
 
-func (h AdminHandler) LinkOwnProduct(c *gin.Context) {
+func (h AdminHandler) UpdateOwnProductSubmission(c *gin.Context) {
 	vendorID, ok := vendorScope(c)
 	if !ok {
 		Fail(c, http.StatusForbidden, 403, "账号未绑定厂商")
 		return
 	}
-	var input model.ProductSupplier
-	if err := c.ShouldBindJSON(&input); err != nil || input.ProductID == 0 {
-		Fail(c, 400, 400, "请选择平台产品")
+	var input vendorProductDraft
+	if c.ShouldBindJSON(&input) != nil {
+		Fail(c, http.StatusBadRequest, 400, "请填写本厂产品名称")
 		return
 	}
-	var product model.Product
-	if err := h.DB.First(&product, "id = ? AND publication_status = ?", input.ProductID, "published").Error; err != nil {
-		Fail(c, 404, 404, "平台产品不存在")
+	if err := validateVendorProductDraft(h.DB, input); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return
 	}
-	var existing model.ProductSupplier
-	foundExisting := h.DB.Where("product_id = ? AND vendor_id = ?", product.ID, vendorID).First(&existing).Error == nil
-	if foundExisting && existing.Status != "disabled" {
-		Fail(c, 409, 409, "该产品已关联当前厂商")
+	id := parseUint(c.Param("id"))
+	var current model.ProductSubmission
+	if id == 0 || h.DB.Where("id = ? AND vendor_id = ? AND submission_type = ? AND supplier_id IS NULL AND status IN ?", id, vendorID, "new_product", []string{"pending", "rejected"}).First(&current).Error != nil {
+		Fail(c, http.StatusNotFound, 404, "待审核产品不存在")
 		return
 	}
-	input.ID = 0
-	input.VendorID = vendorID
-	input.ProductID = product.ID
-	input.Status = "pending"
-	input.SourceType = "vendor"
-	input.ContentVersion = 1
-	if input.VendorProductName == "" {
-		input.VendorProductName = product.Name
+	if exact, _, err := h.checkVendorProductDuplicate(vendorID, input.VendorProductName, input.VendorModel, "submission", id); err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "重复产品检查失败")
+		return
+	} else if exact {
+		Fail(c, http.StatusConflict, 409, "本厂已存在名称和型号相同的产品，请编辑原记录")
+		return
 	}
+	var next model.ProductSubmission
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		if foundExisting {
-			input.ID = existing.ID
-			input.ContentVersion = existing.ContentVersion
-			if err := tx.Model(&existing).Updates(map[string]interface{}{"status": "pending", "vendor_product_name": input.VendorProductName, "vendor_model": input.VendorModel, "image": input.Image, "gallery": input.GalleryRaw, "compatible_models": input.CompatibleModels, "description": input.Description, "price_note": input.PriceNote, "inquiry_text": input.InquiryText, "inquiry_path": input.InquiryPath, "review_note": ""}).Error; err != nil {
-				return err
-			}
-		} else if err := tx.Create(&input).Error; err != nil {
+		if err := tx.Model(&current).Update("status", "superseded").Error; err != nil {
 			return err
 		}
-		return createProductSubmission(tx, c.GetString("username"), "link_supplier", product, input)
+		var err error
+		next, err = createStandaloneProductSubmission(tx, c.GetString("username"), vendorID, input)
+		return err
 	})
 	if err != nil {
-		Fail(c, 500, 500, "供应关系提交失败")
+		Fail(c, http.StatusInternalServerError, 500, "产品资料重新提交失败")
 		return
 	}
-	OK(c, vendorProductRecord{Product: product, Supplier: input})
+	OK(c, recordFromSubmission(next))
+}
+
+func (h AdminHandler) WithdrawOwnProductSubmission(c *gin.Context) {
+	vendorID, ok := vendorScope(c)
+	if !ok {
+		Fail(c, http.StatusForbidden, 403, "账号未绑定厂商")
+		return
+	}
+	result := h.DB.Model(&model.ProductSubmission{}).Where("id = ? AND vendor_id = ? AND submission_type = ? AND supplier_id IS NULL AND status IN ?", c.Param("id"), vendorID, "new_product", []string{"pending", "rejected"}).Update("status", "superseded")
+	if result.Error != nil {
+		Fail(c, http.StatusInternalServerError, 500, "撤回产品失败")
+		return
+	}
+	if result.RowsAffected == 0 {
+		Fail(c, http.StatusNotFound, 404, "待审核产品不存在")
+		return
+	}
+	OK(c, gin.H{"withdrawn": true})
 }
 
 func (h AdminHandler) UpdateOwnProduct(c *gin.Context) {
@@ -161,31 +192,32 @@ func (h AdminHandler) UpdateOwnProduct(c *gin.Context) {
 		return
 	}
 	var supplier model.ProductSupplier
-	if err := h.DB.Preload("Product").Where("id = ? AND vendor_id = ?", c.Param("id"), vendorID).First(&supplier).Error; err != nil {
-		Fail(c, 404, 404, "产品供应信息不存在")
+	if h.DB.Preload("Product").Where("id = ? AND vendor_id = ?", c.Param("id"), vendorID).First(&supplier).Error != nil {
+		Fail(c, http.StatusNotFound, 404, "产品供应信息不存在")
 		return
 	}
-	var input model.ProductSupplier
-	if err := c.ShouldBindJSON(&input); err != nil {
-		Fail(c, 400, 400, "产品供应信息格式错误")
+	var input vendorProductDraft
+	if c.ShouldBindJSON(&input) != nil {
+		Fail(c, http.StatusBadRequest, 400, "产品供应信息格式错误")
+		return
+	}
+	if err := validateVendorProductDraft(h.DB, input); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
+	if exact, _, err := h.checkVendorProductDuplicate(vendorID, input.VendorProductName, input.VendorModel, "supplier", supplier.ID); err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "重复产品检查失败")
+		return
+	} else if exact {
+		Fail(c, http.StatusConflict, 409, "本厂已存在名称和型号相同的产品，请编辑原记录")
 		return
 	}
 	draft := supplier
-	draft.VendorProductName = strings.TrimSpace(input.VendorProductName)
-	if draft.VendorProductName == "" {
-		draft.VendorProductName = supplier.Product.Name
-	}
-	draft.VendorModel = input.VendorModel
-	draft.Image = input.Image
-	draft.GalleryRaw = input.GalleryRaw
-	draft.CompatibleModels = input.CompatibleModels
-	draft.Description = input.Description
-	draft.PriceNote = input.PriceNote
-	draft.InquiryText = input.InquiryText
-	draft.InquiryPath = input.InquiryPath
+	applyVendorProductDraft(&draft, input)
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
 		if supplier.Status == "pending" {
-			if err := tx.Model(&supplier).Updates(map[string]interface{}{"vendor_product_name": draft.VendorProductName, "vendor_model": draft.VendorModel, "image": draft.Image, "gallery": draft.GalleryRaw, "compatible_models": draft.CompatibleModels, "description": draft.Description, "price_note": draft.PriceNote, "inquiry_text": draft.InquiryText, "inquiry_path": draft.InquiryPath}).Error; err != nil {
+			applyVendorProductDraft(&supplier, input)
+			if err := tx.Save(&supplier).Error; err != nil {
 				return err
 			}
 		}
@@ -195,10 +227,10 @@ func (h AdminHandler) UpdateOwnProduct(c *gin.Context) {
 		return createProductSubmission(tx, c.GetString("username"), "update_offer", supplier.Product, draft)
 	})
 	if err != nil {
-		Fail(c, 500, 500, "产品供应信息提交失败")
+		Fail(c, http.StatusInternalServerError, 500, "产品供应信息提交失败")
 		return
 	}
-	OK(c, draft)
+	OK(c, recordFromSupplier(draft, nil))
 }
 
 func (h AdminHandler) DeleteOwnProduct(c *gin.Context) {
@@ -208,21 +240,164 @@ func (h AdminHandler) DeleteOwnProduct(c *gin.Context) {
 		return
 	}
 	var supplier model.ProductSupplier
-	if err := h.DB.Where("id = ? AND vendor_id = ?", c.Param("id"), vendorID).First(&supplier).Error; err != nil {
-		Fail(c, 404, 404, "产品供应信息不存在")
+	if h.DB.Where("id = ? AND vendor_id = ?", c.Param("id"), vendorID).First(&supplier).Error != nil {
+		Fail(c, http.StatusNotFound, 404, "产品供应信息不存在")
 		return
 	}
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&supplier).Updates(map[string]interface{}{"status": "disabled", "review_note": "厂商停止供应"}).Error; err != nil {
+		if err := tx.Model(&supplier).Updates(map[string]any{"status": "disabled", "review_note": "厂商停止供应"}).Error; err != nil {
 			return err
 		}
 		return tx.Model(&model.ProductSubmission{}).Where("supplier_id = ? AND status = ?", supplier.ID, "pending").Update("status", "superseded").Error
 	})
 	if err != nil {
-		Fail(c, 500, 500, "停止供应失败")
+		Fail(c, http.StatusInternalServerError, 500, "停止供应失败")
 		return
 	}
 	OK(c, gin.H{"disabled": true})
+}
+
+func createStandaloneProductSubmission(tx *gorm.DB, username string, vendorID uint, input vendorProductDraft) (model.ProductSubmission, error) {
+	product := model.Product{Name: strings.TrimSpace(input.VendorProductName), CategoryID: input.CategoryID, CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, PublicationStatus: "draft", Status: 2, ContentVersion: 1}
+	supplier := model.ProductSupplier{VendorID: vendorID, VendorProductName: strings.TrimSpace(input.VendorProductName), VendorModel: strings.TrimSpace(input.VendorModel), CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, PriceNote: input.PriceNote, SupplyAbility: input.SupplyAbility, InquiryText: input.InquiryText, Status: "pending", SourceType: "vendor", ContentVersion: 1}
+	productPayload, err := json.Marshal(product)
+	if err != nil {
+		return model.ProductSubmission{}, err
+	}
+	supplierPayload, err := json.Marshal(supplier)
+	if err != nil {
+		return model.ProductSubmission{}, err
+	}
+	row := model.ProductSubmission{VendorID: vendorID, SubmissionType: "new_product", ProductPayload: string(productPayload), SupplierPayload: string(supplierPayload), Status: "pending", SubmittedBy: username}
+	return row, tx.Create(&row).Error
+}
+
+func validateVendorProductDraft(db *gorm.DB, input vendorProductDraft) error {
+	if strings.TrimSpace(input.VendorProductName) == "" {
+		return fmt.Errorf("请填写本厂产品名称")
+	}
+	if input.CategoryID == 0 {
+		return fmt.Errorf("请选择一级产品大类")
+	}
+	var categoryCount int64
+	if err := db.Model(&model.Category{}).Where("id = ? AND parent_id = ? AND is_enabled = ?", input.CategoryID, 0, true).Count(&categoryCount).Error; err != nil {
+		return err
+	}
+	if categoryCount == 0 {
+		return fmt.Errorf("产品大类无效，请重新选择一级分类")
+	}
+	if err := validateJSONStringArray(input.GalleryRaw, "产品图集"); err != nil {
+		return err
+	}
+	if err := validateJSON(input.SpecsRaw, "产品参数"); err != nil {
+		return err
+	}
+	return nil
+}
+
+func applyVendorProductDraft(dst *model.ProductSupplier, input vendorProductDraft) {
+	dst.VendorProductName = strings.TrimSpace(input.VendorProductName)
+	dst.VendorModel = strings.TrimSpace(input.VendorModel)
+	dst.CompatibleModels = input.CompatibleModels
+	dst.Description = input.Description
+	dst.DetailContent = input.DetailContent
+	dst.Image = input.Image
+	dst.GalleryRaw = input.GalleryRaw
+	dst.SpecsRaw = input.SpecsRaw
+	dst.PriceNote = input.PriceNote
+	dst.SupplyAbility = input.SupplyAbility
+	dst.InquiryText = input.InquiryText
+}
+
+func supplierFromProduct(input model.Product, productID, vendorID uint) model.ProductSupplier {
+	return model.ProductSupplier{ProductID: productID, VendorID: vendorID, VendorProductName: input.Name, VendorModel: input.CompatibleModels, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, PriceNote: input.PriceNote, InquiryText: input.InquiryText, InquiryPath: input.InquiryPath, Status: "pending", SourceType: "vendor", ContentVersion: 1}
+}
+
+func (h AdminHandler) vendorProductRecords(vendorID uint) ([]vendorProductRecord, error) {
+	var suppliers []model.ProductSupplier
+	if err := h.DB.Preload("Product.Category").Where("vendor_id = ? AND status <> ?", vendorID, "disabled").Order("id desc").Find(&suppliers).Error; err != nil {
+		return nil, err
+	}
+	rows := make([]vendorProductRecord, 0, len(suppliers))
+	for _, supplier := range suppliers {
+		var latest model.ProductSubmission
+		var latestPtr *model.ProductSubmission
+		if h.DB.Where("vendor_id = ? AND supplier_id = ?", vendorID, supplier.ID).Order("id desc").First(&latest).Error == nil {
+			latestPtr = &latest
+		}
+		rows = append(rows, recordFromSupplier(supplier, latestPtr))
+	}
+	var submissions []model.ProductSubmission
+	if err := h.DB.Where("vendor_id = ? AND submission_type = ? AND supplier_id IS NULL AND status IN ?", vendorID, "new_product", []string{"pending", "rejected"}).Order("id desc").Find(&submissions).Error; err != nil {
+		return nil, err
+	}
+	for _, submission := range submissions {
+		rows = append(rows, recordFromSubmission(submission))
+	}
+	return rows, nil
+}
+
+func recordFromSupplier(supplier model.ProductSupplier, latest *model.ProductSubmission) vendorProductRecord {
+	name := supplier.VendorProductName
+	if name == "" {
+		name = supplier.Product.Name
+	}
+	status := supplier.Status
+	if latest != nil && latest.Status == "pending" && supplier.Status == "approved" {
+		status = "pending_update"
+	}
+	categoryID := supplier.Product.CategoryID
+	if supplier.Product.Category.ParentID > 0 {
+		categoryID = supplier.Product.Category.ParentID
+	}
+	return vendorProductRecord{ID: supplier.ID, RecordType: "supplier", SupplierID: supplier.ID, VendorProductName: name, VendorModel: supplier.VendorModel, CategoryID: categoryID, CategoryName: supplier.Product.Category.Name, CompatibleModels: supplier.CompatibleModels, Description: supplier.Description, DetailContent: supplier.DetailContent, Image: supplier.Image, GalleryRaw: supplier.GalleryRaw, SpecsRaw: supplier.SpecsRaw, PriceNote: supplier.PriceNote, SupplyAbility: supplier.SupplyAbility, InquiryText: supplier.InquiryText, Status: status, ReviewNote: supplier.ReviewNote}
+}
+
+func recordFromSubmission(submission model.ProductSubmission) vendorProductRecord {
+	view := decodeProductSubmission(submission)
+	return vendorProductRecord{ID: submission.ID, RecordType: "submission", SubmissionID: submission.ID, VendorProductName: view.SupplierDraft.VendorProductName, VendorModel: view.SupplierDraft.VendorModel, CategoryID: view.ProductDraft.CategoryID, CompatibleModels: view.SupplierDraft.CompatibleModels, Description: view.SupplierDraft.Description, DetailContent: view.SupplierDraft.DetailContent, Image: view.SupplierDraft.Image, GalleryRaw: view.SupplierDraft.GalleryRaw, SpecsRaw: view.SupplierDraft.SpecsRaw, PriceNote: view.SupplierDraft.PriceNote, SupplyAbility: view.SupplierDraft.SupplyAbility, InquiryText: view.SupplierDraft.InquiryText, Status: submission.Status, ReviewNote: submission.ReviewNote}
+}
+
+func (h AdminHandler) checkVendorProductDuplicate(vendorID uint, name, productModel, excludeType string, excludeID uint) (bool, []vendorProductDuplicateItem, error) {
+	wantName, wantModel := normalizeVendorProductIdentity(name), normalizeVendorProductIdentity(productModel)
+	rows, err := h.vendorProductRecords(vendorID)
+	if err != nil {
+		return false, nil, err
+	}
+	exact := false
+	similar := make([]vendorProductDuplicateItem, 0)
+	for _, row := range rows {
+		if row.RecordType == excludeType && row.ID == excludeID {
+			continue
+		}
+		rowName, rowModel := normalizeVendorProductIdentity(row.VendorProductName), normalizeVendorProductIdentity(row.VendorModel)
+		if rowName == wantName && rowModel == wantModel {
+			exact = true
+			continue
+		}
+		if (wantModel != "" && rowModel == wantModel) || (len([]rune(wantName)) >= 3 && (strings.Contains(rowName, wantName) || strings.Contains(wantName, rowName))) {
+			similar = append(similar, vendorProductDuplicateItem{ID: row.ID, RecordType: row.RecordType, Name: row.VendorProductName, Model: row.VendorModel, Status: row.Status})
+		}
+	}
+	if len(similar) > 5 {
+		similar = similar[:5]
+	}
+	return exact, similar, nil
+}
+
+func normalizeVendorProductIdentity(value string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsLetter(r) || unicode.IsNumber(r) {
+			return unicode.ToLower(r)
+		}
+		return -1
+	}, strings.TrimSpace(value))
+}
+
+func parseUint(value string) uint {
+	var out uint
+	_, _ = fmt.Sscan(value, &out)
+	return out
 }
 
 func createProductSubmission(tx *gorm.DB, username, typ string, product model.Product, supplier model.ProductSupplier) error {

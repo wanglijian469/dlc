@@ -1,5 +1,5 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, Product, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductRecord } from "../types/api";
+import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, Product, ProductMatchSuggestion, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductDuplicateResult, VendorProductRecord } from "../types/api";
 
 export type { AccountRole } from "../types/api";
 
@@ -248,11 +248,23 @@ export function listOwnProducts() {
   return adminClient.get<never, VendorProductRecord[]>("/api/admin/vendor-products");
 }
 
-export function createOwnProduct(payload: Partial<Product>) {
+export function createOwnProduct(payload: Partial<VendorProductRecord>) {
   return adminClient.post<never, VendorProductRecord>("/api/admin/vendor-products", payload);
 }
 
-export function updateOwnProduct(id: number, payload: Partial<ProductSupplier>) {
+export function checkOwnProductDuplicate(params: { name: string; model?: string; excludeType?: string; excludeId?: number }) {
+	return adminClient.get<never, VendorProductDuplicateResult>("/api/admin/vendor-products/duplicate-check", { params });
+}
+
+export function updateOwnProductSubmission(id: number, payload: Partial<VendorProductRecord>) {
+	return adminClient.put<never, VendorProductRecord>(`/api/admin/vendor-product-submissions/${id}`, payload);
+}
+
+export function withdrawOwnProductSubmission(id: number) {
+	return adminClient.delete<never, { withdrawn: boolean }>(`/api/admin/vendor-product-submissions/${id}`);
+}
+
+export function updateOwnProduct(id: number, payload: Partial<VendorProductRecord>) {
   return adminClient.put<never, VendorProductRecord>(`/api/admin/vendor-products/${id}`, payload);
 }
 
@@ -260,20 +272,16 @@ export function deleteOwnProduct(id: number) {
   return adminClient.delete<never, { deleted: boolean }>(`/api/admin/vendor-products/${id}`);
 }
 
-export function searchVendorProductCatalog(keyword = "") {
-  return adminClient.get<never, Product[]>("/api/admin/vendor-product-catalog", { params: { keyword } });
-}
-
-export function linkOwnProduct(productId: number, payload: Partial<ProductSupplier>) {
-  return adminClient.post<never, VendorProductRecord>("/api/admin/vendor-products/link", { ...payload, productId });
-}
-
 export function listProductSubmissions(params: { page: number; pageSize: number; status?: string }) {
   return adminClient.get<never, PageResult<ProductSubmission>>("/api/admin/product-submissions", { params });
 }
 
-export function reviewProductSubmission(id: number, status: "approved" | "rejected", reviewNote: string, mergeProductId?: number) {
-  return adminClient.put<never, ProductSubmission>(`/api/admin/product-submissions/${id}/review`, { status, reviewNote, mergeProductId });
+export function listProductSubmissionMatches(id: number, keyword = "") {
+	return adminClient.get<never, ProductMatchSuggestion[]>(`/api/admin/product-submissions/${id}/matches`, { params: { keyword } });
+}
+
+export function reviewProductSubmission(id: number, payload: { status: "approved" | "rejected"; reviewNote: string; resolution?: "create_product" | "link_product"; targetProductId?: number; catalogProduct?: Partial<Product> }) {
+  return adminClient.put<never, ProductSubmission>(`/api/admin/product-submissions/${id}/review`, payload);
 }
 
 export function listProductSuppliers(productId: number) {

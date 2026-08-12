@@ -2,6 +2,7 @@ package api
 
 import (
 	"crypto/sha256"
+	_ "embed"
 	"encoding/hex"
 	"fmt"
 	"image"
@@ -14,18 +15,24 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
 	"dalu-nongji-parts/backend/internal/config"
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
-	"github.com/mozillazg/go-pinyin"
-	xdraw "golang.org/x/image/draw"
 	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/font/opentype"
 	"golang.org/x/image/math/fixed"
 	_ "golang.org/x/image/webp"
 	"gorm.io/gorm"
+)
+
+//go:embed assets/NotoSansCJKsc-Regular.otf
+var watermarkFontData []byte
+
+var (
+	watermarkFontOnce sync.Once
+	watermarkFont     *opentype.Font
+	watermarkFontErr  error
 )
 
 type WatermarkService struct {
@@ -55,7 +62,7 @@ func (s *WatermarkService) PublicPath(asset *model.MediaAsset) (string, string, 
 	if !cfg.WatermarkEnabled || !eligible {
 		return source, asset.MIME, nil
 	}
-	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v2|%s|%d|%s|%s", asset.SHA256, cfg.WatermarkOpacity, cfg.WatermarkText, vendorLabel)))
+	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v3|%s|%d|%s|%s", asset.SHA256, cfg.WatermarkOpacity, cfg.WatermarkText, vendorLabel)))
 	extension := ".png"
 	outputMIME := "image/png"
 	if asset.MIME == "image/jpeg" {
@@ -147,7 +154,7 @@ func (s *WatermarkService) PublicLegacyPath(source, publicURL string) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v2|%s|%d|%d|%s|%s", publicURL, info.Size(), info.ModTime().UnixNano(), cfg.WatermarkText, vendorLabel)))
+	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v3|%s|%d|%d|%s|%s", publicURL, info.Size(), info.ModTime().UnixNano(), cfg.WatermarkText, vendorLabel)))
 	extension := strings.ToLower(filepath.Ext(source))
 	outputMIME := "image/png"
 	if extension == ".jpg" || extension == ".jpeg" {
@@ -265,32 +272,40 @@ func generateWatermarkedImage(source, target, label string, opacity int, outputM
 	canvas := image.NewRGBA(decoded.Bounds())
 	stddraw.Draw(canvas, canvas.Bounds(), decoded, decoded.Bounds().Min, stddraw.Src)
 	if label == "" {
-		label = "DALU PARTS"
+		label = "大陆农机配件"
 	}
-	scale := 1
-	if canvas.Bounds().Dx() >= 600 {
-		scale = 2
+
+	width, height := canvas.Bounds().Dx(), canvas.Bounds().Dy()
+	fontSize := float64(minInt(width, height)) * 0.04
+	if fontSize < 14 {
+		fontSize = 14
 	}
-	if canvas.Bounds().Dx() >= 1400 {
-		scale = 3
+	if fontSize > 42 {
+		fontSize = 42
 	}
-	label = fitWatermarkLabel(label, canvas.Bounds().Dx()/scale-24)
-	textWidth := font.MeasureString(basicfont.Face7x13, label).Ceil()
-	stamp := image.NewRGBA(image.Rect(0, 0, textWidth+20, 26))
-	alpha := uint8(255 * opacity / 100)
-	stddraw.Draw(stamp, stamp.Bounds(), &image.Uniform{C: color.RGBA{0, 0, 0, alpha}}, image.Point{}, stddraw.Src)
-	drawer := font.Drawer{Dst: stamp, Src: image.NewUniform(color.RGBA{255, 255, 255, 235}), Face: basicfont.Face7x13, Dot: fixed.P(10, 18)}
-	drawer.DrawString(label)
-	targetWidth, targetHeight := stamp.Bounds().Dx()*scale, stamp.Bounds().Dy()*scale
-	x := canvas.Bounds().Max.X - targetWidth - 12
-	y := canvas.Bounds().Max.Y - targetHeight - 12
-	if x < canvas.Bounds().Min.X {
-		x = canvas.Bounds().Min.X
+	face, err := newWatermarkFace(fontSize)
+	if err != nil {
+		return err
 	}
-	if y < canvas.Bounds().Min.Y {
-		y = canvas.Bounds().Min.Y
+	defer face.Close()
+
+	marginX := maxInt(6, width*2/100)
+	marginY := maxInt(6, height*2/100)
+	label = fitWatermarkLabel(face, label, width-marginX*2)
+	textWidth := font.MeasureString(face, label).Ceil()
+	metrics := face.Metrics()
+	baseline := canvas.Bounds().Max.Y - marginY - metrics.Descent.Ceil()
+	x := canvas.Bounds().Max.X - marginX - textWidth
+	if x < canvas.Bounds().Min.X+marginX {
+		x = canvas.Bounds().Min.X + marginX
 	}
-	xdraw.NearestNeighbor.Scale(canvas, image.Rect(x, y, x+targetWidth, y+targetHeight), stamp, stamp.Bounds(), stddraw.Over, nil)
+
+	alpha := uint8(255 * clampInt(opacity, 5, 90) / 100)
+	outlineAlpha := uint8(minInt(255, int(alpha)+24))
+	for _, offset := range []image.Point{{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {1, 1}} {
+		drawWatermarkText(canvas, face, label, x+offset.X, baseline+offset.Y, color.RGBA{0, 0, 0, outlineAlpha})
+	}
+	drawWatermarkText(canvas, face, label, x, baseline, color.RGBA{255, 255, 255, alpha})
 
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
@@ -315,45 +330,59 @@ func generateWatermarkedImage(source, target, label string, opacity int, outputM
 	return os.Rename(tempName, target)
 }
 
-func fitWatermarkLabel(label string, maxWidth int) string {
-	if maxWidth < 35 {
-		return "DALU"
+func newWatermarkFace(size float64) (font.Face, error) {
+	watermarkFontOnce.Do(func() {
+		watermarkFont, watermarkFontErr = opentype.Parse(watermarkFontData)
+	})
+	if watermarkFontErr != nil {
+		return nil, watermarkFontErr
 	}
+	return opentype.NewFace(watermarkFont, &opentype.FaceOptions{Size: size, DPI: 72, Hinting: font.HintingFull})
+}
+
+func drawWatermarkText(dst stddraw.Image, face font.Face, label string, x, baseline int, textColor color.RGBA) {
+	drawer := font.Drawer{
+		Dst:  dst,
+		Src:  image.NewUniform(textColor),
+		Face: face,
+		Dot:  fixed.P(x, baseline),
+	}
+	drawer.DrawString(label)
+}
+
+func fitWatermarkLabel(face font.Face, label string, maxWidth int) string {
 	runes := []rune(label)
-	for len(runes) > 4 && font.MeasureString(basicfont.Face7x13, string(runes)).Ceil() > maxWidth {
+	for len(runes) > 1 && font.MeasureString(face, string(runes)).Ceil() > maxWidth {
 		runes = runes[:len(runes)-1]
 	}
 	return strings.TrimSpace(string(runes))
 }
 
-func watermarkLabel(platform, vendor string) string {
-	parts := make([]string, 0, 2)
-	for _, value := range []string{platform, vendor} {
-		if value = asciiWatermarkText(value); value != "" {
-			parts = append(parts, value)
-		}
+func watermarkLabel(_ string, vendor string) string {
+	platform := "大陆农机配件"
+	vendor = strings.TrimSpace(vendor)
+	if vendor == "" {
+		return platform
 	}
-	return strings.Join(parts, " | ")
+	return platform + " · " + vendor
 }
 
-func asciiWatermarkText(value string) string {
-	var builder strings.Builder
-	for _, r := range strings.TrimSpace(value) {
-		if r <= unicode.MaxASCII && (unicode.IsLetter(r) || unicode.IsDigit(r) || unicode.IsSpace(r) || strings.ContainsRune("-_.", r)) {
-			builder.WriteRune(r)
-			continue
-		}
-		if unicode.Is(unicode.Han, r) {
-			parts := pinyin.LazyPinyin(string(r), pinyin.NewArgs())
-			if len(parts) > 0 {
-				if builder.Len() > 0 && !strings.HasSuffix(builder.String(), " ") {
-					builder.WriteByte(' ')
-				}
-				builder.WriteString(parts[0])
-			}
-		}
+func minInt(a, b int) int {
+	if a < b {
+		return a
 	}
-	return strings.Join(strings.Fields(builder.String()), " ")
+	return b
+}
+
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func clampInt(value, low, high int) int {
+	return maxInt(low, minInt(high, value))
 }
 
 func preferredVendorLabel(vendor model.Vendor) string {

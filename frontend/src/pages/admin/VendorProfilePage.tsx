@@ -8,20 +8,20 @@ import type { VendorMedia } from "../../types/api";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
 import { processingToggleDescription, vendorFieldGuidance } from "../../config/formGuidance";
 
-type Field = { key: keyof Vendor; label: string; type?: "textarea" | "checkbox" | "image"; placeholder?: string };
+type Field = { key: keyof Vendor; label: string; type?: "textarea" | "checkbox" | "image"; placeholder?: string; maxLength?: number };
 
 const fields: Field[] = [
   { key: "name", label: "厂商全称" }, { key: "shortName", label: "厂商简称", placeholder: vendorFieldGuidance.shortName },
-	{ key: "slug", label: "厂商网站地址标识", placeholder: "例如 abc-parts" },
+	{ key: "slug", label: "厂商网站地址标识", placeholder: "例如 jinong", maxLength: 16 },
   { key: "logo", label: "厂商 Logo", type: "image" }, { key: "coverImage", label: "厂商封面图", type: "image" },
   { key: "province", label: "省份" }, { key: "city", label: "城市" }, { key: "county", label: "区县" },
-  { key: "address", label: "详细地址" }, { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts },
-  { key: "serviceModels", label: "适配机型", type: "textarea", placeholder: vendorFieldGuidance.serviceModels }, { key: "serviceAdvantages", label: "服务优势", type: "textarea", placeholder: vendorFieldGuidance.serviceAdvantages },
+  { key: "address", label: "详细地址" }, { key: "serviceAdvantages", label: "服务优势", type: "textarea", placeholder: vendorFieldGuidance.serviceAdvantages, maxLength: 80 },
+  { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts },
   { key: "description", label: "公司简介", type: "textarea", placeholder: vendorFieldGuidance.description }, { key: "establishedYear", label: "成立年份" },
   { key: "factoryArea", label: "厂房面积" }, { key: "employeeCount", label: "员工规模" },
   { key: "annualCapacity", label: "年产能", type: "textarea", placeholder: vendorFieldGuidance.annualCapacity }, { key: "equipment", label: "主要设备", type: "textarea", placeholder: vendorFieldGuidance.equipment },
   { key: "certifications", label: "认证资质", type: "textarea", placeholder: vendorFieldGuidance.certifications },
-  { key: "afterSalesService", label: "售后服务", type: "textarea", placeholder: vendorFieldGuidance.afterSalesService }, { key: "websiteUrl", label: "厂商官网" },
+  { key: "websiteUrl", label: "厂商官网" },
   { key: "contactName", label: "联系人" }, { key: "contactNamePublic", label: "公开展示联系人", type: "checkbox" },
   { key: "phone", label: "联系电话" }, { key: "phonePublic", label: "公开展示电话", type: "checkbox" },
   { key: "wechat", label: "微信" }, { key: "wechatQrCode", label: "微信二维码", type: "image" }, { key: "wechatPublic", label: "公开展示微信", type: "checkbox" },
@@ -32,10 +32,10 @@ const fields: Field[] = [
 ];
 
 const groups: Array<{ title: string; keys: Array<keyof Vendor> }> = [
-  { title: "基础资料", keys: ["name", "shortName", "slug", "province", "city", "county", "address", "mainProducts", "serviceModels", "description"] },
-  { title: "展示素材", keys: ["logo", "coverImage", "serviceAdvantages"] },
+  { title: "基础资料", keys: ["name", "shortName", "slug", "province", "city", "county", "address", "description"] },
+  { title: "展示信息", keys: ["serviceAdvantages", "mainProducts", "logo", "coverImage"] },
   { title: "生产能力", keys: ["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications"] },
-  { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes", "afterSalesService"] },
+  { title: "加工服务", keys: ["providesProcessing", "processingServices", "processingMaterials", "processingEquipment", "processingCapacity", "processingRegions", "processingNotes"] },
   { title: "联系方式", keys: ["websiteUrl", "contactName", "contactNamePublic", "phone", "phonePublic", "wechat", "wechatQrCode", "wechatPublic"] },
 ];
 
@@ -68,6 +68,10 @@ export function VendorProfilePage() {
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setMessage("");
+    if (Array.from(String(form.serviceAdvantages || "")).length > 80) {
+      setMessage("服务优势不能超过 80 个字符，请缩短后再提交");
+      return;
+    }
     setSaving(true);
     submitVendorProfile(form).then(() => {
       setStatus("pending");
@@ -94,7 +98,7 @@ export function VendorProfilePage() {
       {message && <p className="admin-message">{message}</p>}
       {loading ? <div className="admin-panel">正在加载…</div> : (
         <form className="admin-form vendor-profile-form vendor-profile-grouped" onSubmit={submit}>
-          {groups.map((group, groupIndex) => <details className="vendor-profile-section" key={group.title} open={groupIndex === 0}><summary>{group.title}</summary><div className="vendor-profile-fields">{fields.filter((field) => group.keys.includes(field.key)).map((field) => field.type === "checkbox" ? <label className="admin-toggle-field wide-field" key={field.key}><VendorField field={field} form={form} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.key === "providesProcessing" ? processingToggleDescription : "公开后可能被搜索引擎和第三方采集；修改将在管理员审核通过后生效。"}</small></span></label> : <label className={field.type === "textarea" ? "wide-field" : ""} key={field.key}>{field.label}<VendorField field={field} form={form} setForm={setForm} /></label>)}{group.title === "展示素材" && <div className="wide-field"><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></div>}</div></details>)}
+          {groups.map((group, groupIndex) => <details className="vendor-profile-section" key={group.title} open={groupIndex < 2}><summary>{group.title}</summary><div className="vendor-profile-fields">{fields.filter((field) => group.keys.includes(field.key)).map((field) => field.type === "checkbox" ? <label className="admin-toggle-field wide-field" key={field.key}><VendorField field={field} form={form} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.key === "providesProcessing" ? processingToggleDescription : "公开后可能被搜索引擎和第三方采集；修改将在管理员审核通过后生效。"}</small></span></label> : <label className={field.type === "textarea" ? "wide-field" : ""} key={field.key}>{field.label}<VendorField field={field} form={form} setForm={setForm} /></label>)}{group.title === "展示信息" && <div className="wide-field"><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></div>}</div></details>)}
           <div className="wide-field form-submit-row vendor-sticky-submit">
             <button className="primary-btn" disabled={saving || !dirty} type="submit"><Send size={16} />{saving ? "正在提交…" : "提交管理员审核"}</button>
             {dirty && <strong className="unsaved-indicator">有未保存修改</strong>}
@@ -109,7 +113,10 @@ export function VendorProfilePage() {
 function VendorField({ field, form, setForm }: { field: Field; form: Partial<Vendor>; setForm: (value: Partial<Vendor>) => void }) {
   const value = form[field.key];
   if (field.type === "checkbox") return <input type="checkbox" checked={Boolean(value)} onChange={(e) => setForm({ ...form, [field.key]: e.target.checked })} />;
-  if (field.type === "textarea") return <textarea className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={String(value || "")} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />;
+  if (field.type === "textarea") {
+    const text = String(value || "");
+    return <div className="limited-field"><textarea className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={text} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />{field.maxLength && <small className={Array.from(text).length > field.maxLength ? "character-count over-limit" : "character-count"}>{Array.from(text).length} / {field.maxLength} 字</small>}</div>;
+  }
   if (field.type === "image") return (
     <div className="image-field">
       <input value={String(value || "")} placeholder="图片 URL" onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />
@@ -126,7 +133,11 @@ function VendorField({ field, form, setForm }: { field: Field; form: Partial<Ven
       {value && <ProtectedMediaImage alt={`${field.label} 预览`} assetId={Number(form[field.key === "logo" ? "logoAssetId" : field.key === "coverImage" ? "coverAssetId" : "wechatQrCodeAssetId"] || 0) || undefined} className="vendor-form-image" src={String(value)} />}
     </div>
   );
-  return <input className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={String(value || "")} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />;
+  if (field.key === "slug") {
+    const slug = String(value || "");
+    return <div className="limited-field"><input className="writing-example" maxLength={16} pattern="[a-z0-9]{3,16}" placeholder={field.placeholder} value={slug} onChange={(e) => setForm({ ...form, slug: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") })} /><small className="character-count">公开地址：{window.location.origin}/v/{slug || "自动生成"} · 剩余 {Math.max(0, 16 - slug.length)} 位</small></div>;
+  }
+  return <input className={field.placeholder ? "writing-example" : undefined} maxLength={field.maxLength} placeholder={field.placeholder} value={String(value || "")} onChange={(e) => setForm({ ...form, [field.key]: e.target.value })} />;
 }
 
 function statusLabel(status: string) {

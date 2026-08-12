@@ -230,7 +230,11 @@ func EnsureVendorSlug(db *gorm.DB, item *model.Vendor) error {
 	if err != nil {
 		return err
 	}
-	item.Slug = uniqueSlug(db, "vendors", item.ID, firstNonEmptySlug(item.Slug, item.Name), "vendor")
+	preferred, normalizeErr := normalizeVendorSiteSlug(item.Slug)
+	if normalizeErr != nil {
+		preferred = service.BrandSlug(item.ShortName, item.Name)
+	}
+	item.Slug = uniqueVendorSlug(db, item.ID, preferred)
 	if old != "" && old != item.Slug {
 		if err := db.Model(&model.SEORedirect{}).Where("destination_path = ?", "/v/"+old).Update("destination_path", "/v/"+item.Slug).Error; err != nil {
 			return err
@@ -245,7 +249,7 @@ func EnsureVendorSlug(db *gorm.DB, item *model.Vendor) error {
 	return recordRedirect(db, "/vendors/"+item.Slug, "/v/"+item.Slug)
 }
 
-var vendorSiteSlugPattern = regexp.MustCompile(`^[a-z0-9]+(?:-[a-z0-9]+)*$`)
+var vendorSiteSlugPattern = regexp.MustCompile(`^[a-z0-9]{3,16}$`)
 
 // ValidateVendorSiteSlug keeps vendor-controlled site addresses predictable and
 // prevents a pending submission from silently being assigned a different URL.
@@ -270,10 +274,44 @@ func ValidateVendorSiteSlug(db *gorm.DB, value string, vendorID uint) (string, e
 
 func normalizeVendorSiteSlug(value string) (string, error) {
 	slug := strings.ToLower(strings.TrimSpace(value))
-	if len(slug) == 0 || len(slug) > 72 || !vendorSiteSlugPattern.MatchString(slug) {
-		return "", fmt.Errorf("厂商网站地址标识仅支持小写英文、数字和连字符，且不能以连字符开头或结尾")
+	if !vendorSiteSlugPattern.MatchString(slug) {
+		return "", fmt.Errorf("厂商网站地址标识仅支持 3–16 位小写英文字母和数字")
 	}
 	return slug, nil
+}
+
+func uniqueVendorSlug(db *gorm.DB, id uint, preferred string) string {
+	base := strings.ToLower(strings.TrimSpace(preferred))
+	base = regexp.MustCompile(`[^a-z0-9]+`).ReplaceAllString(base, "")
+	if len(base) > 16 {
+		base = base[:16]
+	}
+	if len(base) < 3 {
+		base = "vendor"
+	}
+	for suffix := 0; suffix < 10000; suffix++ {
+		candidate := base
+		if suffix > 0 {
+			ending := strconv.Itoa(suffix + 1)
+			prefixLength := 16 - len(ending)
+			if prefixLength < 1 {
+				prefixLength = 1
+			}
+			if len(candidate) > prefixLength {
+				candidate = candidate[:prefixLength]
+			}
+			candidate += ending
+		}
+		var count int64
+		query := db.Table("vendors").Where("slug = ?", candidate)
+		if id > 0 {
+			query = query.Where("id <> ?", id)
+		}
+		if query.Count(&count).Error == nil && count == 0 {
+			return candidate
+		}
+	}
+	return fmt.Sprintf("vendor%d", time.Now().Unix()%1000000000)
 }
 
 func EnsureProductSlug(db *gorm.DB, item *model.Product) error {

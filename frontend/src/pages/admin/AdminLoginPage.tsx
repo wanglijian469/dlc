@@ -75,7 +75,7 @@ export function AdminLoginPage({ staffOnly = false }: { staffOnly?: boolean }) {
   return (
     <main className={`admin-login ${staffOnly ? "staff-login" : "vendor-login"}`}>
       <section className="admin-login-visual" aria-label="平台介绍">
-        <div className="admin-login-brand"><div className="admin-login-logo">农</div><span>大陆农机配件平台</span></div>
+        <div className="admin-login-brand"><img alt="" className="admin-login-logo" src="/favicon.svg?v=2" /><span>大陆农机配件平台</span></div>
         <h1>{visualTitle}</h1>
         <span>{visualCopy}</span>
         <div className="admin-login-points">

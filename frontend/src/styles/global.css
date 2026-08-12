@@ -1682,14 +1682,11 @@ textarea {
 
 .admin-brand-mark,
 .admin-login-logo {
-  align-items: center;
-  background: linear-gradient(135deg, #1677ff, #20c997);
   border-radius: 8px;
-  color: #fff;
-  display: inline-flex;
-  font-weight: 900;
+  display: block;
+  flex: 0 0 auto;
   height: 38px;
-  justify-content: center;
+  object-fit: contain;
   width: 38px;
 }
 
@@ -2367,7 +2364,7 @@ textarea {
 
 .admin-login-visual { gap: 18px; max-width: 590px; }
 .admin-login-brand { align-items: center; color: #d6e6ff; display: flex; font-size: 14px; font-weight: 700; gap: 12px; letter-spacing: .08em; text-transform: uppercase; }
-.admin-login-logo { background: linear-gradient(145deg, #2b89ff, #12b99a); border: 1px solid rgba(255, 255, 255, .35); border-radius: 16px; box-shadow: 0 14px 34px rgba(10, 95, 202, .32); font-size: 24px; height: 58px; width: 58px; }
+.admin-login-logo { border: 1px solid rgba(255, 255, 255, .35); border-radius: 16px; box-shadow: 0 14px 34px rgba(10, 95, 202, .32); height: 58px; width: 58px; }
 .admin-login-eyebrow { color: #63b2ff !important; font-size: 12px; letter-spacing: .15em; margin: 18px 0 -8px !important; }
 .admin-login-visual h1 { font-size: clamp(34px, 4vw, 54px); letter-spacing: -.045em; line-height: 1.12; max-width: 510px; }
 .admin-login-visual > span { color: #b2c2d8; font-size: 16px; max-width: 480px; }

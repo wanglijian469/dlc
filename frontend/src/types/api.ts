@@ -119,7 +119,6 @@ export interface Vendor {
   county?: string;
   address?: string;
   mainProducts?: string;
-  serviceModels?: string;
   serviceAdvantages?: string;
   description?: string;
   seoTitle?: string;
@@ -132,7 +131,6 @@ export interface Vendor {
   annualCapacity?: string;
   equipment?: string;
   certifications?: string;
-  afterSalesService?: string;
   reviewStatus?: "pending" | "verified" | "rejected" | string;
   providesProcessing?: boolean;
   processingServices?: string;
@@ -244,9 +242,13 @@ export interface ProductSupplier {
   image?: string;
   galleryRaw?: string;
   gallery?: string[];
+	 specsRaw?: string;
+	 specs?: ProductSpec[];
   compatibleModels?: string;
   description?: string;
+	 detailContent?: string;
   priceNote?: string;
+	 supplyAbility?: string;
   inquiryText?: string;
   inquiryPath?: string;
   sourceType?: string;
@@ -278,9 +280,37 @@ export interface ProductSubmission {
 }
 
 export interface VendorProductRecord {
-  product: Product;
-  supplier: ProductSupplier;
-  latestSubmission?: ProductSubmission;
+	id: number;
+	recordType: "submission" | "supplier";
+	vendorProductName: string;
+	vendorModel?: string;
+	categoryId?: number;
+	categoryName?: string;
+	compatibleModels?: string;
+	description?: string;
+	detailContent?: string;
+	image?: string;
+	galleryRaw?: string;
+	specsRaw?: string;
+	priceNote?: string;
+	supplyAbility?: string;
+	inquiryText?: string;
+	status: "pending" | "pending_update" | "approved" | "rejected";
+	reviewNote?: string;
+	submissionId?: number;
+	supplierId?: number;
+}
+
+export interface VendorProductDuplicateResult {
+	exact: boolean;
+	similar: Array<{ id: number; recordType: "submission" | "supplier"; name: string; model?: string; status: string }>;
+}
+
+export interface ProductMatchSuggestion {
+	product: Product;
+	score: number;
+	reasons: string[];
+	vendorAlreadyLinked: boolean;
 }
 
 export interface Banner {

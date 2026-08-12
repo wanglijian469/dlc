@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
 
+	"dalu-nongji-parts/backend/internal/database"
 	"dalu-nongji-parts/backend/internal/model"
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -15,6 +17,22 @@ import (
 )
 
 var errLastPublishableSupplier = errors.New("cannot remove the last publishable supplier")
+
+type productReviewRequest struct {
+	Status          string         `json:"status"`
+	ReviewNote      string         `json:"reviewNote"`
+	Resolution      string         `json:"resolution"`
+	TargetProductID uint           `json:"targetProductId"`
+	CatalogProduct  *model.Product `json:"catalogProduct"`
+	MergeProductID  uint           `json:"mergeProductId"`
+}
+
+type productMatchSuggestion struct {
+	Product             model.Product `json:"product"`
+	Score               int           `json:"score"`
+	Reasons             []string      `json:"reasons"`
+	VendorAlreadyLinked bool          `json:"vendorAlreadyLinked"`
+}
 
 func decodeProductSubmission(row model.ProductSubmission) model.ProductSubmissionView {
 	view := model.ProductSubmissionView{ProductSubmission: row}
@@ -46,12 +64,53 @@ func (h AdminHandler) ListProductSubmissions(c *gin.Context) {
 	OK(c, PageResult{Items: views, Page: page, PageSize: pageSize, Total: total})
 }
 
-func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
-	var req struct {
-		Status         string `json:"status"`
-		ReviewNote     string `json:"reviewNote"`
-		MergeProductID uint   `json:"mergeProductId"`
+func (h AdminHandler) ProductSubmissionMatches(c *gin.Context) {
+	var submission model.ProductSubmission
+	if h.DB.Where("id = ? AND submission_type = ?", c.Param("id"), "new_product").First(&submission).Error != nil {
+		Fail(c, http.StatusNotFound, 404, "产品提交不存在")
+		return
 	}
+	view := decodeProductSubmission(submission)
+	keyword := strings.TrimSpace(c.Query("keyword"))
+	query := h.DB.Preload("Category").Where("publication_status = ?", "published")
+	categoryIDs := categoryDescendantIDs(h.DB, view.ProductDraft.CategoryID)
+	if keyword != "" {
+		like := "%" + keyword + "%"
+		query = query.Where("name LIKE ? OR compatible_models LIKE ? OR description LIKE ?", like, like, like)
+	} else if len(categoryIDs) > 0 {
+		nameLike := "%" + strings.TrimSpace(view.SupplierDraft.VendorProductName) + "%"
+		modelLike := "%" + strings.TrimSpace(view.SupplierDraft.VendorModel) + "%"
+		if strings.TrimSpace(view.SupplierDraft.VendorModel) != "" {
+			query = query.Where("category_id IN ? OR name LIKE ? OR name LIKE ? OR compatible_models LIKE ?", categoryIDs, nameLike, modelLike, modelLike)
+		} else {
+			query = query.Where("category_id IN ? OR name LIKE ?", categoryIDs, nameLike)
+		}
+	}
+	var products []model.Product
+	if query.Order("is_recommended desc, sort_order asc, id asc").Limit(100).Find(&products).Error != nil {
+		Fail(c, http.StatusInternalServerError, 500, "匹配产品加载失败")
+		return
+	}
+	enrichProductSummaries(h.DB, products, 0)
+	items := make([]productMatchSuggestion, 0, len(products))
+	for _, product := range products {
+		score, reasons := scoreProductMatch(view, product, categoryIDs, keyword)
+		if keyword == "" && score == 0 {
+			continue
+		}
+		var linked int64
+		h.DB.Model(&model.ProductSupplier{}).Where("product_id = ? AND vendor_id = ? AND status <> ?", product.ID, submission.VendorID, "disabled").Count(&linked)
+		items = append(items, productMatchSuggestion{Product: product, Score: score, Reasons: reasons, VendorAlreadyLinked: linked > 0})
+	}
+	sort.SliceStable(items, func(i, j int) bool { return items[i].Score > items[j].Score })
+	if len(items) > 10 {
+		items = items[:10]
+	}
+	OK(c, items)
+}
+
+func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
+	var req productReviewRequest
 	if c.ShouldBindJSON(&req) != nil || (req.Status != "approved" && req.Status != "rejected") {
 		Fail(c, 400, 400, "审核状态无效")
 		return
@@ -62,13 +121,26 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 	}
 	var result model.ProductSubmission
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
-		if err := tx.First(&result, c.Param("id")).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).First(&result, c.Param("id")).Error; err != nil {
 			return err
 		}
 		if result.Status != "pending" {
 			return errSubmissionReviewed
 		}
 		view := decodeProductSubmission(result)
+		now := time.Now()
+		if result.SubmissionType == "new_product" && result.SupplierID == nil {
+			if req.Status == "approved" {
+				if err := approveStandaloneProductSubmission(tx, &result, view, req, c.GetString("username"), now); err != nil {
+					return err
+				}
+			}
+			result.Status = req.Status
+			result.ReviewNote = strings.TrimSpace(req.ReviewNote)
+			result.ReviewedBy = c.GetString("username")
+			result.ReviewedAt = &now
+			return tx.Save(&result).Error
+		}
 		var supplier model.ProductSupplier
 		if result.SupplierID == nil || tx.First(&supplier, *result.SupplierID).Error != nil {
 			return gorm.ErrRecordNotFound
@@ -76,7 +148,6 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 		if result.BaseVersion != supplier.ContentVersion {
 			return errSubmissionConflict
 		}
-		now := time.Now()
 		if req.Status == "approved" {
 			targetID := uint(0)
 			if result.ProductID != nil {
@@ -148,6 +219,8 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 			Fail(c, 409, 409, "供应信息版本已变化，请重新审核")
 		case errSupplierConflict:
 			Fail(c, 409, 409, "目标产品已关联该厂商")
+		case errInvalidProductResolution:
+			Fail(c, 400, 400, "新产品审核必须选择关联已有产品或创建标准产品，并完善标准产品名称")
 		case gorm.ErrRecordNotFound:
 			Fail(c, 404, 404, "产品提交或关联记录不存在")
 		default:
@@ -160,6 +233,151 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 }
 
 var errSupplierConflict = &workflowError{"supplier conflict"}
+var errInvalidProductResolution = errors.New("invalid product resolution")
+
+func approveStandaloneProductSubmission(tx *gorm.DB, submission *model.ProductSubmission, view model.ProductSubmissionView, req productReviewRequest, username string, now time.Time) error {
+	var target model.Product
+	switch req.Resolution {
+	case "link_product":
+		if req.TargetProductID == 0 || tx.Where("id = ? AND publication_status = ?", req.TargetProductID, "published").First(&target).Error != nil {
+			return gorm.ErrRecordNotFound
+		}
+		var linked int64
+		if err := tx.Model(&model.ProductSupplier{}).Where("product_id = ? AND vendor_id = ? AND status <> ?", target.ID, submission.VendorID, "disabled").Count(&linked).Error; err != nil {
+			return err
+		}
+		if linked > 0 {
+			return errSupplierConflict
+		}
+	case "create_product":
+		if req.CatalogProduct == nil || strings.TrimSpace(req.CatalogProduct.Name) == "" {
+			return errInvalidProductResolution
+		}
+		input := req.CatalogProduct
+		target = model.Product{
+			Name:             strings.TrimSpace(input.Name),
+			Image:            input.Image,
+			CategoryID:       input.CategoryID,
+			CompatibleModels: input.CompatibleModels,
+			Description:      input.Description,
+			DetailContent:    input.DetailContent,
+			GalleryRaw:       input.GalleryRaw,
+			SpecsRaw:         input.SpecsRaw,
+		}
+		target.PublicationStatus = "published"
+		target.Status = 1
+		target.ContentVersion = 1
+		target.PublishedAt = &now
+		target.CreatedAt = time.Time{}
+		target.UpdatedAt = time.Time{}
+		target.DeletedAt = gorm.DeletedAt{}
+		if target.CategoryID > 0 {
+			var categoryCount int64
+			if err := tx.Model(&model.Category{}).Where("id = ?", target.CategoryID).Count(&categoryCount).Error; err != nil || categoryCount == 0 {
+				return gorm.ErrRecordNotFound
+			}
+		}
+		if err := database.EnsureProductSlug(tx, &target); err != nil {
+			return err
+		}
+		if err := tx.Create(&target).Error; err != nil {
+			return err
+		}
+	default:
+		return errInvalidProductResolution
+	}
+
+	supplier := view.SupplierDraft
+	supplier.ID = 0
+	supplier.ProductID = target.ID
+	supplier.VendorID = submission.VendorID
+	supplier.Product = model.Product{}
+	supplier.Vendor = model.Vendor{}
+	supplier.Status = "approved"
+	supplier.SourceType = "vendor"
+	supplier.ReviewNote = strings.TrimSpace(req.ReviewNote)
+	supplier.ReviewedBy = username
+	supplier.ReviewedAt = &now
+	supplier.ContentVersion = 1
+	supplier.CreatedAt = time.Time{}
+	supplier.UpdatedAt = time.Time{}
+	supplier.DeletedAt = gorm.DeletedAt{}
+	if strings.TrimSpace(supplier.VendorProductName) == "" {
+		supplier.VendorProductName = view.ProductDraft.Name
+	}
+	if err := tx.Create(&supplier).Error; err != nil {
+		var linked int64
+		if countErr := tx.Unscoped().Model(&model.ProductSupplier{}).Where("product_id = ? AND vendor_id = ?", target.ID, submission.VendorID).Count(&linked).Error; countErr == nil && linked > 0 {
+			return errSupplierConflict
+		}
+		return err
+	}
+	productID, supplierID := target.ID, supplier.ID
+	submission.ProductID, submission.SupplierID = &productID, &supplierID
+	publishProductAndSupplierMedia(tx, target, supplier)
+	return nil
+}
+
+func categoryDescendantIDs(db *gorm.DB, root uint) []uint {
+	if root == 0 {
+		return nil
+	}
+	var categories []model.Category
+	if db.Select("id", "parent_id").Find(&categories).Error != nil {
+		return []uint{root}
+	}
+	result, seen := []uint{root}, map[uint]bool{root: true}
+	for changed := true; changed; {
+		changed = false
+		for _, category := range categories {
+			if !seen[category.ID] && seen[category.ParentID] {
+				seen[category.ID] = true
+				result = append(result, category.ID)
+				changed = true
+			}
+		}
+	}
+	return result
+}
+
+func scoreProductMatch(view model.ProductSubmissionView, product model.Product, categoryIDs []uint, keyword string) (int, []string) {
+	score, reasons := 0, make([]string, 0, 4)
+	wantName := normalizeVendorProductIdentity(view.SupplierDraft.VendorProductName)
+	if wantName == "" {
+		wantName = normalizeVendorProductIdentity(view.ProductDraft.Name)
+	}
+	productName := normalizeVendorProductIdentity(product.Name)
+	if wantName != "" && wantName == productName {
+		score += 60
+		reasons = append(reasons, "产品名称一致")
+	} else if wantName != "" && (strings.Contains(productName, wantName) || strings.Contains(wantName, productName)) {
+		score += 35
+		reasons = append(reasons, "产品名称相近")
+	}
+	modelValue := normalizeVendorProductIdentity(view.SupplierDraft.VendorModel)
+	compatible := normalizeVendorProductIdentity(product.CompatibleModels)
+	if modelValue != "" && (strings.Contains(productName, modelValue) || strings.Contains(compatible, modelValue)) {
+		score += 25
+		reasons = append(reasons, "型号匹配")
+	}
+	wantCompatible := normalizeVendorProductIdentity(view.SupplierDraft.CompatibleModels)
+	if wantCompatible != "" && compatible != "" && (strings.Contains(compatible, wantCompatible) || strings.Contains(wantCompatible, compatible)) {
+		score += 20
+		reasons = append(reasons, "适配信息相近")
+	}
+	for _, id := range categoryIDs {
+		if product.CategoryID == id {
+			score += 15
+			reasons = append(reasons, "分类相符")
+			break
+		}
+	}
+	if keyword != "" && score == 0 {
+		score = 1
+		reasons = append(reasons, "搜索结果")
+	}
+	return score, reasons
+}
 
 func applyProductDraft(dst *model.Product, src model.Product) {
 	dst.Name = strings.TrimSpace(src.Name)
@@ -177,9 +395,12 @@ func applySupplierDraft(dst *model.ProductSupplier, src model.ProductSupplier) {
 	dst.VendorModel = src.VendorModel
 	dst.Image = src.Image
 	dst.GalleryRaw = src.GalleryRaw
+	dst.SpecsRaw = src.SpecsRaw
 	dst.CompatibleModels = src.CompatibleModels
 	dst.Description = src.Description
+	dst.DetailContent = src.DetailContent
 	dst.PriceNote = src.PriceNote
+	dst.SupplyAbility = src.SupplyAbility
 	dst.InquiryText = src.InquiryText
 	dst.InquiryPath = src.InquiryPath
 }
@@ -192,6 +413,12 @@ func publishProductAndSupplierMedia(db *gorm.DB, product model.Product, supplier
 	gallery = nil
 	_ = json.Unmarshal([]byte(supplier.GalleryRaw), &gallery)
 	urls = append(urls, gallery...)
+	for _, spec := range product.Specs() {
+		urls = append(urls, spec.Image)
+	}
+	for _, spec := range supplier.Specs() {
+		urls = append(urls, spec.Image)
+	}
 	ids := make([]uint, 0, len(urls))
 	for _, value := range urls {
 		if strings.HasPrefix(value, "/api/media/") {

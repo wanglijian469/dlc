@@ -150,6 +150,12 @@ func (h AdminHandler) importVendors(sheets map[string]xlsxSheet, username string
 			result.Issues = append(result.Issues, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "厂商名称不能为空"})
 			continue
 		}
+		if legacyModels := strings.TrimSpace(values["服务/适配机型"]); legacyModels != "" {
+			result.Warnings = append(result.Warnings, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "厂商适配机型字段已停用，请改在产品资料中填写"})
+		}
+		if len([]rune(strings.TrimSpace(values["服务优势"]))) > maxVendorServiceAdvantagesRunes {
+			result.Issues = append(result.Issues, BulkImportIssue{Sheet: sheet.Name, Row: row.Number, Message: "服务优势不能超过 80 个字符"})
+		}
 		if website := values["官网 URL"]; website != "" {
 			normalizedWebsite, websiteErr := normalizeImportWebsiteURL(website)
 			if websiteErr != nil {
@@ -452,13 +458,11 @@ func applyVendorImport(vendor *model.Vendor, row vendorImportRow) {
 	setImportedString(&vendor.FactoryArea, values["厂房面积"])
 	setImportedString(&vendor.EmployeeCount, values["员工人数"])
 	setImportedString(&vendor.MainProducts, values["主营产品"])
-	setImportedString(&vendor.ServiceModels, values["服务/适配机型"])
 	setImportedString(&vendor.Description, values["企业简介"])
 	setImportedString(&vendor.ServiceAdvantages, values["服务优势"])
 	setImportedString(&vendor.AnnualCapacity, values["年产能/供货能力"])
 	setImportedString(&vendor.Equipment, values["主要设备"])
 	setImportedString(&vendor.Certifications, values["资质认证"])
-	setImportedString(&vendor.AfterSalesService, values["售后服务"])
 	setImportedString(&vendor.ProcessingServices, values["加工服务"])
 	setImportedString(&vendor.ProcessingMaterials, values["加工材料"])
 	setImportedString(&vendor.ProcessingEquipment, values["加工设备"])

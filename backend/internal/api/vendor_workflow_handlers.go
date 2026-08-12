@@ -60,6 +60,10 @@ func (h AdminHandler) SubmitVendorProfile(c *gin.Context) {
 		return
 	}
 	applyVendorEditableFields(&current, proposed)
+	if err := validateVendorProfileContent(current); err != nil {
+		Fail(c, http.StatusBadRequest, 400, err.Error())
+		return
+	}
 	slug, err := database.ValidateVendorSiteSlug(h.DB, current.Slug, vendorID)
 	if err != nil {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
@@ -171,6 +175,9 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 				return errSubmissionConflict
 			}
 			applyVendorEditableFields(&vendor, draft)
+			if err := validateVendorProfileContent(vendor); err != nil {
+				return err
+			}
 			slug, err := database.ValidateVendorSiteSlug(tx, vendor.Slug, vendor.ID)
 			if err != nil {
 				return err
@@ -257,7 +264,6 @@ func applyVendorEditableFields(dst *model.Vendor, src model.Vendor) {
 	dst.County = src.County
 	dst.Address = src.Address
 	dst.MainProducts = src.MainProducts
-	dst.ServiceModels = src.ServiceModels
 	dst.ServiceAdvantages = src.ServiceAdvantages
 	dst.Description = src.Description
 	dst.EstablishedYear = src.EstablishedYear
@@ -266,7 +272,6 @@ func applyVendorEditableFields(dst *model.Vendor, src model.Vendor) {
 	dst.AnnualCapacity = src.AnnualCapacity
 	dst.Equipment = src.Equipment
 	dst.Certifications = src.Certifications
-	dst.AfterSalesService = src.AfterSalesService
 	dst.ProvidesProcessing = src.ProvidesProcessing
 	dst.ProcessingServices = src.ProcessingServices
 	dst.ProcessingMaterials = src.ProcessingMaterials

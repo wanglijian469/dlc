@@ -20,7 +20,6 @@ type Vendor struct {
 	County               string           `gorm:"size:50" json:"county"`
 	Address              string           `gorm:"size:255" json:"address"`
 	MainProducts         string           `gorm:"size:500" json:"mainProducts"`
-	ServiceModels        string           `gorm:"size:500" json:"serviceModels"`
 	ServiceAdvantages    string           `gorm:"size:500" json:"serviceAdvantages"`
 	Description          string           `gorm:"type:text" json:"description"`
 	SEOTitle             string           `gorm:"size:180" json:"seoTitle"`
@@ -33,7 +32,6 @@ type Vendor struct {
 	AnnualCapacity       string           `gorm:"size:255" json:"annualCapacity"`
 	Equipment            string           `gorm:"type:text" json:"equipment"`
 	Certifications       string           `gorm:"type:text" json:"certifications"`
-	AfterSalesService    string           `gorm:"type:text" json:"afterSalesService"`
 	ReviewStatus         string           `gorm:"size:30;default:pending;index" json:"reviewStatus"`
 	ProvidesProcessing   bool             `gorm:"default:false;index" json:"providesProcessing"`
 	ProcessingServices   string           `gorm:"size:500" json:"processingServices"`

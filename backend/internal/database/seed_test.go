@@ -143,7 +143,7 @@ func TestDefaultSeedVendorsContainRichProfileFields(t *testing.T) {
 		t.Fatal("seed vendors should not be empty")
 	}
 	vendor := reflect.ValueOf(seed.Vendors[0])
-	for _, field := range []string{"EstablishedYear", "FactoryArea", "EmployeeCount", "AnnualCapacity", "Equipment", "Certifications", "AfterSalesService"} {
+	for _, field := range []string{"EstablishedYear", "FactoryArea", "EmployeeCount", "AnnualCapacity", "Equipment", "Certifications"} {
 		value := vendor.FieldByName(field)
 		if !value.IsValid() {
 			t.Fatalf("Vendor missing rich profile field %s", field)

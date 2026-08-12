@@ -49,12 +49,12 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 			}
 		}
 		if references == 0 {
-			if err := db.Model(&model.Product{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+			if err := db.Model(&model.Product{}).Where("image = ? OR INSTR(gallery, ?) > 0 OR INSTR(specs, ?) > 0", url, url, url).Count(&references).Error; err != nil {
 				return err
 			}
 		}
 		if references == 0 {
-			if err := db.Model(&model.ProductSupplier{}).Where("image = ? OR INSTR(gallery, ?) > 0", url, url).Count(&references).Error; err != nil {
+			if err := db.Model(&model.ProductSupplier{}).Where("image = ? OR INSTR(gallery, ?) > 0 OR INSTR(specs, ?) > 0", url, url, url).Count(&references).Error; err != nil {
 				return err
 			}
 		}
@@ -162,12 +162,12 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 		"enabled": true, "auditOnly": true, "windowMinutes": 10, "distinctResourceLimit": 120,
 		"blockHours": 1, "escalationStrikes": 3, "escalatedBlockHours": 24,
 		"blockedAiAgents": []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
-		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 32, "watermarkText": "大陆农机配件",
+		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 25, "watermarkText": "大陆农机配件",
 	})
 	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
 }
 
-const CurrentSchemaVersion uint = 13
+const CurrentSchemaVersion uint = 16
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -181,6 +181,11 @@ func Migrate(db *gorm.DB) error {
 	}
 	if latest >= CurrentSchemaVersion {
 		return nil
+	}
+	if latest < 15 {
+		if err := removeVendorAfterSalesService(db); err != nil {
+			return err
+		}
 	}
 	if err := AutoMigrate(db); err != nil {
 		return err
@@ -221,7 +226,37 @@ func Migrate(db *gorm.DB) error {
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "mobile-marketplace-v1", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-product-self-entry-v1", AppliedAt: time.Now()}).Error
+}
+
+func removeVendorAfterSalesService(db *gorm.DB) error {
+	if db.Migrator().HasTable(&model.VendorSubmission{}) {
+		if err := db.Exec(`UPDATE vendor_submissions
+			SET payload = JSON_REMOVE(payload, '$.afterSalesService')
+			WHERE JSON_VALID(payload) AND JSON_CONTAINS_PATH(payload, 'one', '$.afterSalesService')`).Error; err != nil {
+			return fmt.Errorf("remove afterSalesService from vendor submissions: %w", err)
+		}
+	}
+	if db.Migrator().HasTable(&model.ContentRevision{}) {
+		if err := db.Exec(`UPDATE content_revisions
+			SET snapshot = JSON_REMOVE(snapshot, '$.afterSalesService')
+			WHERE resource_type = 'vendor' AND JSON_VALID(snapshot) AND JSON_CONTAINS_PATH(snapshot, 'one', '$.afterSalesService')`).Error; err != nil {
+			return fmt.Errorf("remove afterSalesService from vendor revisions: %w", err)
+		}
+	}
+	if db.Migrator().HasTable(&model.StaticPageBuild{}) {
+		if err := db.Model(&model.StaticPageBuild{}).
+			Where("resource_type = ?", "vendor").
+			Updates(map[string]any{"status": model.StaticPageStatusStale, "error_message": ""}).Error; err != nil {
+			return fmt.Errorf("mark vendor static pages stale: %w", err)
+		}
+	}
+	if db.Migrator().HasColumn(&model.Vendor{}, "after_sales_service") {
+		if err := db.Migrator().DropColumn(&model.Vendor{}, "after_sales_service"); err != nil {
+			return fmt.Errorf("drop vendors.after_sales_service: %w", err)
+		}
+	}
+	return nil
 }
 
 func CheckMigrations(db *gorm.DB) error {
@@ -480,7 +515,7 @@ func mediaAssetExists(db *gorm.DB, id uint) bool {
 }
 
 func dropRetiredVendorColumns(db *gorm.DB) error {
-	for _, column := range []string{"quality_control", "supply_regions", "cooperation_terms", "source_url", "source_note"} {
+	for _, column := range []string{"quality_control", "supply_regions", "cooperation_terms", "source_url", "source_note", "service_models"} {
 		if db.Migrator().HasColumn(&model.Vendor{}, column) {
 			if err := db.Migrator().DropColumn(&model.Vendor{}, column); err != nil {
 				return err
@@ -605,7 +640,7 @@ func ensureStructuredContent(db *gorm.DB) error {
 	blocks := map[string][]model.ContentBlock{
 		"join": {
 			{Type: "hero", Title: "让更多采购商看见您的产品与实力", Text: "完成厂商账号绑定后，即可在 CMS 维护企业资料；新资料经平台审核后公开展示。", ButtonText: "已有账号，登录 CMS", ButtonPath: "/admin/login"},
-			{Type: "text", Title: "入驻前请准备", Items: []string{"企业全称、所在地区与详细地址", "主营产品、适配机型和生产加工能力", "真实 Logo、厂房、设备、证书与产品图片", "联系人、联系电话、微信或企业官网"}},
+			{Type: "text", Title: "入驻前请准备", Items: []string{"企业全称、所在地区与详细地址", "主营产品和生产加工能力", "真实 Logo、厂房、设备、证书与产品图片", "联系人、联系电话、微信或企业官网"}},
 			{Type: "steps", Title: "入驻流程", Items: []string{"联系平台运营人员核验企业信息并创建厂商档案", "获取厂商 CMS 账号，登录后完善企业展示资料", "提交资料等待平台审核，驳回后可按意见重新修改", "审核通过后自动更新前台厂商目录和详情页"}},
 			{Type: "cta", Title: "已经获得厂商账号？", Text: "登录 CMS 更新企业资料，审核期间原有公开资料不会受到影响。", ButtonText: "登录厂商 CMS", ButtonPath: "/admin/login"},
 			{Type: "faq", Title: "常见问题", Items: []string{"提交后会立即展示吗？|不会。资料需要管理员审核通过后才会更新到前台。", "审核期间旧资料是否下线？|不会，平台继续展示上一版已审核资料。", "可以上传哪些资料？|支持 Logo、封面、厂房、设备和证书等企业图片。"}},

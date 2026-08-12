@@ -9,8 +9,8 @@ func TestProtectionTracksDistinctCanonicalDetailResources(t *testing.T) {
 		path, kind, key string
 		tracked         bool
 	}{
-		{"/v/abc-parts", "vendor", "abc-parts", true},
-		{"/api/vendors/slug/abc-parts", "vendor", "abc-parts", true},
+		{"/v/abcparts", "vendor", "abcparts", true},
+		{"/api/vendors/slug/abcparts", "vendor", "abcparts", true},
 		{"/products/rotary-tiller", "product", "rotary-tiller", true},
 		{"/api/products/18", "product", "18", true},
 		{"/api/vendors", "", "", false},

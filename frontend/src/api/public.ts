@@ -1,5 +1,6 @@
 ﻿import { publicClient } from "./client";
 import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor, VendorCategory } from "../types/api";
+import { API_BASE_URL } from "./client";
 
 export function getHome() {
   return publicClient.get<never, HomePayload>("/api/home");
@@ -44,6 +45,12 @@ export interface VendorContact {
 
 export function getVendorContact(vendorId: number) {
   return publicClient.get<never, VendorContact>(`/api/vendors/${vendorId}/contact`);
+}
+
+export async function getVendorContactQRCode(vendorId: number) {
+  const response = await fetch(`${API_BASE_URL}/api/vendors/${vendorId}/contact-qr`, { credentials: "include" });
+  if (!response.ok) throw new Error("二维码加载失败");
+  return response.blob();
 }
 
 export function getProduct(slug: string) {

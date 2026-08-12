@@ -44,7 +44,7 @@ func DefaultProtectionConfig() ProtectionConfig {
 		BlockHours: 1, EscalationStrikes: 3, EscalatedBlockHours: 24,
 		BlockedAIAgents:  []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
 		AllowCIDRs:       []string{},
-		WatermarkEnabled: true, WatermarkOpacity: 32, WatermarkText: "大陆农机配件",
+		WatermarkEnabled: true, WatermarkOpacity: 25, WatermarkText: "大陆农机配件",
 	}
 }
 

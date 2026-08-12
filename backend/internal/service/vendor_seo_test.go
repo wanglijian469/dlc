@@ -9,12 +9,11 @@ import (
 
 func TestSuggestVendorSEOUsesRealDirectoryFields(t *testing.T) {
 	vendor := model.Vendor{
-		Name:          "河北冀农农机具有限公司",
-		ShortName:     "河北冀农农机具",
-		Province:      "河北省",
-		City:          "石家庄市",
-		MainProducts:  "旋耕机链条、齿轮、刀片、齿轮",
-		ServiceModels: "旋耕机、微耕机",
+		Name:         "河北冀农农机具有限公司",
+		ShortName:    "河北冀农农机具",
+		Province:     "河北省",
+		City:         "石家庄市",
+		MainProducts: "旋耕机链条、齿轮、刀片、齿轮",
 	}
 	got := SuggestVendorSEO(vendor)
 	if got.SEOTitle != "河北冀农农机具｜旋耕机链条、齿轮厂家" {
@@ -23,7 +22,7 @@ func TestSuggestVendorSEOUsesRealDirectoryFields(t *testing.T) {
 	if runeLen(got.SEOTitle) > VendorSEOTitleLimit || runeLen(got.SEODescription) > VendorSEODescriptionLimit {
 		t.Fatalf("suggestion exceeds limits: %#v", got)
 	}
-	for _, want := range []string{"河北冀农农机具有限公司", "河北省石家庄市", "旋耕机链条", "适配旋耕机"} {
+	for _, want := range []string{"河北冀农农机具有限公司", "河北省石家庄市", "旋耕机链条"} {
 		if !strings.Contains(got.SEODescription, want) {
 			t.Fatalf("description %q missing %q", got.SEODescription, want)
 		}

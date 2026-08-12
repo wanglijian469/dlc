@@ -485,10 +485,23 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 	body.WriteString(`</nav><h1>` + template.HTMLEscapeString(doc.BodyTitle) + `</h1><p>` + template.HTMLEscapeString(doc.BodyText) + `</p>`)
 	if payload.Vendor != nil {
 		vendor := payload.Vendor
-		body.WriteString(`<section><h2>主营产品</h2><p>` + template.HTMLEscapeString(vendor.MainProducts) + `</p>`)
+		body.WriteString(`<section><h2>厂商概况</h2>`)
+		if vendor.ServiceAdvantages != "" {
+			body.WriteString(`<p>` + template.HTMLEscapeString(truncateStaticRunes(vendor.ServiceAdvantages, 80)) + `</p>`)
+		}
+		if vendor.Description != "" {
+			body.WriteString(`<p>` + template.HTMLEscapeString(vendor.Description) + `</p>`)
+		}
 		if vendor.CoverImage != "" {
 			body.WriteString(`<img alt="` + template.HTMLEscapeString(vendor.Name) + `" src="` + template.HTMLEscapeString(vendor.CoverImage) + `">`)
 		}
+		body.WriteString(`</section><section><h2>主营产品与企业实力</h2><dl>`)
+		for _, row := range [][2]string{{"主营产品", vendor.MainProducts}, {"年产能", vendor.AnnualCapacity}, {"主要设备", vendor.Equipment}, {"资质认证", vendor.Certifications}} {
+			if row[1] != "" {
+				body.WriteString(`<dt>` + template.HTMLEscapeString(row[0]) + `</dt><dd>` + template.HTMLEscapeString(row[1]) + `</dd>`)
+			}
+		}
+		body.WriteString(`</dl></section>`)
 		if vendor.Phone != "" || vendor.Wechat != "" || vendor.WechatQRCode != "" {
 			body.WriteString(`<section><h2>联系方式</h2>`)
 			if vendor.Phone != "" {
@@ -502,7 +515,6 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 			}
 			body.WriteString(`</section>`)
 		}
-		body.WriteString(`</section>`)
 		if len(payload.Products) > 0 {
 			body.WriteString(`<section><h2>关联产品</h2><ul>`)
 			for _, product := range payload.Products {
@@ -533,6 +545,14 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 	}
 	body.WriteString(`<nav aria-label="相关页面"><a href="/">首页</a> · <a href="/products">配件产品</a> · <a href="/vendors">厂商目录</a></nav></main>`)
 	return body.String()
+}
+
+func truncateStaticRunes(value string, limit int) string {
+	runes := []rune(value)
+	if len(runes) <= limit {
+		return value
+	}
+	return string(runes[:limit])
 }
 
 func (s *StaticPageService) writePage(resourceType string, resourceID uint, hash string, content []byte) (string, string, error) {

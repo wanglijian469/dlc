@@ -15,9 +15,12 @@ type ProductSupplier struct {
 	VendorModel       string         `gorm:"size:255" json:"vendorModel"`
 	Image             string         `gorm:"size:255" json:"image"`
 	GalleryRaw        string         `gorm:"column:gallery;type:text" json:"galleryRaw,omitempty"`
+	SpecsRaw          string         `gorm:"column:specs;type:text" json:"specsRaw,omitempty"`
 	CompatibleModels  string         `gorm:"size:500" json:"compatibleModels"`
 	Description       string         `gorm:"type:text" json:"description"`
+	DetailContent     string         `gorm:"type:text" json:"detailContent"`
 	PriceNote         string         `gorm:"size:255" json:"priceNote"`
+	SupplyAbility     string         `gorm:"size:500" json:"supplyAbility"`
 	InquiryText       string         `gorm:"size:100" json:"inquiryText"`
 	InquiryPath       string         `gorm:"size:255" json:"inquiryPath"`
 	Status            string         `gorm:"size:20;not null;default:pending;index" json:"status"`
@@ -45,12 +48,28 @@ func (s ProductSupplier) Gallery() []string {
 	return out
 }
 
+func (s ProductSupplier) Specs() []ProductSpec {
+	return productSpecs(s.SpecsRaw)
+}
+
 func (s ProductSupplier) MarshalJSON() ([]byte, error) {
 	type Alias ProductSupplier
 	return json.Marshal(struct {
 		Alias
-		Gallery []string `json:"gallery,omitempty"`
-	}{Alias: Alias(s), Gallery: s.Gallery()})
+		Gallery []string      `json:"gallery,omitempty"`
+		Specs   []ProductSpec `json:"specs,omitempty"`
+	}{Alias: Alias(s), Gallery: s.Gallery(), Specs: s.Specs()})
+}
+
+func productSpecs(raw string) []ProductSpec {
+	if raw == "" {
+		return nil
+	}
+	var out []ProductSpec
+	if json.Unmarshal([]byte(raw), &out) != nil {
+		return nil
+	}
+	return out
 }
 
 type ProductSubmission struct {

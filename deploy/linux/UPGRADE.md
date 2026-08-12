@@ -27,8 +27,8 @@ sudo cp /etc/nginx/conf.d/dalu-parts.conf \
 
 ```bash
 cd /tmp
-tar -xzf dlc-deploy-linux-x86_64-v2026.07.30-linux.1.tar.gz
-cd dlc-deploy-linux-x86_64-v2026.07.30-linux.1
+tar -xzf dlc-deploy-linux-x86_64-v2026.08.12-linux.1.tar.gz
+cd dlc-deploy-linux-x86_64-v2026.08.12-linux.1
 chmod +x server initdb scripts/*.sh
 sha256sum -c SHA256SUMS
 sudo ./scripts/upgrade.sh

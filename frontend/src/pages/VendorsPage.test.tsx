@@ -70,7 +70,8 @@ describe("VendorsPage", () => {
 	  await waitFor(() => expect(mockedListVendors).toHaveBeenCalledWith(expect.objectContaining({ page: 1, pageSize: 12 })));
 	expect(screen.getAllByText("厂商分类").length).toBeGreaterThanOrEqual(2);
 	fireEvent.click(screen.getAllByRole("button", { name: /配件生产厂/ }).at(-1)!);
-	expect(screen.getByText("招商中")).toBeInTheDocument();
+	expect(screen.queryByText("招商中")).not.toBeInTheDocument();
+	expect(screen.queryByText("1 家")).not.toBeInTheDocument();
   });
 
 	it("filters with the dedicated vendor category and shows an enrollment CTA for an empty category", async () => {

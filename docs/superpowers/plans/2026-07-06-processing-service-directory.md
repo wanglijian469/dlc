@@ -92,7 +92,7 @@ Expected: FAIL because `model.Vendor` does not yet define the processing fields.
 
 - [ ] **Step 3: Add vendor model fields**
 
-Add fields to `backend/internal/model/vendor.go` after `AfterSalesService`:
+Add fields to `backend/internal/model/vendor.go` after `Certifications`:
 
 ```go
 ProvidesProcessing  bool   `gorm:"default:false;index" json:"providesProcessing"`

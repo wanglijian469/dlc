@@ -6,7 +6,6 @@ import (
 	"image/png"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -30,7 +29,7 @@ func TestGenerateWatermarkedImageCreatesSeparateDerivative(t *testing.T) {
 	if err := file.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if err := generateWatermarkedImage(source, target, "DALU PARTS | TEST VENDOR", 32, "image/png"); err != nil {
+	if err := generateWatermarkedImage(source, target, "大陆农机配件 · 汉丰", 25, "image/png"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(target); err != nil {
@@ -43,10 +42,10 @@ func TestGenerateWatermarkedImageCreatesSeparateDerivative(t *testing.T) {
 	}
 }
 
-func TestWatermarkLabelTransliteratesChineseAndPathStaysInMediaRoot(t *testing.T) {
+func TestWatermarkLabelKeepsChineseAndPathStaysInMediaRoot(t *testing.T) {
 	label := watermarkLabel("大陆农机配件", "汉丰")
-	if !strings.Contains(label, "da") || !strings.Contains(label, "han") {
-		t.Fatalf("watermark label was not transliterated: %q", label)
+	if label != "大陆农机配件 · 汉丰" {
+		t.Fatalf("unexpected watermark label: %q", label)
 	}
 	root := t.TempDir()
 	if _, err := safeMediaPath(root, "..\\outside.png"); err == nil {

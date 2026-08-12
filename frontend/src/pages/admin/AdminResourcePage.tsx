@@ -51,6 +51,8 @@ type Field = {
   description?: string;
   group?: string;
   optionTagType?: "vendor" | "processing";
+  maxLength?: number;
+  pattern?: string;
 };
 
 const menuTypes = [
@@ -87,16 +89,15 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
     fields: [
       { key: "name", label: "厂商名称" },
       { key: "shortName", label: "简称", placeholder: vendorFieldGuidance.shortName },
-      { key: "logo", label: "Logo URL", type: "image" },
-      { key: "coverImage", label: "封面 URL", type: "image" },
       { key: "province", label: "省份" },
       { key: "city", label: "城市" },
       { key: "county", label: "区县" },
       { key: "address", label: "详细地址" },
-      { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts },
-      { key: "serviceModels", label: "适配机型", type: "textarea", placeholder: vendorFieldGuidance.serviceModels },
-      { key: "serviceAdvantages", label: "服务优势", type: "textarea", placeholder: vendorFieldGuidance.serviceAdvantages },
       { key: "description", label: "公司介绍", type: "textarea", placeholder: vendorFieldGuidance.description },
+      { key: "serviceAdvantages", label: "服务优势", type: "textarea", placeholder: vendorFieldGuidance.serviceAdvantages, maxLength: 80, group: "展示信息" },
+      { key: "mainProducts", label: "主营产品", type: "textarea", placeholder: vendorFieldGuidance.mainProducts, group: "展示信息" },
+      { key: "logo", label: "Logo URL", type: "image", group: "展示信息" },
+      { key: "coverImage", label: "封面 URL", type: "image", group: "展示信息" },
       { key: "seoTitle", label: "SEO 标题" },
       { key: "seoDescription", label: "SEO 摘要", type: "textarea" },
       { key: "seoTitleManual", label: "SEO 标题人工设置", type: "checkbox", group: "SEO 优化建议" },
@@ -107,7 +108,6 @@ const schemas: Record<ResourceName, { title: string; fields: Field[] }> = {
       { key: "annualCapacity", label: "年产能", type: "textarea", placeholder: vendorFieldGuidance.annualCapacity },
       { key: "equipment", label: "主要设备", type: "textarea", placeholder: vendorFieldGuidance.equipment },
       { key: "certifications", label: "认证资质", type: "textarea", placeholder: vendorFieldGuidance.certifications },
-      { key: "afterSalesService", label: "售后服务", type: "textarea", placeholder: vendorFieldGuidance.afterSalesService },
       { key: "reviewStatus", label: "复核状态", type: "select", options: reviewStatusOptions },
       { key: "websiteUrl", label: "厂商官网 URL" },
       { key: "phone", label: "联系电话" },
@@ -243,7 +243,7 @@ function extendSEOSchemas() {
     if (!fields.some((field) => field.key === "slug")) {
       const nameIndex = fields.findIndex((field) => field.key === "name");
 		fields.splice(nameIndex + 1, 0, resource === "vendors"
-			? { key: "slug", label: "厂商网站地址标识", description: "公开地址为 /v/标识；修改后会自动保留 301 历史重定向" }
+			? { key: "slug", label: "厂商网站地址标识", description: "3–16 位小写字母或数字；留空时按厂商品牌自动生成，修改后保留 301 历史重定向", maxLength: 16, pattern: "[a-z0-9]{3,16}" }
 			: { key: "slug", label: "短拼音标识", description: "发布后修改会自动保留 301 历史重定向" });
     }
   });
@@ -256,8 +256,8 @@ function extendSEOSchemas() {
 function extendProcessingSchemas() {
   const vendorFields = schemas.vendors.fields;
   if (!vendorFields.some((field) => field.key === "providesProcessing")) {
-    const afterSalesIndex = vendorFields.findIndex((field) => field.key === "afterSalesService");
-    vendorFields.splice(afterSalesIndex >= 0 ? afterSalesIndex + 1 : vendorFields.length, 0, ...processingVendorFields);
+    const certificationsIndex = vendorFields.findIndex((field) => field.key === "certifications");
+    vendorFields.splice(certificationsIndex >= 0 ? certificationsIndex + 1 : vendorFields.length, 0, ...processingVendorFields);
   }
   const tagTypeField = schemas.tags.fields.find((field) => field.key === "tagType");
   if (tagTypeField?.options && !tagTypeField.options.some((option) => option.value === "processing")) {
@@ -350,6 +350,10 @@ export function AdminResourcePage({ resourceName }: { resourceName?: ResourceNam
       }
     }
     if (name === "vendors") {
+      if (Array.from(String(form.serviceAdvantages || "")).length > 80) {
+        setMessage("服务优势不能超过 80 个字符，请缩短后再保存");
+        return;
+      }
       payload.media = (form.media as VendorMedia[] | undefined) || [];
       (payload as { publicationStatus?: "published" | "hidden" }).publicationStatus = Boolean(form.isVisible) ? "published" : "hidden";
     }
@@ -502,7 +506,7 @@ function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch
   const [suggestion, setSuggestion] = useState<VendorSuggestion | null>(null);
   const [loading, setLoading] = useState(false);
   const sourceSignature = JSON.stringify([
-    form.name, form.shortName, form.province, form.city, form.mainProducts, form.serviceModels,
+    form.name, form.shortName, form.province, form.city, form.mainProducts,
     form.description, form.providesProcessing, form.processingServices,
   ]);
   const titleManual = Boolean(form.seoTitleManual);
@@ -540,7 +544,7 @@ function VendorSEOEditor({ form, setForm }: { form: FormState; setForm: Dispatch
   };
 
   return <div className="vendor-seo-editor">
-    <p className="vendor-seo-intro">根据厂商名称、地区、主营产品、适配机型与加工能力生成。自动模式会随资料更新，人工设置后不再覆盖。</p>
+    <p className="vendor-seo-intro">根据厂商名称、地区、主营产品与加工能力生成。自动模式会随资料更新，人工设置后不再覆盖。</p>
 		<div className="vendor-site-address"><strong>厂商独立站地址</strong><code>{vendorSiteAddress}</code><button type="button" onClick={() => void navigator.clipboard.writeText(vendorSiteAddress)}>复制地址</button><a href={vendorSiteAddress} rel="noreferrer" target="_blank">预览网站</a></div>
     <div className="vendor-seo-fields">
       <label>
@@ -569,7 +573,8 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
   if (field.type === "specs") return <SpecsEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
   if (field.type === "blocks") return <BlocksEditor value={String(form[field.key] || "")} onChange={(value) => setForm({ ...form, [field.key]: value })} />;
   if (field.type === "textarea") {
-    return <textarea className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={String(form[field.key] ?? "")} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />;
+    const value = String(form[field.key] ?? "");
+    return <div className="limited-field"><textarea className={field.placeholder ? "writing-example" : undefined} placeholder={field.placeholder} value={value} onChange={(event) => setForm({ ...form, [field.key]: event.target.value })} />{field.maxLength && <small className={Array.from(value).length > field.maxLength ? "character-count over-limit" : "character-count"}>{Array.from(value).length} / {field.maxLength} 字</small>}</div>;
   }
   if (field.type === "checkbox") {
     return <input aria-label={field.label} checked={Boolean(form[field.key])} type="checkbox" onChange={(event) => setForm({ ...form, [field.key]: event.target.checked })} />;
@@ -625,12 +630,18 @@ function FieldInput({ field, form, refs, setForm }: { field: Field; form: FormSt
     );
   }
   if (field.type === "image") return <ImageField field={field} form={form} setForm={setForm} />;
+  if (field.key === "slug") {
+    const value = String(form[field.key] ?? "");
+    return <div className="limited-field"><input value={value} type="text" maxLength={16} pattern="[a-z0-9]{3,16}" placeholder="例如 jinong" onChange={(event) => setForm({ ...form, [field.key]: event.target.value.toLowerCase().replace(/[^a-z0-9]/g, "") })} /><small className="character-count">公开地址：/v/{value || "自动生成"} · 剩余 {Math.max(0, 16 - value.length)} 位</small></div>;
+  }
   return (
     <input
       value={String(form[field.key] ?? "")}
       type={field.type || "text"}
       className={field.placeholder ? "writing-example" : undefined}
       placeholder={field.placeholder}
+      maxLength={field.maxLength}
+      pattern={field.pattern}
       onChange={(event) => setForm({ ...form, [field.key]: field.type === "number" ? Number(event.target.value) : event.target.value })}
     />
   );
@@ -881,9 +892,9 @@ function defaultForm(fields: Field[]) {
 function groupFields(resource: ResourceName, fields: Field[]) {
   const groupTitle = (key: string) => {
     if (resource === "vendors") {
-      if (["name", "shortName", "province", "city", "county", "address", "description"].includes(key)) return "基础资料";
-		if (["logo", "coverImage", "mainProducts", "serviceModels", "serviceAdvantages", "tagIds", "vendorCategoryIds"].includes(key)) return "展示信息";
-      if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications", "afterSalesService"].includes(key)) return "生产与服务";
+		if (["name", "shortName", "slug", "province", "city", "county", "address", "description"].includes(key)) return "基础资料";
+		if (["logo", "coverImage", "mainProducts", "serviceAdvantages", "tagIds", "vendorCategoryIds"].includes(key)) return "展示信息";
+      if (["establishedYear", "factoryArea", "employeeCount", "annualCapacity", "equipment", "certifications"].includes(key)) return "生产与服务";
       if (key.startsWith("processing") || key === "providesProcessing") return "加工能力";
       if (["websiteUrl", "phone", "phonePublic", "wechat", "wechatQrCode", "wechatPublic", "contactName", "contactNamePublic"].includes(key)) return "联系方式";
       if (["seoTitle", "seoDescription", "seoTitleManual", "seoDescriptionManual"].includes(key)) return "SEO 优化建议";

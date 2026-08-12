@@ -213,9 +213,10 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	cmsOnly.GET("/vendor-profile", handler.GetVendorProfile)
 	cmsOnly.PUT("/vendor-profile", handler.SubmitVendorProfile)
 	cmsOnly.GET("/vendor-products", handler.ListOwnProducts)
-	cmsOnly.GET("/vendor-product-catalog", handler.SearchVendorProductCatalog)
+	cmsOnly.GET("/vendor-products/duplicate-check", handler.CheckOwnProductDuplicate)
 	cmsOnly.POST("/vendor-products", handler.CreateOwnProduct)
-	cmsOnly.POST("/vendor-products/link", handler.LinkOwnProduct)
+	cmsOnly.PUT("/vendor-product-submissions/:id", handler.UpdateOwnProductSubmission)
+	cmsOnly.DELETE("/vendor-product-submissions/:id", handler.WithdrawOwnProductSubmission)
 	cmsOnly.PUT("/vendor-products/:id", handler.UpdateOwnProduct)
 	cmsOnly.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
 
@@ -242,6 +243,7 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	adminOnly.GET("/vendor-submissions", handler.ListVendorSubmissions)
 	adminOnly.PUT("/vendor-submissions/:id/review", handler.ReviewVendorSubmission)
 	adminOnly.GET("/product-submissions", handler.ListProductSubmissions)
+	adminOnly.GET("/product-submissions/:id/matches", handler.ProductSubmissionMatches)
 	adminOnly.PUT("/product-submissions/:id/review", handler.ReviewProductSubmission)
 	adminOnly.GET("/users", handler.ListCMSUsers)
 	adminOnly.POST("/users", handler.CreateCMSUser)
@@ -431,7 +433,7 @@ func registerStaticRoutesWithServices(router *gin.Engine, db *gorm.DB, publicDir
 			if count == 0 {
 				db.Model(&model.Product{}).Where("products.publication_status = ? AND (products.image = ? OR products.gallery LIKE ? OR products.specs LIKE ?) AND EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.status = 'approved' AND v.is_visible = 1 AND v.publication_status = 'published')", "published", url, "%"+url+"%", "%"+url+"%").Count(&count)
 				if count == 0 {
-					db.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ?)", "approved", true, "published", url, "%"+url+"%").Count(&count)
+					db.Model(&model.ProductSupplier{}).Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id").Where("product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (product_suppliers.image = ? OR product_suppliers.gallery LIKE ? OR product_suppliers.specs LIKE ?)", "approved", true, "published", url, "%"+url+"%", "%"+url+"%").Count(&count)
 				}
 			}
 			if count == 0 {
@@ -457,31 +459,35 @@ func registerStaticRoutesWithServices(router *gin.Engine, db *gorm.DB, publicDir
 			c.File(publicPath)
 		})
 	}
-	if publicDir == "" {
-		return
-	}
-	if _, err := os.Stat(publicDir); err != nil {
-		return
-	}
-	assetsDir := filepath.Join(publicDir, "assets")
-	if _, err := os.Stat(assetsDir); err == nil {
-		router.Static("/assets", assetsDir)
-	}
-	imagesDir := filepath.Join(publicDir, "images")
-	if _, err := os.Stat(imagesDir); err == nil {
-		router.Static("/images", imagesDir)
+	publicDirReady := false
+	if publicDir != "" {
+		if _, err := os.Stat(publicDir); err == nil {
+			publicDirReady = true
+			assetsDir := filepath.Join(publicDir, "assets")
+			if _, err := os.Stat(assetsDir); err == nil {
+				router.Static("/assets", assetsDir)
+			}
+			imagesDir := filepath.Join(publicDir, "images")
+			if _, err := os.Stat(imagesDir); err == nil {
+				router.Static("/images", imagesDir)
+			}
+		}
 	}
 	router.NoRoute(func(c *gin.Context) {
 		if strings.HasPrefix(c.Request.URL.Path, "/api/") {
 			Fail(c, http.StatusNotFound, 404, "接口不存在")
 			return
 		}
-		if staticPages != nil && staticPages.Serve(c) {
+		if publicDirReady && staticPages != nil && staticPages.Serve(c) {
 			return
 		}
 		if RenderSEOApp(c, db, config.Config{PublicDir: publicDir}, publicDir) {
 			return
 		}
-		c.File(filepath.Join(publicDir, "index.html"))
+		if publicDirReady {
+			c.File(filepath.Join(publicDir, "index.html"))
+			return
+		}
+		c.Status(http.StatusNotFound)
 	})
 }

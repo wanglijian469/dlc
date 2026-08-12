@@ -34,22 +34,24 @@ func TestVendorDetailPayloadIncludesRichProfileFields(t *testing.T) {
 		Code:    0,
 		Message: "ok",
 		Data: model.Vendor{
-			Name:              "浙江汉丰农机有限公司",
-			WebsiteURL:        "https://vendor.example.com",
-			AnnualCapacity:    "年产液压件 20 万套",
-			Equipment:         "数控车床、液压测试台",
-			Certifications:    "ISO9001 质量管理体系",
-			AfterSalesService: "质保 12 个月",
+			Name:           "浙江汉丰农机有限公司",
+			WebsiteURL:     "https://vendor.example.com",
+			AnnualCapacity: "年产液压件 20 万套",
+			Equipment:      "数控车床、液压测试台",
+			Certifications: "ISO9001 质量管理体系",
 		},
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
 	body := string(payload)
-	for _, want := range []string{`"websiteUrl":"https://vendor.example.com"`, `"annualCapacity":"年产液压件 20 万套"`, `"equipment":"数控车床、液压测试台"`, `"certifications":"ISO9001 质量管理体系"`, `"afterSalesService":"质保 12 个月"`} {
+	for _, want := range []string{`"websiteUrl":"https://vendor.example.com"`, `"annualCapacity":"年产液压件 20 万套"`, `"equipment":"数控车床、液压测试台"`, `"certifications":"ISO9001 质量管理体系"`} {
 		if !strings.Contains(body, want) {
 			t.Fatalf("body = %s, want %s", body, want)
 		}
+	}
+	if strings.Contains(body, "afterSalesService") {
+		t.Fatalf("retired afterSalesService field leaked into vendor payload: %s", body)
 	}
 }
 

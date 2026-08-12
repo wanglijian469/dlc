@@ -26,13 +26,11 @@ const mockedSubmitVendorProfile = vi.mocked(submitVendorProfile);
 const guidedFields = [
   ["厂商简称", vendorFieldGuidance.shortName],
   ["主营产品", vendorFieldGuidance.mainProducts],
-  ["适配机型", vendorFieldGuidance.serviceModels],
   ["公司简介", vendorFieldGuidance.description],
   ["服务优势", vendorFieldGuidance.serviceAdvantages],
   ["年产能", vendorFieldGuidance.annualCapacity],
   ["主要设备", vendorFieldGuidance.equipment],
   ["认证资质", vendorFieldGuidance.certifications],
-  ["售后服务", vendorFieldGuidance.afterSalesService],
   ["加工服务", vendorFieldGuidance.processingServices],
   ["加工材料 / 配件类型", vendorFieldGuidance.processingMaterials],
   ["加工设备", vendorFieldGuidance.processingEquipment],
@@ -45,8 +43,8 @@ describe("VendorProfilePage writing guidance", () => {
   beforeEach(() => {
     localStorage.setItem("cms_role", "vendor");
     mockedGetVendorProfile.mockResolvedValue({
-      vendor: { id: 7, slug: "test-vendor", name: "测试厂商", publicationStatus: "draft" },
-      draft: { id: 7, slug: "test-vendor", name: "测试厂商" },
+      vendor: { id: 7, slug: "testvendor", name: "测试厂商", publicationStatus: "draft" },
+      draft: { id: 7, slug: "testvendor", name: "测试厂商" },
     } as never);
     mockedSubmitVendorProfile.mockResolvedValue({} as never);
   });
@@ -62,11 +60,11 @@ describe("VendorProfilePage writing guidance", () => {
 
     await screen.findByDisplayValue("测试厂商");
 		expect(screen.getByText("我的厂商网站")).toBeInTheDocument();
-		expect(screen.getByText(`${window.location.origin}/v/test-vendor`)).toBeInTheDocument();
-		expect(screen.getByLabelText("厂商网站地址标识")).toHaveValue("test-vendor");
+		expect(screen.getByText(`${window.location.origin}/v/testvendor`)).toBeInTheDocument();
+		expect(screen.getByLabelText(/厂商网站地址标识/)).toHaveValue("testvendor");
     expect(screen.queryByText("产品编辑器")).not.toBeInTheDocument();
-    for (const [label, placeholder] of guidedFields) {
-      const field = screen.getByLabelText(label);
+    for (const [, placeholder] of guidedFields) {
+      const field = screen.getByPlaceholderText(placeholder);
       expect(field).toHaveAttribute("placeholder", placeholder);
       expect(field).toHaveClass("writing-example");
     }

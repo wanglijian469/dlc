@@ -50,9 +50,6 @@ func SuggestVendorSEO(vendor model.Vendor) VendorSEOSuggestion {
 	if cleanSEOText(vendor.MainProducts) != "" {
 		sources = append(sources, "主营产品")
 	}
-	if cleanSEOText(vendor.ServiceModels) != "" {
-		sources = append(sources, "适配机型")
-	}
 	if vendor.ProvidesProcessing || cleanSEOText(vendor.ProcessingServices) != "" {
 		sources = append(sources, "加工能力")
 	}
@@ -147,9 +144,6 @@ func vendorSEODescription(vendor model.Vendor, name, region string) string {
 	if value := cleanSEOText(vendor.MainProducts); value != "" {
 		clauses = append(clauses, "主营"+truncateRunes(value, 38))
 	}
-	if value := cleanSEOText(vendor.ServiceModels); value != "" {
-		clauses = append(clauses, "适配"+truncateRunes(value, 28))
-	}
 	if vendor.ProvidesProcessing {
 		value := cleanSEOText(vendor.ProcessingServices)
 		if value == "" {
@@ -168,7 +162,7 @@ func vendorSEODescription(vendor model.Vendor, name, region string) string {
 	body := strings.Join(clauses, "，")
 	ending := "。查看企业资料、产品信息与联系方式。"
 	if len(clauses) == 1 {
-		body += "厂商信息页面，提供主营产品、适配机型与服务能力查询"
+		body += "厂商信息页面，提供主营产品与服务能力查询"
 	}
 	return truncateWithEnding(body, ending, VendorSEODescriptionLimit)
 }

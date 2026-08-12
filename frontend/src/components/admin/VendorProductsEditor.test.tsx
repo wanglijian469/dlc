@@ -1,57 +1,41 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { checkOwnProductDuplicate, createOwnProduct } from "../../api/admin";
 import { VendorProductsEditor } from "./VendorProductsEditor";
-import { productFieldGuidance } from "../../config/formGuidance";
 
 vi.mock("../../api/admin", () => ({
-  createOwnProduct: vi.fn(),
-  deleteOwnProduct: vi.fn(),
-  linkOwnProduct: vi.fn(),
-  listOwnProducts: vi.fn().mockResolvedValue([]),
-  searchVendorProductCatalog: vi.fn().mockResolvedValue([]),
-  updateOwnProduct: vi.fn(),
-  uploadFile: vi.fn(),
+  checkOwnProductDuplicate: vi.fn().mockResolvedValue({ exact: false, similar: [] }),
+  createOwnProduct: vi.fn().mockResolvedValue({}),
+  deleteOwnProduct: vi.fn(), listOwnProducts: vi.fn().mockResolvedValue([]), updateOwnProduct: vi.fn(), updateOwnProductSubmission: vi.fn(), uploadFile: vi.fn(), withdrawOwnProductSubmission: vi.fn(),
 }));
-
-vi.mock("../../api/public", () => ({
-  getFilterOptions: vi.fn().mockResolvedValue({ categories: [] }),
-}));
+vi.mock("../../api/public", () => ({ getFilterOptions: vi.fn().mockResolvedValue({ categories: [{ id: 1, name: "农机配件", parentId: 0, isEnabled: true }, { id: 2, name: "传动配件", parentId: 1, isEnabled: true }] }) }));
 
 describe("VendorProductsEditor", () => {
-  afterEach(() => {
-    cleanup();
-    document.body.style.overflow = "";
+  afterEach(() => { cleanup(); document.body.style.overflow = ""; vi.clearAllMocks(); });
+
+  it("only exposes self-service product entry and submits vendor-owned fields", async () => {
+    render(<VendorProductsEditor />);
+    await screen.findByText("尚未录入本厂产品，可点击“添加本厂产品”开始填写。");
+    expect(screen.queryByText(/平台已有产品|关联平台产品|产品候选/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "添加本厂产品" }));
+    expect(screen.getByRole("dialog", { name: "添加本厂产品" })).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "农机配件" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "传动配件" })).not.toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("本厂产品名称"), { target: { value: "液压翻转犁" } });
+    fireEvent.change(screen.getByLabelText("本厂型号"), { target: { value: "1LF-260" } });
+    fireEvent.change(screen.getByLabelText("产品大类"), { target: { value: "1" } });
+    fireEvent.change(screen.getByLabelText("供货能力"), { target: { value: "月供 100 台" } });
+    fireEvent.click(screen.getByRole("button", { name: "提交审核" }));
+    await waitFor(() => expect(createOwnProduct).toHaveBeenCalledWith(expect.objectContaining({ vendorProductName: "液压翻转犁", vendorModel: "1LF-260", supplyAbility: "月供 100 台" })));
   });
 
-  it("opens product creation in a modal drawer and restores page scrolling when closed", async () => {
+  it("shows same-vendor similarity without exposing the platform catalog", async () => {
+    vi.mocked(checkOwnProductDuplicate).mockResolvedValueOnce({ exact: false, similar: [{ id: 7, recordType: "supplier", name: "液压翻转犁", model: "1LF-360", status: "approved" }] });
     render(<VendorProductsEditor />);
-    await waitFor(() => expect(screen.getByText("暂无产品供应信息，可先搜索平台产品并建立供应关联。")).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole("button", { name: "提交新产品" }));
-
-    expect(screen.getByRole("dialog", { name: "提交新产品候选" })).toBeInTheDocument();
-    expect(document.body.style.overflow).toBe("hidden");
-
-    fireEvent.click(screen.getAllByRole("button", { name: "关闭产品编辑抽屉" })[1]);
-
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(document.body.style.overflow).toBe("");
-  });
-
-  it("shows product-writing guidance in the new product drawer", async () => {
-    render(<VendorProductsEditor />);
-    await waitFor(() => expect(screen.getByText("暂无产品供应信息，可先搜索平台产品并建立供应关联。")).toBeInTheDocument());
-
-    fireEvent.click(screen.getByRole("button", { name: "提交新产品" }));
-
-    expect(screen.getByText("补充产品资料和标准配图，提交后由管理员审核。")).toBeInTheDocument();
-    const description = screen.getByLabelText("发布产品说明");
-    const detail = screen.getByLabelText("产品详细说明");
-    expect(description).toHaveAttribute("placeholder", productFieldGuidance.description);
-    expect(detail).toHaveAttribute("placeholder", productFieldGuidance.detailContent);
-    expect(description).toHaveClass("writing-example");
-
-    fireEvent.change(description, { target: { value: "适用于联合收割机传动系统。" } });
-    expect(description).toHaveValue("适用于联合收割机传动系统。");
+    await screen.findByText(/尚未录入本厂产品/);
+    fireEvent.click(screen.getByRole("button", { name: "添加本厂产品" }));
+    fireEvent.change(screen.getByLabelText("本厂产品名称"), { target: { value: "液压翻转犁配件" } });
+    await screen.findByText(/本厂已有相似产品/);
+    expect(screen.queryByText(/平台已有产品|关联平台产品|产品候选/)).not.toBeInTheDocument();
   });
 });
