@@ -1,5 +1,5 @@
 ﻿import { publicClient } from "./client";
-import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor, VendorCategory } from "../types/api";
+import type { ContentPageRecord, FilterOptions, FriendLink, HomePayload, LayoutConfig, PageResult, Product, ProductSupplier, SearchPayload, SiteMeta, Vendor, VendorCategory, VendorPost } from "../types/api";
 import { API_BASE_URL } from "./client";
 
 export function getHome() {
@@ -45,6 +45,10 @@ export interface VendorContact {
 
 export function getVendorContact(vendorId: number) {
   return publicClient.get<never, VendorContact>(`/api/vendors/${vendorId}/contact`);
+}
+
+export function getVendorPosts(vendorId: number) {
+  return publicClient.get<never, VendorPost[]>("/api/vendors/" + vendorId + "/posts");
 }
 
 export async function getVendorContactQRCode(vendorId: number) {

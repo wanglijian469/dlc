@@ -63,11 +63,17 @@ func main() {
 		if err := api.PublishScheduledRevisions(db); err != nil {
 			log.Printf("publish scheduled content: %v", err)
 		}
+		if err := api.AdvanceAuctions(db); err != nil {
+			log.Printf("advance auctions: %v", err)
+		}
 		ticker := time.NewTicker(time.Minute)
 		defer ticker.Stop()
 		for range ticker.C {
 			if err := api.PublishScheduledRevisions(db); err != nil {
 				log.Printf("publish scheduled content: %v", err)
+			}
+			if err := api.AdvanceAuctions(db); err != nil {
+				log.Printf("advance auctions: %v", err)
 			}
 		}
 	}()

@@ -9,7 +9,7 @@ type RegistrationRole = "buyer" | "vendor";
 
 export function AccountLoginPage() {
   const [mode, setMode] = useState<Mode>("login");
-  const [role, setRole] = useState<RegistrationRole>("buyer");
+  const [role, setRole] = useState<RegistrationRole>("vendor");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -50,7 +50,7 @@ export function AccountLoginPage() {
   return <main className="account-auth-page"><section className="account-auth-intro"><Link to="/">大陆农机配件</Link><h1>连接真实需求与源头厂家</h1><p>查产品、找厂家、发布供求信息，一套账号在网页和 App 中使用。</p></section><form className="account-auth-card" onSubmit={submit}>
     <div className="account-auth-tabs"><button className={mode === "login" ? "active" : ""} type="button" onClick={() => setMode("login")}>登录</button><button className={mode === "register" ? "active" : ""} type="button" onClick={() => setMode("register")}>注册</button></div>
     <h2>{mode === "login" ? "账号登录" : "创建平台账号"}</h2>
-    {mode === "register" && <div className="account-role-tabs"><button className={role === "buyer" ? "active" : ""} type="button" onClick={() => setRole("buyer")}>我是采购商</button><button className={role === "vendor" ? "active" : ""} type="button" onClick={() => setRole("vendor")}>我是厂商</button></div>}
+    {mode === "register" && <div className="account-role-tabs"><button className={role === "vendor" ? "active" : ""} type="button" onClick={() => setRole("vendor")}>我是厂商</button><button className={role === "buyer" ? "active" : ""} type="button" onClick={() => setRole("buyer")}>我是采购商</button></div>}
     {error && <p className="form-error" role="alert">{error}</p>}
     <label>账号<span className="account-input"><UserRound size={18} /><input autoComplete="username" required value={username} onChange={(event) => setUsername(event.target.value)} /></span></label>
     {mode === "register" && role === "vendor" && <label>公司全称<span className="account-input"><Building2 size={18} /><input required value={companyName} onChange={(event) => setCompanyName(event.target.value)} /></span></label>}

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 	"unicode"
 
 	"dalu-nongji-parts/backend/internal/model"
@@ -13,40 +14,60 @@ import (
 )
 
 type vendorProductDraft struct {
-	VendorProductName string `json:"vendorProductName"`
-	VendorModel       string `json:"vendorModel"`
-	CategoryID        uint   `json:"categoryId"`
-	CompatibleModels  string `json:"compatibleModels"`
-	Description       string `json:"description"`
-	DetailContent     string `json:"detailContent"`
-	Image             string `json:"image"`
-	GalleryRaw        string `json:"galleryRaw"`
-	SpecsRaw          string `json:"specsRaw"`
-	PriceNote         string `json:"priceNote"`
-	SupplyAbility     string `json:"supplyAbility"`
-	InquiryText       string `json:"inquiryText"`
+	VendorProductName string     `json:"vendorProductName"`
+	VendorModel       string     `json:"vendorModel"`
+	CategoryID        uint       `json:"categoryId"`
+	CompatibleModels  string     `json:"compatibleModels"`
+	Description       string     `json:"description"`
+	DetailContent     string     `json:"detailContent"`
+	Image             string     `json:"image"`
+	GalleryRaw        string     `json:"galleryRaw"`
+	SpecsRaw          string     `json:"specsRaw"`
+	PriceNote         string     `json:"priceNote"`
+	UnitPriceCents    int64      `json:"unitPriceCents"`
+	PriceUnit         string     `json:"priceUnit"`
+	MinOrderQuantity  int64      `json:"minOrderQuantity"`
+	TaxIncluded       bool       `json:"taxIncluded"`
+	FreightNote       string     `json:"freightNote"`
+	AvailableQuantity int64      `json:"availableQuantity"`
+	LeadTime          string     `json:"leadTime"`
+	PriceValidUntil   *time.Time `json:"priceValidUntil"`
+	Negotiable        bool       `json:"negotiable"`
+	SupplyAbility     string     `json:"supplyAbility"`
+	InquiryText       string     `json:"inquiryText"`
 }
 
 type vendorProductRecord struct {
-	ID                uint   `json:"id"`
-	RecordType        string `json:"recordType"`
-	VendorProductName string `json:"vendorProductName"`
-	VendorModel       string `json:"vendorModel"`
-	CategoryID        uint   `json:"categoryId,omitempty"`
-	CategoryName      string `json:"categoryName,omitempty"`
-	CompatibleModels  string `json:"compatibleModels"`
-	Description       string `json:"description"`
-	DetailContent     string `json:"detailContent"`
-	Image             string `json:"image"`
-	GalleryRaw        string `json:"galleryRaw,omitempty"`
-	SpecsRaw          string `json:"specsRaw,omitempty"`
-	PriceNote         string `json:"priceNote"`
-	SupplyAbility     string `json:"supplyAbility"`
-	InquiryText       string `json:"inquiryText"`
-	Status            string `json:"status"`
-	ReviewNote        string `json:"reviewNote,omitempty"`
-	SubmissionID      uint   `json:"submissionId,omitempty"`
-	SupplierID        uint   `json:"supplierId,omitempty"`
+	ID                uint       `json:"id"`
+	RecordType        string     `json:"recordType"`
+	VendorProductName string     `json:"vendorProductName"`
+	VendorModel       string     `json:"vendorModel"`
+	CategoryID        uint       `json:"categoryId,omitempty"`
+	CategoryName      string     `json:"categoryName,omitempty"`
+	CompatibleModels  string     `json:"compatibleModels"`
+	Description       string     `json:"description"`
+	DetailContent     string     `json:"detailContent"`
+	Image             string     `json:"image"`
+	GalleryRaw        string     `json:"galleryRaw,omitempty"`
+	SpecsRaw          string     `json:"specsRaw,omitempty"`
+	PriceNote         string     `json:"priceNote"`
+	UnitPriceCents    int64      `json:"unitPriceCents"`
+	PriceUnit         string     `json:"priceUnit"`
+	MinOrderQuantity  int64      `json:"minOrderQuantity"`
+	TaxIncluded       bool       `json:"taxIncluded"`
+	FreightNote       string     `json:"freightNote"`
+	AvailableQuantity int64      `json:"availableQuantity"`
+	LeadTime          string     `json:"leadTime"`
+	PriceValidUntil   *time.Time `json:"priceValidUntil,omitempty"`
+	Negotiable        bool       `json:"negotiable"`
+	PriceVersion      uint       `json:"priceVersion"`
+	PriceUpdatedAt    *time.Time `json:"priceUpdatedAt,omitempty"`
+	SupplyAbility     string     `json:"supplyAbility"`
+	InquiryText       string     `json:"inquiryText"`
+	Status            string     `json:"status"`
+	ReviewNote        string     `json:"reviewNote,omitempty"`
+	SubmissionID      uint       `json:"submissionId,omitempty"`
+	SupplierID        uint       `json:"supplierId,omitempty"`
 }
 
 type vendorProductDuplicateItem struct {
@@ -259,7 +280,7 @@ func (h AdminHandler) DeleteOwnProduct(c *gin.Context) {
 
 func createStandaloneProductSubmission(tx *gorm.DB, username string, vendorID uint, input vendorProductDraft) (model.ProductSubmission, error) {
 	product := model.Product{Name: strings.TrimSpace(input.VendorProductName), CategoryID: input.CategoryID, CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, PublicationStatus: "draft", Status: 2, ContentVersion: 1}
-	supplier := model.ProductSupplier{VendorID: vendorID, VendorProductName: strings.TrimSpace(input.VendorProductName), VendorModel: strings.TrimSpace(input.VendorModel), CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, PriceNote: input.PriceNote, SupplyAbility: input.SupplyAbility, InquiryText: input.InquiryText, Status: "pending", SourceType: "vendor", ContentVersion: 1}
+	supplier := model.ProductSupplier{VendorID: vendorID, VendorProductName: strings.TrimSpace(input.VendorProductName), VendorModel: strings.TrimSpace(input.VendorModel), CompatibleModels: input.CompatibleModels, Description: input.Description, DetailContent: input.DetailContent, Image: input.Image, GalleryRaw: input.GalleryRaw, SpecsRaw: input.SpecsRaw, PriceNote: input.PriceNote, UnitPriceCents: input.UnitPriceCents, Currency: "CNY", PriceUnit: input.PriceUnit, MinOrderQuantity: input.MinOrderQuantity, TaxIncluded: input.TaxIncluded, FreightNote: input.FreightNote, AvailableQuantity: input.AvailableQuantity, LeadTime: input.LeadTime, PriceValidUntil: input.PriceValidUntil, Negotiable: input.Negotiable, PriceVersion: 1, SupplyAbility: input.SupplyAbility, InquiryText: input.InquiryText, Status: "pending", SourceType: "vendor", ContentVersion: 1}
 	productPayload, err := json.Marshal(product)
 	if err != nil {
 		return model.ProductSubmission{}, err
@@ -278,6 +299,9 @@ func validateVendorProductDraft(db *gorm.DB, input vendorProductDraft) error {
 	}
 	if input.CategoryID == 0 {
 		return fmt.Errorf("请选择一级产品大类")
+	}
+	if input.UnitPriceCents < 0 || input.MinOrderQuantity < 0 || input.AvailableQuantity < 0 || (!input.Negotiable && input.UnitPriceCents > 0 && strings.TrimSpace(input.PriceUnit) == "") {
+		return fmt.Errorf("请填写有效价格、计价单位、起订量和库存")
 	}
 	var categoryCount int64
 	if err := db.Model(&model.Category{}).Where("id = ? AND parent_id = ? AND is_enabled = ?", input.CategoryID, 0, true).Count(&categoryCount).Error; err != nil {
@@ -305,6 +329,16 @@ func applyVendorProductDraft(dst *model.ProductSupplier, input vendorProductDraf
 	dst.GalleryRaw = input.GalleryRaw
 	dst.SpecsRaw = input.SpecsRaw
 	dst.PriceNote = input.PriceNote
+	dst.UnitPriceCents = input.UnitPriceCents
+	dst.Currency = "CNY"
+	dst.PriceUnit = input.PriceUnit
+	dst.MinOrderQuantity = input.MinOrderQuantity
+	dst.TaxIncluded = input.TaxIncluded
+	dst.FreightNote = input.FreightNote
+	dst.AvailableQuantity = input.AvailableQuantity
+	dst.LeadTime = input.LeadTime
+	dst.PriceValidUntil = input.PriceValidUntil
+	dst.Negotiable = input.Negotiable
 	dst.SupplyAbility = input.SupplyAbility
 	dst.InquiryText = input.InquiryText
 }
@@ -350,12 +384,12 @@ func recordFromSupplier(supplier model.ProductSupplier, latest *model.ProductSub
 	if supplier.Product.Category.ParentID > 0 {
 		categoryID = supplier.Product.Category.ParentID
 	}
-	return vendorProductRecord{ID: supplier.ID, RecordType: "supplier", SupplierID: supplier.ID, VendorProductName: name, VendorModel: supplier.VendorModel, CategoryID: categoryID, CategoryName: supplier.Product.Category.Name, CompatibleModels: supplier.CompatibleModels, Description: supplier.Description, DetailContent: supplier.DetailContent, Image: supplier.Image, GalleryRaw: supplier.GalleryRaw, SpecsRaw: supplier.SpecsRaw, PriceNote: supplier.PriceNote, SupplyAbility: supplier.SupplyAbility, InquiryText: supplier.InquiryText, Status: status, ReviewNote: supplier.ReviewNote}
+	return vendorProductRecord{ID: supplier.ID, RecordType: "supplier", SupplierID: supplier.ID, VendorProductName: name, VendorModel: supplier.VendorModel, CategoryID: categoryID, CategoryName: supplier.Product.Category.Name, CompatibleModels: supplier.CompatibleModels, Description: supplier.Description, DetailContent: supplier.DetailContent, Image: supplier.Image, GalleryRaw: supplier.GalleryRaw, SpecsRaw: supplier.SpecsRaw, PriceNote: supplier.PriceNote, UnitPriceCents: supplier.UnitPriceCents, PriceUnit: supplier.PriceUnit, MinOrderQuantity: supplier.MinOrderQuantity, TaxIncluded: supplier.TaxIncluded, FreightNote: supplier.FreightNote, AvailableQuantity: supplier.AvailableQuantity, LeadTime: supplier.LeadTime, PriceValidUntil: supplier.PriceValidUntil, Negotiable: supplier.Negotiable, PriceVersion: supplier.PriceVersion, PriceUpdatedAt: supplier.PriceUpdatedAt, SupplyAbility: supplier.SupplyAbility, InquiryText: supplier.InquiryText, Status: status, ReviewNote: supplier.ReviewNote}
 }
 
 func recordFromSubmission(submission model.ProductSubmission) vendorProductRecord {
 	view := decodeProductSubmission(submission)
-	return vendorProductRecord{ID: submission.ID, RecordType: "submission", SubmissionID: submission.ID, VendorProductName: view.SupplierDraft.VendorProductName, VendorModel: view.SupplierDraft.VendorModel, CategoryID: view.ProductDraft.CategoryID, CompatibleModels: view.SupplierDraft.CompatibleModels, Description: view.SupplierDraft.Description, DetailContent: view.SupplierDraft.DetailContent, Image: view.SupplierDraft.Image, GalleryRaw: view.SupplierDraft.GalleryRaw, SpecsRaw: view.SupplierDraft.SpecsRaw, PriceNote: view.SupplierDraft.PriceNote, SupplyAbility: view.SupplierDraft.SupplyAbility, InquiryText: view.SupplierDraft.InquiryText, Status: submission.Status, ReviewNote: submission.ReviewNote}
+	return vendorProductRecord{ID: submission.ID, RecordType: "submission", SubmissionID: submission.ID, VendorProductName: view.SupplierDraft.VendorProductName, VendorModel: view.SupplierDraft.VendorModel, CategoryID: view.ProductDraft.CategoryID, CompatibleModels: view.SupplierDraft.CompatibleModels, Description: view.SupplierDraft.Description, DetailContent: view.SupplierDraft.DetailContent, Image: view.SupplierDraft.Image, GalleryRaw: view.SupplierDraft.GalleryRaw, SpecsRaw: view.SupplierDraft.SpecsRaw, PriceNote: view.SupplierDraft.PriceNote, UnitPriceCents: view.SupplierDraft.UnitPriceCents, PriceUnit: view.SupplierDraft.PriceUnit, MinOrderQuantity: view.SupplierDraft.MinOrderQuantity, TaxIncluded: view.SupplierDraft.TaxIncluded, FreightNote: view.SupplierDraft.FreightNote, AvailableQuantity: view.SupplierDraft.AvailableQuantity, LeadTime: view.SupplierDraft.LeadTime, PriceValidUntil: view.SupplierDraft.PriceValidUntil, Negotiable: view.SupplierDraft.Negotiable, PriceVersion: view.SupplierDraft.PriceVersion, SupplyAbility: view.SupplierDraft.SupplyAbility, InquiryText: view.SupplierDraft.InquiryText, Status: submission.Status, ReviewNote: submission.ReviewNote}
 }
 
 func (h AdminHandler) checkVendorProductDuplicate(vendorID uint, name, productModel, excludeType string, excludeID uint) (bool, []vendorProductDuplicateItem, error) {

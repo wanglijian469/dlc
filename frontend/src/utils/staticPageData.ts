@@ -1,4 +1,4 @@
-import type { LayoutConfig, Product, ProductSupplier, Vendor } from "../types/api";
+import type { LayoutConfig, Product, ProductSupplier, Vendor, VendorPost } from "../types/api";
 
 export interface StaticPageData {
   kind: "vendor" | "product";
@@ -9,6 +9,7 @@ export interface StaticPageData {
   product?: Product;
   suppliers?: ProductSupplier[];
   related?: Product[];
+  posts?: VendorPost[];
 }
 
 export function getStaticPageData(kind?: StaticPageData["kind"], slug?: string) {

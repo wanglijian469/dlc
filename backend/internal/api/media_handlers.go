@@ -235,6 +235,12 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 			Where("market_post_media.asset_id = ? AND market_posts.status = ? AND market_posts.expires_at > ?", asset.ID, "published", time.Now()).Count(&references)
 	}
 	if references == 0 {
+		h.DB.Model(&model.VendorPost{}).Where("cover_asset_id = ? AND status = ? AND published_at <= ?", asset.ID, "approved", time.Now()).Count(&references)
+	}
+	if references == 0 {
+		h.DB.Model(&model.ProcurementAuction{}).Where("image_asset_id = ? AND status IN ?", asset.ID, []string{model.AuctionStatusOpen, model.AuctionStatusAwaiting, model.AuctionStatusAwarded, model.AuctionStatusUnawarded}).Count(&references)
+	}
+	if references == 0 {
 		Fail(c, 404, 404, "图片不存在")
 		return
 	}

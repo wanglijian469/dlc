@@ -345,6 +345,43 @@ func sortMenus(menus []model.Menu) {
 	})
 }
 
+var requiredTopMenus = []model.Menu{
+	{ID: 4_000_000_001, Name: "首页", Path: "/", Icon: "home", MenuType: "top", SortOrder: 10, IsEnabled: true},
+	{ID: 4_000_000_002, Name: "厂商资源", Path: "/vendors", Icon: "factory", MenuType: "top", SortOrder: 20, IsEnabled: true},
+	{ID: 4_000_000_003, Name: "配件货源", Path: "/products", Icon: "grid", MenuType: "top", SortOrder: 30, IsEnabled: true},
+	{ID: 4_000_000_004, Name: "加工服务", Path: "/service", Icon: "settings", MenuType: "top", SortOrder: 40, IsEnabled: true},
+	{ID: 4_000_000_005, Name: "供求信息", Path: "/purchase", Icon: "clipboard", MenuType: "top", SortOrder: 50, IsEnabled: true},
+}
+
+// NormalizeTopMenus keeps the public site's five primary destinations stable.
+// Database records still provide their persistent IDs and timestamps, while a
+// missing or disabled record cannot remove a required public entry.
+func NormalizeTopMenus(menus []model.Menu) []model.Menu {
+	byPath := make(map[string]model.Menu, len(menus))
+	for _, menu := range menus {
+		if _, exists := byPath[menu.Path]; !exists {
+			byPath[menu.Path] = menu
+		}
+	}
+	result := make([]model.Menu, 0, len(menus)+len(requiredTopMenus))
+	requiredPaths := make(map[string]bool, len(requiredTopMenus))
+	for _, required := range requiredTopMenus {
+		requiredPaths[required.Path] = true
+		if existing, found := byPath[required.Path]; found {
+			required.ID = existing.ID
+			required.CreatedAt = existing.CreatedAt
+			required.UpdatedAt = existing.UpdatedAt
+		}
+		result = append(result, required)
+	}
+	for _, menu := range menus {
+		if !requiredPaths[menu.Path] {
+			result = append(result, menu)
+		}
+	}
+	return result
+}
+
 func DefaultSiteMeta() SiteMeta {
 	return SiteMeta{SiteName: "大陆农机配件", BrandMark: "农", SubmitVendorText: "厂商入驻", AdminLoginText: "后台登录", MobileBrandName: "大陆农机配件", MobileBrandMark: "农", FilingNumber: "待运营方配置", DefaultSEOTitle: "大陆农机配件｜农机配件厂家与加工服务目录", DefaultSEODescription: "查找农机配件厂家、产品适配信息与加工服务，帮助采购商、维修门店和经销商快速对接真实供应资源。"}
 }
@@ -381,7 +418,7 @@ func (s HomeService) SiteMeta(ctx context.Context) SiteMeta {
 
 func (s HomeService) Layout(ctx context.Context) LayoutConfig {
 	result := LayoutConfig{SiteMeta: s.SiteMeta(ctx), Theme: ThemeConfig{PrimaryColor: "#1559c7", AccentColor: "#0d8b6f"}}
-	result.TopMenus = s.menus(ctx, "top")
+	result.TopMenus = NormalizeTopMenus(s.menus(ctx, "top"))
 	result.SidebarMenus = s.SidebarMenus(ctx)
 	result.AuxiliaryMenus = s.menus(ctx, "auxiliary")
 	result.MobileMenus = s.MobileCategoryMenus(ctx)
@@ -415,7 +452,7 @@ func (s HomeService) GetHome(ctx context.Context) (HomePayload, error) {
 	var payload HomePayload
 	payload.SiteMeta = s.SiteMeta(ctx)
 	payload.Modules = DefaultHomeModules()
-	payload.TopMenus = s.menus(ctx, "top")
+	payload.TopMenus = NormalizeTopMenus(s.menus(ctx, "top"))
 	payload.SidebarMenus = s.SidebarMenus(ctx)
 	payload.AuxiliaryMenus = s.menus(ctx, "auxiliary")
 	payload.MobileMenus = s.MobileCategoryMenus(ctx)

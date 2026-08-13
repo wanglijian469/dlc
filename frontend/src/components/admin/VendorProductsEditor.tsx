@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { ImageUp, Pencil, Plus, Trash2, X } from "lucide-react";
-import { checkOwnProductDuplicate, createOwnProduct, deleteOwnProduct, listOwnProducts, updateOwnProduct, updateOwnProductSubmission, uploadFile, withdrawOwnProductSubmission } from "../../api/admin";
+import { BadgeDollarSign, ImageUp, Pencil, Plus, Trash2, X } from "lucide-react";
+import { checkOwnProductDuplicate, createOwnProduct, deleteOwnProduct, listOwnProducts, updateOwnProduct, updateOwnProductPrice, updateOwnProductSubmission, uploadFile, withdrawOwnProductSubmission } from "../../api/admin";
 import { getApiErrorMessage } from "../../api/client";
 import { getFilterOptions } from "../../api/public";
 import type { Category, VendorProductDuplicateResult, VendorProductRecord } from "../../types/api";
@@ -15,6 +15,8 @@ export function VendorProductsEditor() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState<Partial<VendorProductRecord>>(emptyDraft);
   const [editing, setEditing] = useState<VendorProductRecord>();
+  const [priceEditing, setPriceEditing] = useState<VendorProductRecord>();
+  const [priceForm, setPriceForm] = useState<Partial<VendorProductRecord>>({});
   const [duplicate, setDuplicate] = useState<VendorProductDuplicateResult>({ exact: false, similar: [] });
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
@@ -38,6 +40,23 @@ export function VendorProductsEditor() {
 
   const startNew = () => { setEditing(undefined); setForm(emptyDraft); setDuplicate({ exact: false, similar: [] }); setOpen(true); };
   const startEdit = (record: VendorProductRecord) => { setEditing(record); setForm({ ...record }); setDuplicate({ exact: false, similar: [] }); setOpen(true); };
+  const startPrice = (record: VendorProductRecord) => { setPriceEditing(record); setPriceForm({ ...record, priceUnit: record.priceUnit || "件", minOrderQuantity: record.minOrderQuantity || 1 }); };
+  const savePrice = (event: FormEvent) => {
+    event.preventDefault();
+    if (!priceEditing?.supplierId) return;
+    updateOwnProductPrice(priceEditing.supplierId, {
+      unitPriceCents: Number(priceForm.unitPriceCents || 0),
+      priceUnit: priceForm.priceUnit || "",
+      minOrderQuantity: Number(priceForm.minOrderQuantity || 0),
+      taxIncluded: Boolean(priceForm.taxIncluded),
+      freightNote: priceForm.freightNote || "",
+      availableQuantity: Number(priceForm.availableQuantity || 0),
+      leadTime: priceForm.leadTime || "",
+      priceValidUntil: priceForm.priceValidUntil || undefined,
+      negotiable: Boolean(priceForm.negotiable),
+      expectedVersion: priceEditing.priceVersion || 1,
+    }).then(() => { setPriceEditing(undefined); setMessage("价格、库存和交期已即时更新"); void load(); }).catch((error) => setMessage(getApiErrorMessage(error, "价格更新失败，请刷新后重试")));
+  };
   const submit = (event: FormEvent) => {
     event.preventDefault();
     setMessage("");
@@ -62,10 +81,11 @@ export function VendorProductsEditor() {
     {message && <p className="admin-message">{message}</p>}
     <div className="vendor-product-list">{records.map((record) => <article key={`${record.recordType}-${record.id}`}>
       <ProtectedMediaImage assetId={assetId(record.image)} alt={record.vendorProductName} src={record.image || ""} />
-      <div><strong>{record.vendorProductName}</strong>{record.vendorModel && <em>{record.vendorModel}</em>}<span>{record.categoryName || rootCategories.find((item) => item.id === record.categoryId)?.name || "待平台分类"} · {statusLabel(record.status)}</span><p>{record.description || record.supplyAbility || "暂无产品说明"}</p>{record.reviewNote && <small>审核意见：{record.reviewNote}</small>}</div>
-      <div><button aria-label="编辑本厂产品" type="button" onClick={() => startEdit(record)}><Pencil size={16} /></button><button aria-label={record.recordType === "submission" ? "撤回产品资料" : "停止供应"} type="button" onClick={() => remove(record)}><Trash2 size={16} /></button></div>
+      <div><strong>{record.vendorProductName}</strong>{record.vendorModel && <em>{record.vendorModel}</em>}<span>{record.categoryName || rootCategories.find((item) => item.id === record.categoryId)?.name || "待平台分类"} · {statusLabel(record.status)}</span><p>{record.description || record.supplyAbility || "暂无产品说明"}</p>{record.status === "approved" && <small>{record.negotiable || !record.unitPriceCents ? "价格面议" : "当前价 ¥" + (record.unitPriceCents / 100).toFixed(2) + " / " + (record.priceUnit || "件")} · 库存/供应量 {record.availableQuantity || 0}</small>}{record.reviewNote && <small>审核意见：{record.reviewNote}</small>}</div>
+      <div>{record.status === "approved" && <button aria-label="即时更新价格库存" title="即时更新价格库存" type="button" onClick={() => startPrice(record)}><BadgeDollarSign size={16} /></button>}<button aria-label="编辑本厂产品" type="button" onClick={() => startEdit(record)}><Pencil size={16} /></button><button aria-label={record.recordType === "submission" ? "撤回产品资料" : "停止供应"} type="button" onClick={() => remove(record)}><Trash2 size={16} /></button></div>
     </article>)}</div>
     {!records.length && <p className="structured-empty">尚未录入本厂产品，可点击“添加本厂产品”开始填写。</p>}
+    {priceEditing && <div className="vendor-product-drawer-layer"><button aria-label="关闭价格编辑" className="vendor-product-drawer-backdrop" type="button" onClick={() => setPriceEditing(undefined)} /><aside aria-modal="true" className="vendor-product-drawer compact-price-drawer" role="dialog"><form className="vendor-product-form" onSubmit={savePrice}><header><div><span>即时生效</span><strong>更新价格、库存与交期</strong><p>{priceEditing.vendorProductName}。本次修改不改变产品名称、分类、参数和图片。</p></div><button aria-label="关闭" type="button" onClick={() => setPriceEditing(undefined)}><X size={20} /></button></header><div className="vendor-product-drawer-body"><div className="vendor-product-fields"><label>单价（元）<input disabled={priceForm.negotiable} min="0" step="0.01" type="number" value={Number(priceForm.unitPriceCents || 0) / 100} onChange={(event) => setPriceForm({ ...priceForm, unitPriceCents: Math.round(Number(event.target.value) * 100) })} /></label><label>计价单位<input value={priceForm.priceUnit || ""} onChange={(event) => setPriceForm({ ...priceForm, priceUnit: event.target.value })} /></label><label>起订量<input min="0" type="number" value={priceForm.minOrderQuantity || 0} onChange={(event) => setPriceForm({ ...priceForm, minOrderQuantity: Number(event.target.value) })} /></label><label>库存 / 可供应量<input min="0" type="number" value={priceForm.availableQuantity || 0} onChange={(event) => setPriceForm({ ...priceForm, availableQuantity: Number(event.target.value) })} /></label><label>交期<input placeholder="如：现货 / 7天" value={priceForm.leadTime || ""} onChange={(event) => setPriceForm({ ...priceForm, leadTime: event.target.value })} /></label><label>价格有效期<input type="date" value={priceForm.priceValidUntil?.slice(0, 10) || ""} onChange={(event) => setPriceForm({ ...priceForm, priceValidUntil: event.target.value ? new Date(event.target.value + "T23:59:59").toISOString() : undefined })} /></label><label>运费说明<input value={priceForm.freightNote || ""} onChange={(event) => setPriceForm({ ...priceForm, freightNote: event.target.value })} /></label><label className="checkbox-label"><input checked={Boolean(priceForm.taxIncluded)} type="checkbox" onChange={(event) => setPriceForm({ ...priceForm, taxIncluded: event.target.checked })} />价格含税</label><label className="checkbox-label"><input checked={Boolean(priceForm.negotiable)} type="checkbox" onChange={(event) => setPriceForm({ ...priceForm, negotiable: event.target.checked })} />价格面议</label></div></div><footer><button className="outline-btn" type="button" onClick={() => setPriceEditing(undefined)}>取消</button><button className="primary-btn" type="submit">立即更新</button></footer></form></aside></div>}
     {open && <div className="vendor-product-drawer-layer"><button aria-label="关闭产品编辑抽屉" className="vendor-product-drawer-backdrop" type="button" onClick={() => setOpen(false)} /><aside aria-label={editing ? "编辑本厂产品" : "添加本厂产品"} aria-modal="true" className="vendor-product-drawer" role="dialog"><form className="vendor-product-form" onSubmit={submit}>
       <header><div><span>本厂产品资料</span><strong>{editing ? "编辑本厂产品" : "添加本厂产品"}</strong><p>请按产品铭牌和真实供货情况填写，具体平台分类由运营审核确认。</p></div><button aria-label="关闭产品编辑抽屉" type="button" onClick={() => setOpen(false)}><X size={20} /></button></header>
       <div className="vendor-product-drawer-body"><div className="vendor-product-fields">
@@ -74,6 +94,14 @@ export function VendorProductsEditor() {
         <label>产品大类<select required value={form.categoryId || ""} onChange={(event) => setForm({ ...form, categoryId: Number(event.target.value) || undefined })}><option value="">请选择大类</option>{rootCategories.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</select></label>
         <label>适配信息<input value={form.compatibleModels || ""} onChange={(event) => setForm({ ...form, compatibleModels: event.target.value })} /></label>
         <label>价格说明<input value={form.priceNote || ""} onChange={(event) => setForm({ ...form, priceNote: event.target.value })} /></label>
+        <label className="checkbox-label"><input checked={Boolean(form.negotiable)} type="checkbox" onChange={(event) => setForm({ ...form, negotiable: event.target.checked })} />价格面议</label>
+        <label>单价（元）<input disabled={form.negotiable} min="0" step="0.01" type="number" value={Number(form.unitPriceCents || 0) / 100} onChange={(event) => setForm({ ...form, unitPriceCents: Math.round(Number(event.target.value) * 100) })} /></label>
+        <label>计价单位<input placeholder="件 / 套 / 吨" value={form.priceUnit || ""} onChange={(event) => setForm({ ...form, priceUnit: event.target.value })} /></label>
+        <label>起订量<input min="0" type="number" value={form.minOrderQuantity || 0} onChange={(event) => setForm({ ...form, minOrderQuantity: Number(event.target.value) })} /></label>
+        <label>库存 / 可供应量<input min="0" type="number" value={form.availableQuantity || 0} onChange={(event) => setForm({ ...form, availableQuantity: Number(event.target.value) })} /></label>
+        <label>交期<input placeholder="现货 / 7天" value={form.leadTime || ""} onChange={(event) => setForm({ ...form, leadTime: event.target.value })} /></label>
+        <label>运费说明<input value={form.freightNote || ""} onChange={(event) => setForm({ ...form, freightNote: event.target.value })} /></label>
+        <label className="checkbox-label"><input checked={Boolean(form.taxIncluded)} type="checkbox" onChange={(event) => setForm({ ...form, taxIncluded: event.target.checked })} />价格含税</label>
         <label>供货能力<input value={form.supplyAbility || ""} onChange={(event) => setForm({ ...form, supplyAbility: event.target.value })} /></label>
         <label className="wide-field">产品说明<textarea className="writing-example" placeholder={productFieldGuidance.description} value={form.description || ""} onChange={(event) => setForm({ ...form, description: event.target.value })} /></label>
         <label className="wide-field">详细说明<textarea className="writing-example" placeholder={productFieldGuidance.detailContent} value={form.detailContent || ""} onChange={(event) => setForm({ ...form, detailContent: event.target.value })} /></label>

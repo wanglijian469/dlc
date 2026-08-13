@@ -35,6 +35,14 @@ const MarketPostsPage = lazy(() => import("./pages/MarketPostsPage").then((modul
 const MobileCategoriesPage = lazy(() => import("./pages/MobileCategoriesPage").then((module) => ({ default: module.MobileCategoriesPage })));
 const MyMarketPostsPage = lazy(() => import("./pages/MyMarketPostsPage").then((module) => ({ default: module.MyMarketPostsPage })));
 const BuyerProfilePage = lazy(() => import("./pages/BuyerProfilePage").then((module) => ({ default: module.BuyerProfilePage })));
+const AuctionsPage = lazy(() => import("./pages/AuctionsPage").then((module) => ({ default: module.AuctionsPage })));
+const AuctionDetailPage = lazy(() => import("./pages/AuctionsPage").then((module) => ({ default: module.AuctionDetailPage })));
+const AuctionEditorPage = lazy(() => import("./pages/AuctionAccountPages").then((module) => ({ default: module.AuctionEditorPage })));
+const MyAuctionsPage = lazy(() => import("./pages/AuctionAccountPages").then((module) => ({ default: module.MyAuctionsPage })));
+const BuyerAuctionDetailPage = lazy(() => import("./pages/AuctionAccountPages").then((module) => ({ default: module.BuyerAuctionDetailPage })));
+const NotificationsPage = lazy(() => import("./pages/AuctionAccountPages").then((module) => ({ default: module.NotificationsPage })));
+const VendorPostsPage = lazy(() => import("./pages/admin/VendorPostsPage").then((module) => ({ default: module.VendorPostsPage })));
+const AuctionsAdminPage = lazy(() => import("./pages/admin/AuctionsAdminPage").then((module) => ({ default: module.AuctionsAdminPage })));
 
 export function App() {
   const location = useLocation();
@@ -60,6 +68,13 @@ export function App() {
       <Route path="/publish/:id" element={<MarketPostEditorPage />} />
       <Route path="/account/posts" element={<MyMarketPostsPage />} />
       <Route path="/account/profile" element={<BuyerProfilePage />} />
+      <Route path="/auctions" element={<AuctionsPage />} />
+      <Route path="/auctions/:id" element={<AuctionDetailPage />} />
+      <Route path="/account/auctions" element={<MyAuctionsPage />} />
+      <Route path="/account/auctions/new" element={<AuctionEditorPage />} />
+      <Route path="/account/auctions/:id/edit" element={<AuctionEditorPage />} />
+      <Route path="/account/auctions/:id" element={<BuyerAuctionDetailPage />} />
+      <Route path="/account/notifications" element={<NotificationsPage />} />
       <Route path="/links" element={<ContentPage slug="links" />} />
       <Route path="/privacy" element={<ContentPage slug="privacy" />} />
 
@@ -80,10 +95,13 @@ export function App() {
       <Route path="/admin/vendor-profile" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProfilePage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-products" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProductsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-analytics" element={<ProtectedAdminRoute roles={["vendor"]}><VendorAnalyticsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/vendor-posts" element={<ProtectedAdminRoute roles={["vendor"]}><VendorPostsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/account-security" element={<ProtectedAdminRoute roles={["vendor"]}><AccountSecurityPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/market-posts" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><MarketPostReviewsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/vendor-post-reviews" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><VendorPostsPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/auctions" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><AuctionsAdminPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />
       <Route path="/admin/operation-logs" element={<ProtectedAdminRoute roles={["admin"]}><AdminLogsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/analytics" element={<ProtectedAdminRoute roles={["admin"]}><AdminAnalyticsPage /></ProtectedAdminRoute>} />

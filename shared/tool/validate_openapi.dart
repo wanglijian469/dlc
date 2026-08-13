@@ -41,6 +41,13 @@ void main(List<String> arguments) {
     '/api/v1/media',
     '/api/admin/market-posts',
     '/api/admin/market-posts/{id}/status',
+    '/api/v1/auctions',
+    '/api/v1/auctions/{id}',
+    '/api/v1/auctions/{id}/bids',
+    '/api/v1/me/auctions',
+    '/api/v1/me/notifications',
+    '/api/admin/vendor-products/{id}/price',
+    '/api/admin/vendor-posts',
   };
   final missing = requiredPaths.where((path) => !paths.containsKey(path)).toList();
   if (missing.isNotEmpty) {

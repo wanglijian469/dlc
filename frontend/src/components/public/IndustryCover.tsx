@@ -1,6 +1,7 @@
 import { Cable, Cog, Disc3, Droplets, Gauge, Package, Sprout, Truck, Wheat, Wrench, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import type { Product, Vendor } from "../../types/api";
+import { publicMediaURL } from "../../utils/publicMedia";
 
 export type IndustryKind =
   | "wearing"
@@ -74,7 +75,7 @@ export function getValidCoverImage(src?: string) {
   const value = src.trim();
   const normalized = value.toLowerCase();
   if (normalized.includes("dummyimage.com")) return "";
-  return value;
+  return publicMediaURL(value);
 }
 
 export function getVendorIndustryKind(vendor: Vendor): IndustryKind {

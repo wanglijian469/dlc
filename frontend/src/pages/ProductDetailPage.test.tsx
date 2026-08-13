@@ -1,5 +1,6 @@
 ﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { fireEvent } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { getHome, getProduct, getProductSuppliers, listProducts } from "../api/public";
 import { ProductDetailPage } from "./ProductDetailPage";
@@ -73,7 +74,7 @@ describe("ProductDetailPage", () => {
     expect(mockedGetProduct).toHaveBeenCalledWith("7");
   });
 
-  it("uses static-page preload data without requesting detail APIs", async () => {
+  it("uses static content while refreshing realtime supplier prices", async () => {
     vi.clearAllMocks();
     const node = document.createElement("script");
     node.id = "static-page-data";
@@ -102,8 +103,30 @@ describe("ProductDetailPage", () => {
 
     expect(await screen.findByRole("heading", { name: "静态液压泵", level: 1 })).toBeInTheDocument();
     expect(mockedGetProduct).not.toHaveBeenCalled();
-    expect(mockedGetProductSuppliers).not.toHaveBeenCalled();
+    expect(mockedGetProductSuppliers).toHaveBeenCalledWith("static-pump");
     expect(mockedListProducts).not.toHaveBeenCalled();
     node.remove();
+  });
+
+  it("renders every product image and switches the contained main image", async () => {
+    mockedGetProduct.mockResolvedValue({
+      id: 18,
+      name: "花键轴总成",
+      image: "/uploads/shaft-main.jpg",
+      gallery: ["/uploads/shaft-side.jpg", "/uploads/shaft-detail.jpg"],
+    });
+    const { container } = render(
+      <MemoryRouter initialEntries={["/products/18"]}>
+        <Routes><Route element={<ProductDetailPage />} path="/products/:id" /></Routes>
+      </MemoryRouter>,
+    );
+
+    expect(await screen.findByRole("heading", { name: "花键轴总成", level: 1 })).toBeInTheDocument();
+    await screen.findAllByRole("img", { name: "花键轴总成" });
+    const mainImage = container.querySelector<HTMLImageElement>(".product-main-media .industry-cover-photo");
+    expect(mainImage).toHaveAttribute("src", "/uploads/shaft-main.jpg");
+    expect(container.querySelectorAll(".product-gallery img")).toHaveLength(3);
+    fireEvent.click(container.querySelectorAll<HTMLButtonElement>('[aria-label="查看第 3 张产品图片"]')[0]);
+    expect(container.querySelector(".product-main-media .industry-cover-photo")).toHaveAttribute("src", "/uploads/shaft-detail.jpg");
   });
 });

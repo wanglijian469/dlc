@@ -303,6 +303,7 @@ func (h PublicHandler) CategoryBySlug(c *gin.Context) {
 }
 
 func (h PublicHandler) ProductSuppliers(c *gin.Context) {
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 	var product model.Product
 	productQuery := visibleProductQuery(h.DB)
 	if _, err := strconv.ParseUint(c.Param("id"), 10, 64); err == nil {

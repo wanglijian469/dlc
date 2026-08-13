@@ -185,7 +185,11 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 					return err
 				}
 			}
+			currentPrice := priceSnapshot(supplier)
 			applySupplierDraft(&supplier, view.SupplierDraft)
+			if result.SubmissionType == "update_offer" {
+				restoreSupplierPrice(&supplier, currentPrice)
+			}
 			supplier.ProductID = target.ID
 			supplier.Status = "approved"
 			supplier.ReviewNote = strings.TrimSpace(req.ReviewNote)
@@ -400,6 +404,23 @@ func applySupplierDraft(dst *model.ProductSupplier, src model.ProductSupplier) {
 	dst.Description = src.Description
 	dst.DetailContent = src.DetailContent
 	dst.PriceNote = src.PriceNote
+	dst.UnitPriceCents = src.UnitPriceCents
+	dst.Currency = "CNY"
+	dst.PriceUnit = src.PriceUnit
+	dst.MinOrderQuantity = src.MinOrderQuantity
+	dst.TaxIncluded = src.TaxIncluded
+	dst.FreightNote = src.FreightNote
+	dst.AvailableQuantity = src.AvailableQuantity
+	dst.LeadTime = src.LeadTime
+	dst.PriceValidUntil = src.PriceValidUntil
+	dst.Negotiable = src.Negotiable
+	if dst.PriceVersion == 0 {
+		dst.PriceVersion = 1
+	}
+	if dst.UnitPriceCents > 0 {
+		now := time.Now()
+		dst.PriceUpdatedAt = &now
+	}
 	dst.SupplyAbility = src.SupplyAbility
 	dst.InquiryText = src.InquiryText
 	dst.InquiryPath = src.InquiryPath

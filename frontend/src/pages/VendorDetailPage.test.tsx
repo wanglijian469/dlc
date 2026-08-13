@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getHome, getVendor, getVendorContact, getVendorContactQRCode, listProducts } from "../api/public";
+import { getHome, getVendor, getVendorContact, getVendorContactQRCode, getVendorPosts, listProducts } from "../api/public";
 import { VendorDetailPage } from "./VendorDetailPage";
 
 vi.mock("../api/public", () => ({
@@ -9,6 +9,7 @@ vi.mock("../api/public", () => ({
   getVendor: vi.fn(),
   getVendorContact: vi.fn(),
   getVendorContactQRCode: vi.fn(),
+  getVendorPosts: vi.fn(),
   listProducts: vi.fn(),
 }));
 
@@ -16,6 +17,7 @@ const mockedGetHome = vi.mocked(getHome);
 const mockedGetVendor = vi.mocked(getVendor);
 const mockedGetVendorContact = vi.mocked(getVendorContact);
 const mockedGetVendorContactQRCode = vi.mocked(getVendorContactQRCode);
+const mockedGetVendorPosts = vi.mocked(getVendorPosts);
 const mockedListProducts = vi.mocked(listProducts);
 
 function renderDetail(path = "/vendors/8") {
@@ -31,6 +33,7 @@ function renderDetail(path = "/vendors/8") {
 
 describe("VendorDetailPage", () => {
   beforeEach(() => {
+    mockedGetVendorPosts.mockResolvedValue([]);
     Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:vendor-qr") });
     Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() });
     mockedGetHome.mockResolvedValue({
@@ -180,6 +183,41 @@ describe("VendorDetailPage", () => {
     expect(screen.getByText("public-wechat")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "公开联系厂商 微信二维码" })).toHaveAttribute("src", "/api/media/88");
     expect(screen.queryByRole("button", { name: /复制电话|复制微信|电话联系/ })).not.toBeInTheDocument();
+  });
+
+  it("shows vendor posts as a compact list, expands it and opens the full article", async () => {
+    mockedGetVendor.mockResolvedValue({ id: 12, name: "动态测试厂商" });
+    mockedGetVendorPosts.mockResolvedValue(Array.from({ length: 4 }, (_, index) => ({
+      id: index + 1,
+      vendorId: 12,
+      postType: index === 1 ? "case" as const : "update" as const,
+      title: `动态${index + 1}`,
+      summary: `摘要${index + 1}`,
+      content: `完整正文${index + 1}\n第二行`,
+      status: "approved" as const,
+      publishedAt: `2026-08-${13 - index}T08:00:00Z`,
+      createdAt: "2026-08-01T08:00:00Z",
+      updatedAt: "2026-08-01T08:00:00Z",
+    })));
+
+    const { container } = renderDetail("/vendors/12");
+
+    expect(await screen.findByRole("heading", { name: "企业动态与案例" })).toBeInTheDocument();
+    expect(container.querySelectorAll(".vendor-post-public-item")).toHaveLength(3);
+    expect(container.querySelector(".vendor-post-public-cover.update svg")).toBeInTheDocument();
+    expect(screen.queryByText("动态4")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "查看全部 4 条" }));
+    expect(container.querySelectorAll(".vendor-post-public-item")).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: /动态1/ }));
+
+    const dialog = screen.getByRole("dialog", { name: "动态1" });
+    expect(dialog).toHaveTextContent("完整正文1");
+    expect(document.body).toHaveStyle({ overflow: "hidden" });
+    expect(screen.getByRole("button", { name: "关闭企业动态详情" })).toHaveFocus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(document.body.style.overflow).toBe("");
   });
 
 });

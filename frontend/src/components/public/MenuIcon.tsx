@@ -1,4 +1,5 @@
 import {
+  Building2,
   Cable,
   Circle,
   CircleDot,
@@ -17,6 +18,7 @@ import {
   Settings,
   Sprout,
   Truck,
+  Tractor,
   Wheat,
   Wrench,
   type LucideIcon,
@@ -35,6 +37,8 @@ const icons: Record<string, LucideIcon> = {
   wheat: Wheat,
   sprout: Sprout,
   factory: Factory,
+  building: Building2,
+  tractor: Tractor,
   settings: Settings,
   clipboard: ClipboardList,
   "clipboard-plus": ClipboardPlus,

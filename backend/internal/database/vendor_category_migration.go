@@ -22,7 +22,7 @@ type vendorCategoryDefinition struct {
 var vendorCategoryTaxonomyV2 = []vendorCategoryDefinition{
 	{Key: "market-dalucun", Name: "大陆村农机配件市场厂商", Icon: "grid", SortOrder: 10},
 	{Key: "market-pangkou", Name: "庞口农机配件市场厂商", Icon: "grid", SortOrder: 20},
-	{Key: "machine-manufacturer", Name: "农机整机厂", Icon: "factory", SortOrder: 30},
+	{Key: "machine-manufacturer", Name: "农机整机厂", Icon: "tractor", SortOrder: 30},
 	{Key: "parts-manufacturer", Name: "配件生产厂", Icon: "cog", SortOrder: 40},
 	{Key: "parts-transmission", Name: "传动系统厂商", ParentKey: "parts-manufacturer", Icon: "cog", SortOrder: 10},
 	{Key: "parts-chassis", Name: "行走底盘厂商", ParentKey: "parts-manufacturer", Icon: "truck", SortOrder: 20},

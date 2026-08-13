@@ -15,6 +15,15 @@ describe("PublicHeader", () => {
     expect(screen.getByText("大陆农机供应链")).toBeInTheDocument();
   });
 
+  it("restores all required public entries when the supplied menu is empty", () => {
+    render(<MemoryRouter><PublicHeader menus={[]} siteMeta={meta} /></MemoryRouter>);
+    const navigation = screen.getByRole("navigation");
+    expect(Array.from(navigation.querySelectorAll("a")).map((link) => link.textContent)).toEqual([
+      "首页", "厂商资源", "配件货源", "加工服务", "供求信息",
+    ]);
+    expect(screen.getByRole("link", { name: "供求信息" })).toHaveAttribute("href", "/purchase");
+  });
+
   it("shows the signed-in vendor and supports logout", () => {
     localStorage.setItem("cms_authenticated", "true");
     localStorage.setItem("cms_role", "vendor");

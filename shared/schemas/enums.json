@@ -4,6 +4,8 @@
   "$defs": {
     "AccountRole": { "enum": ["admin", "editor", "reviewer", "vendor", "buyer"] },
     "MarketPostType": { "enum": ["supply", "demand"] },
-    "MarketPostStatus": { "enum": ["published", "withdrawn", "removed", "expired"] }
+    "MarketPostStatus": { "enum": ["published", "withdrawn", "removed", "expired"] },
+    "AuctionStatus": { "enum": ["draft", "open", "awaiting_award", "awarded", "unawarded", "cancelled", "suspended"] },
+    "VendorPostStatus": { "enum": ["draft", "pending", "approved", "rejected", "withdrawn"] }
   }
 }

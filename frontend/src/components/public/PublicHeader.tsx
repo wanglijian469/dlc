@@ -4,6 +4,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { logoutSession, type AccountRole } from "../../api/admin";
 import type { Menu, SiteMeta } from "../../types/api";
 import { trackAnalytics } from "../../analytics";
+import { normalizeTopMenus } from "../../utils/navigation";
 
 const defaultMeta: SiteMeta = {
   brandMark: "农",
@@ -19,6 +20,7 @@ export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: Si
   const navigate = useNavigate();
   const [session, setSession] = useState(() => readSession());
   const meta = { ...defaultMeta, ...siteMeta };
+  const publicMenus = normalizeTopMenus(menus);
   const logout = () => {
     void logoutSession().catch(() => undefined);
     localStorage.removeItem("cms_authenticated");
@@ -34,14 +36,14 @@ export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: Si
         <span>{meta.siteName}</span>
       </Link>
       <nav className="top-nav">
-        {menus.map((menu) => (
+        {publicMenus.map((menu) => (
           <Link className={isActiveMenu(location.pathname, menu.path || "/") ? "active" : ""} key={menu.id} to={menu.path || "/"}>
             {menu.name}
           </Link>
         ))}
       </nav>
       <div className="header-actions">
-        {!menus.some((menu) => menu.path === "/about") && <Link className="header-text-link" to="/about">关于平台</Link>}
+        {!publicMenus.some((menu) => menu.path === "/about") && <Link className="header-text-link header-about-link" to="/about">关于平台</Link>}
         <Link className="primary-btn" to="/join" onClick={() => trackAnalytics({ eventType: "join_cta_click", path: "/join" })}>{meta.submitVendorText}</Link>
         {session ? (
           <span className="header-account">

@@ -202,6 +202,183 @@ paths:
                 reason: { type: string, maxLength: 500 }
       responses:
         '200': { $ref: '#/components/responses/Success' }
+  /api/vendors/{id}/posts:
+    get:
+      operationId: listPublicVendorPosts
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/vendor-products/{id}/price:
+    put:
+      operationId: updateVendorProductPrice
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/SupplierPriceInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { description: 价格版本冲突 }
+  /api/admin/vendor-posts:
+    get:
+      operationId: listVendorPostsForRole
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      operationId: createVendorPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VendorPostInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auctions:
+    get:
+      operationId: listAuctions
+      parameters:
+        - { name: keyword, in: query, schema: { type: string } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auctions/{id}:
+    get:
+      operationId: getAuction
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/auctions/{id}/bids:
+    post:
+      operationId: placeAuctionBid
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AuctionBidInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { description: 竞价版本冲突、已截止或报价未降低 }
+  /api/v1/me/auctions:
+    get:
+      operationId: listOwnAuctions
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    post:
+      operationId: createAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AuctionInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/auctions/{id}:
+    get:
+      operationId: getOwnAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+    put:
+      operationId: updateAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AuctionInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+        '409': { description: 竞价版本冲突 }
+  /api/v1/me/auctions/{id}/publish:
+    post:
+      operationId: publishAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/auctions/{id}/cancel:
+    post:
+      operationId: cancelAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/auctions/{id}/award:
+    post:
+      operationId: awardAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/notifications:
+    get:
+      operationId: listNotifications
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/notifications/read-all:
+    put:
+      operationId: readAllNotifications
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/v1/me/notifications/{id}/read:
+    put:
+      operationId: readNotification
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/vendor-posts/{id}:
+    put:
+      operationId: updateVendorPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/VendorPostInput' } } }
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/vendor-posts/{id}/submit:
+    post:
+      operationId: submitVendorPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/vendor-posts/{id}/withdraw:
+    post:
+      operationId: withdrawVendorPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/vendor-posts/{id}/review:
+    put:
+      operationId: reviewVendorPost
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/auctions:
+    get:
+      operationId: adminListAuctions
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/auctions/{id}:
+    get:
+      operationId: adminGetAuction
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
+  /api/admin/auctions/{id}/status:
+    put:
+      operationId: adminUpdateAuctionStatus
+      security: [{ bearerAuth: [] }, { cookieAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/Id' }]
+      responses:
+        '200': { $ref: '#/components/responses/Success' }
 components:
   securitySchemes:
     bearerAuth: { type: http, scheme: bearer }
@@ -341,3 +518,60 @@ components:
         page: { type: integer }
         pageSize: { type: integer }
         total: { type: integer }
+    AuctionStatus:
+      type: string
+      enum: [draft, open, awaiting_award, awarded, unawarded, cancelled, suspended]
+    AuctionInput:
+      type: object
+      required: [title, quantity, unit, endAt]
+      properties:
+        title: { type: string, maxLength: 160 }
+        categoryId: { type: integer }
+        specification: { type: string, maxLength: 1000 }
+        compatibleModels: { type: string, maxLength: 500 }
+        quantity: { type: integer, minimum: 1 }
+        unit: { type: string, maxLength: 30 }
+        deliveryProvince: { type: string, maxLength: 50 }
+        deliveryCity: { type: string, maxLength: 50 }
+        expectedDeliveryNote: { type: string, maxLength: 255 }
+        description: { type: string }
+        image: { type: string }
+        imageAssetId: { type: integer }
+        maxBudgetCents: { type: integer, minimum: 0 }
+        endAt: { type: string, format: date-time }
+        expectedVersion: { type: integer, minimum: 1 }
+    AuctionBidInput:
+      type: object
+      required: [unitPriceCents, deliveryDays, expectedVersion]
+      properties:
+        unitPriceCents: { type: integer, minimum: 1 }
+        taxIncluded: { type: boolean }
+        freightNote: { type: string, maxLength: 255 }
+        deliveryDays: { type: integer, minimum: 0 }
+        supplyNote: { type: string, maxLength: 1000 }
+        promiseText: { type: string, maxLength: 500 }
+        expectedVersion: { type: integer, minimum: 1 }
+    SupplierPriceInput:
+      type: object
+      required: [expectedVersion]
+      properties:
+        unitPriceCents: { type: integer, minimum: 0 }
+        priceUnit: { type: string }
+        minOrderQuantity: { type: integer, minimum: 0 }
+        taxIncluded: { type: boolean }
+        freightNote: { type: string }
+        availableQuantity: { type: integer, minimum: 0 }
+        leadTime: { type: string }
+        priceValidUntil: { type: string, format: date-time }
+        negotiable: { type: boolean }
+        expectedVersion: { type: integer, minimum: 1 }
+    VendorPostInput:
+      type: object
+      required: [postType, title, content]
+      properties:
+        postType: { type: string, enum: [update, case] }
+        title: { type: string, maxLength: 160 }
+        summary: { type: string, maxLength: 500 }
+        content: { type: string }
+        coverImage: { type: string }
+        coverAssetId: { type: integer }

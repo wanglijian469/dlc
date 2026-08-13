@@ -26,6 +26,27 @@ func TestBuildMenuTreeSortsAndNestsMenus(t *testing.T) {
 	}
 }
 
+func TestNormalizeTopMenusRestoresRequiredEntriesAndOrder(t *testing.T) {
+	menus := []model.Menu{
+		{ID: 91, Name: "旧供求名称", Path: "/purchase", Icon: "old", MenuType: "top", SortOrder: 1, IsEnabled: true},
+		{ID: 92, Name: "自定义入口", Path: "/custom", MenuType: "top", SortOrder: 2, IsEnabled: true},
+	}
+
+	got := NormalizeTopMenus(menus)
+	wantPaths := []string{"/", "/vendors", "/products", "/service", "/purchase", "/custom"}
+	if len(got) != len(wantPaths) {
+		t.Fatalf("len(menus) = %d, want %d: %#v", len(got), len(wantPaths), got)
+	}
+	for index, path := range wantPaths {
+		if got[index].Path != path {
+			t.Fatalf("menu[%d].Path = %q, want %q", index, got[index].Path, path)
+		}
+	}
+	if got[4].ID != 91 || got[4].Name != "供求信息" || got[4].Icon != "clipboard" || !got[4].IsEnabled {
+		t.Fatalf("purchase menu was not normalized: %#v", got[4])
+	}
+}
+
 func TestNormalizeHomeModulesFiltersRetiredTypesDuplicatesAndSorts(t *testing.T) {
 	modules := []HomeModule{{Type: "join", Visible: true, SortOrder: 30}, {Type: "recommendedVendors", Visible: true, Limit: -2, SortOrder: 10}, {Type: "recommendedVendors", Visible: true, SortOrder: 20}, {Type: "unknown", Visible: true}}
 	normalizeHomeModules(&modules)

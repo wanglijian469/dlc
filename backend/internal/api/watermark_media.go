@@ -10,6 +10,7 @@ import (
 	stddraw "image/draw"
 	"image/jpeg"
 	"image/png"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -63,7 +64,7 @@ func (s *WatermarkService) PublicPath(asset *model.MediaAsset) (string, string, 
 	if !cfg.WatermarkEnabled || !eligible {
 		return source, asset.MIME, nil
 	}
-	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v3|%s|%d|%s|%s", asset.SHA256, cfg.WatermarkOpacity, cfg.WatermarkText, vendorLabel)))
+	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v7|%s|%d|%s|%s", asset.SHA256, cfg.WatermarkOpacity, cfg.WatermarkText, vendorLabel)))
 	extension := ".png"
 	outputMIME := "image/png"
 	if asset.MIME == "image/jpeg" {
@@ -155,7 +156,7 @@ func (s *WatermarkService) PublicLegacyPath(source, publicURL string) (string, s
 	if err != nil {
 		return "", "", err
 	}
-	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v3|%s|%d|%d|%s|%s", publicURL, info.Size(), info.ModTime().UnixNano(), cfg.WatermarkText, vendorLabel)))
+	keyHash := sha256.Sum256([]byte(fmt.Sprintf("v7|%s|%d|%d|%s|%s", publicURL, info.Size(), info.ModTime().UnixNano(), cfg.WatermarkText, vendorLabel)))
 	extension := strings.ToLower(filepath.Ext(source))
 	outputMIME := "image/png"
 	if extension == ".jpg" || extension == ".jpeg" {
@@ -283,9 +284,9 @@ func generateWatermarkedImage(source, target, label string, opacity int, outputM
 	}
 
 	width, height := canvas.Bounds().Dx(), canvas.Bounds().Dy()
-	fontSize := float64(minInt(width, height)) * 0.04
-	if fontSize < 14 {
-		fontSize = 14
+	fontSize := float64(minInt(width, height)) * 0.045
+	if fontSize < 16 {
+		fontSize = 16
 	}
 	if fontSize > 42 {
 		fontSize = 42
@@ -296,23 +297,24 @@ func generateWatermarkedImage(source, target, label string, opacity int, outputM
 	}
 	defer face.Close()
 
-	marginX := maxInt(6, width*2/100)
-	marginY := maxInt(6, height*2/100)
-	label = fitWatermarkLabel(face, label, width-marginX*2)
+	marginX := maxInt(8, width*2/100)
+	marginY := maxInt(8, height*2/100)
+	paddingX := maxInt(6, int(fontSize*0.3))
+	paddingY := maxInt(3, int(fontSize*0.12))
+	label = fitWatermarkLabel(face, label, width-marginX*2-paddingX*2)
 	textWidth := font.MeasureString(face, label).Ceil()
 	metrics := face.Metrics()
-	baseline := canvas.Bounds().Max.Y - marginY - metrics.Descent.Ceil()
-	x := canvas.Bounds().Max.X - marginX - textWidth
-	if x < canvas.Bounds().Min.X+marginX {
-		x = canvas.Bounds().Min.X + marginX
-	}
-
-	alpha := uint8(255 * clampInt(opacity, 5, 90) / 100)
-	outlineAlpha := uint8(minInt(255, int(alpha)+24))
-	for _, offset := range []image.Point{{-1, 0}, {1, 0}, {0, -1}, {0, 1}, {1, 1}} {
-		drawWatermarkText(canvas, face, label, x+offset.X, baseline+offset.Y, color.RGBA{0, 0, 0, outlineAlpha})
-	}
-	drawWatermarkText(canvas, face, label, x, baseline, color.RGBA{255, 255, 255, alpha})
+	textHeight := metrics.Ascent.Ceil() + metrics.Descent.Ceil()
+	boxRight := canvas.Bounds().Max.X - marginX
+	boxBottom := canvas.Bounds().Max.Y - marginY
+	box := image.Rect(boxRight-textWidth-paddingX*2, boxBottom-textHeight-paddingY*2, boxRight, boxBottom)
+	backgroundAlpha := uint8(clampInt(105+clampInt(opacity, 5, 90), 110, 170))
+	drawRoundedRectangle(canvas, box, maxInt(3, int(fontSize*0.18)), color.RGBA{5, 18, 35, backgroundAlpha})
+	x := box.Min.X + paddingX
+	baseline := box.Min.Y + paddingY + metrics.Ascent.Ceil()
+	drawWatermarkText(canvas, face, label, x+1, baseline+1, color.RGBA{0, 0, 0, 210})
+	drawWatermarkText(canvas, face, label, x, baseline, color.RGBA{255, 255, 255, 255})
+	drawWatermarkText(canvas, face, label, x+1, baseline, color.RGBA{255, 255, 255, 255})
 
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil {
 		return err
@@ -324,7 +326,7 @@ func generateWatermarkedImage(source, target, label string, opacity int, outputM
 	tempName := temp.Name()
 	defer os.Remove(tempName)
 	if outputMIME == "image/jpeg" {
-		err = jpeg.Encode(temp, canvas, &jpeg.Options{Quality: 88})
+		err = jpeg.Encode(temp, canvas, &jpeg.Options{Quality: 92})
 	} else {
 		err = png.Encode(temp, canvas)
 	}
@@ -355,6 +357,27 @@ func drawWatermarkText(dst stddraw.Image, face font.Face, label string, x, basel
 		Dot:  fixed.P(x, baseline),
 	}
 	drawer.DrawString(label)
+}
+
+func drawRoundedRectangle(dst stddraw.Image, rect image.Rectangle, radius int, fill color.RGBA) {
+	if rect.Empty() {
+		return
+	}
+	radius = minInt(radius, minInt(rect.Dx(), rect.Dy())/2)
+	uniform := image.NewUniform(fill)
+	stddraw.Draw(dst, image.Rect(rect.Min.X+radius, rect.Min.Y, rect.Max.X-radius, rect.Max.Y), uniform, image.Point{}, stddraw.Over)
+	stddraw.Draw(dst, image.Rect(rect.Min.X, rect.Min.Y+radius, rect.Max.X, rect.Max.Y-radius), uniform, image.Point{}, stddraw.Over)
+	for dy := -radius; dy <= radius; dy++ {
+		halfWidth := int(math.Sqrt(float64(radius*radius - dy*dy)))
+		yTop := rect.Min.Y + radius + dy
+		yBottom := rect.Max.Y - radius + dy
+		if yTop >= rect.Min.Y && yTop < rect.Min.Y+radius {
+			stddraw.Draw(dst, image.Rect(rect.Min.X+radius-halfWidth, yTop, rect.Max.X-radius+halfWidth, yTop+1), uniform, image.Point{}, stddraw.Over)
+		}
+		if yBottom >= rect.Max.Y-radius && yBottom < rect.Max.Y {
+			stddraw.Draw(dst, image.Rect(rect.Min.X+radius-halfWidth, yBottom, rect.Max.X-radius+halfWidth, yBottom+1), uniform, image.Point{}, stddraw.Over)
+		}
+	}
 }
 
 func fitWatermarkLabel(face font.Face, label string, maxWidth int) string {

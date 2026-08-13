@@ -14,14 +14,14 @@ func TestOrderMenusByPathPrioritizesVendorsAndPreservesCustomRows(t *testing.T) 
 		{ID: 8, Name: "行业指南", Path: "/guides"},
 		{ID: 3, Name: "厂商资源", Path: "/vendors"},
 		{ID: 4, Name: "加工服务", Path: "/service"},
-		{ID: 9, Name: "采购信息", Path: "/purchase"},
+		{ID: 9, Name: "供求信息", Path: "/purchase"},
 	}
-	ordered := orderMenusByPath(menus, []string{"/", "/vendors", "/products", "/service"})
+	ordered := orderMenusByPath(menus, []string{"/", "/vendors", "/products", "/service", "/purchase"})
 	paths := make([]string, 0, len(ordered))
 	for _, menu := range ordered {
 		paths = append(paths, menu.Path)
 	}
-	want := []string{"/", "/vendors", "/products", "/service", "/guides", "/purchase"}
+	want := []string{"/", "/vendors", "/products", "/service", "/purchase", "/guides"}
 	if !reflect.DeepEqual(paths, want) {
 		t.Fatalf("ordered paths = %v, want %v", paths, want)
 	}

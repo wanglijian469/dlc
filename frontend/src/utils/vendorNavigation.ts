@@ -12,7 +12,7 @@ export function buildVendorNavigationMenus(categories: VendorCategory[], options
   const activeCategoryIds = new Set(options.activeCategoryIds || []);
 
   return [
-    { id: 900000, name: "全部厂商", icon: "factory", path: categoryPath() },
+    { id: 900000, name: "全部厂商", icon: "building", path: categoryPath() },
     ...categories.map((category) => {
       const children = category.children || [];
       const hasActiveChild = children.some((child) => activeCategoryIds.has(child.id));

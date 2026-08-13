@@ -41,6 +41,14 @@ describe("menu navigation", () => {
     fireEvent.click(screen.getByRole("button", { name: "传动配件" })); expect(screen.queryByText("变速箱齿轮")).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "传动配件" })); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();
   });
+  it("uses panel controls for the sidebar collapse state", () => {
+	const { container } = renderSidebar();
+	const toggle = screen.getByRole("button", { name: "收起分类" });
+	expect(container.querySelector(".lucide-panel-left-close")).toBeInTheDocument();
+	fireEvent.click(toggle);
+	expect(screen.getByRole("button", { name: "展开分类" })).toBeInTheDocument();
+	expect(container.querySelector(".lucide-panel-left-open")).toBeInTheDocument();
+  });
   it("matches a structured parent URL", () => { const { container } = renderSidebar("/products?categoryId=2"); expect(container.querySelector(".menu-row.selected")).toHaveTextContent("传动配件"); });
   it("auto-expands and highlights a matching child URL", () => { renderSidebar("/products?keyword=齿轮"); expect(screen.getByText("变速箱齿轮").closest("a")).toHaveClass("active"); });
 });

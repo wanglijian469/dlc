@@ -47,6 +47,7 @@ type StaticPagePayload struct {
 	Product   *model.Product          `json:"product,omitempty"`
 	Suppliers []model.ProductSupplier `json:"suppliers,omitempty"`
 	Related   []model.Product         `json:"related,omitempty"`
+	Posts     []model.VendorPost      `json:"posts,omitempty"`
 }
 
 type staticBuildTarget struct {
@@ -427,7 +428,9 @@ func (s *StaticPageService) buildPayload(target staticBuildTarget) (StaticPagePa
 			Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendor.ID).
 			Order("products.is_recommended desc, products.sort_order asc, products.id asc").Limit(6).Find(&products)
 		enrichProductSummaries(s.db, products, vendor.ID)
-		payload.Slug, payload.Vendor, payload.Products = vendor.Slug, &vendor, products
+		var posts []model.VendorPost
+		s.db.Where("vendor_id = ? AND status = ? AND published_at <= ?", vendor.ID, "approved", time.Now()).Order("published_at desc, id desc").Limit(6).Find(&posts)
+		payload.Slug, payload.Vendor, payload.Products, payload.Posts = vendor.Slug, &vendor, products, posts
 		return payload, vendor.Slug, vendor.ContentVersion, "/v/" + vendor.Slug, nil
 	case "product":
 		var product model.Product
@@ -519,6 +522,13 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 			body.WriteString(`<section><h2>关联产品</h2><ul>`)
 			for _, product := range payload.Products {
 				body.WriteString(`<li><a href="/products/` + template.HTMLEscapeString(product.Slug) + `">` + template.HTMLEscapeString(product.Name) + `</a></li>`)
+			}
+			body.WriteString(`</ul></section>`)
+		}
+		if len(payload.Posts) > 0 {
+			body.WriteString(`<section><h2>企业动态与案例</h2><ul>`)
+			for _, post := range payload.Posts {
+				body.WriteString(`<li><strong>` + template.HTMLEscapeString(post.Title) + `</strong><p>` + template.HTMLEscapeString(post.Summary) + `</p></li>`)
 			}
 			body.WriteString(`</ul></section>`)
 		}

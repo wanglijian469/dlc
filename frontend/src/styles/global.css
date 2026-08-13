@@ -1582,6 +1582,13 @@ textarea {
 }
 
 @media (max-width: 1200px) {
+  .public-header { gap: 16px; padding-inline: 18px; }
+  .top-nav { gap: clamp(14px, 1.8vw, 24px); }
+  .top-nav a { font-size: 14px; }
+  .header-actions { gap: 7px; }
+  .header-actions .primary-btn,
+  .header-actions .outline-btn { padding-inline: 11px; }
+  .header-about-link { display: none; }
   .vendor-grid,
   .directory-grid,
   .product-grid {
@@ -1643,7 +1650,7 @@ textarea {
   border: 1px solid #e5ecf5;
   border-radius: 8px;
   max-height: 180px;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 

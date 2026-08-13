@@ -1,4 +1,4 @@
-import { BarChart3, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImage, FileText, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Package, Settings, Tags, Users, X } from "lucide-react";
+import { BarChart3, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImage, FileText, Gavel, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Newspaper, Package, Settings, Tags, Users, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
@@ -21,6 +21,8 @@ const links: AdminLink[] = [
   { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容", roles: ["admin", "editor"] },
   { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "供求治理", path: "/admin/market-posts", icon: ClipboardCheck, group: "业务内容", roles: ["admin", "reviewer"] },
+  { label: "厂商动态审核", path: "/admin/vendor-post-reviews", icon: Newspaper, group: "业务内容", roles: ["admin", "reviewer"] },
+  { label: "采购竞价监管", path: "/admin/auctions", icon: Gavel, group: "业务内容", roles: ["admin", "reviewer"] },
   { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },
   { label: "厂商标签", path: "/admin/tags", icon: Tags, group: "基础配置" },
   { label: "配件分类", path: "/admin/categories", icon: BarChart3, group: "基础配置", roles: ["admin", "editor"] },
@@ -34,6 +36,7 @@ const links: AdminLink[] = [
 	{ label: "访问分析", path: "/admin/analytics", icon: BarChart3, group: "系统管理" },
   { label: "我的厂商资料", path: "/admin/vendor-profile", icon: Factory, group: "业务内容", roles: ["vendor"] },
   { label: "我的产品资料", path: "/admin/vendor-products", icon: Package, group: "业务内容", roles: ["vendor"] },
+  { label: "企业动态与案例", path: "/admin/vendor-posts", icon: Newspaper, group: "业务内容", roles: ["vendor"] },
   { label: "访问数据", path: "/admin/vendor-analytics", icon: BarChart3, group: "业务内容", roles: ["vendor"] },
   { label: "账号安全", path: "/admin/account-security", icon: KeyRound, group: "系统管理", roles: ["vendor"] },
 ];

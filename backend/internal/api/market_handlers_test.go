@@ -142,6 +142,12 @@ func TestMarketplaceRoutesAreAdditiveAndComplete(t *testing.T) {
 		"PUT /api/v1/me/market-posts/:id":      false,
 		"DELETE /api/v1/me/market-posts/:id":   false,
 		"POST /api/v1/media":                   false,
+		"GET /api/v1/auctions":                 false,
+		"GET /api/v1/auctions/:id":             false,
+		"POST /api/v1/auctions/:id/bids":       false,
+		"GET /api/v1/me/auctions":              false,
+		"POST /api/v1/me/auctions":             false,
+		"GET /api/v1/me/notifications":          false,
 	}
 	for _, route := range router.Routes() {
 		key := route.Method + " " + route.Path

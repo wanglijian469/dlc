@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import type { Menu } from "../../types/api";
@@ -15,7 +15,7 @@ export function SidebarNav({ menus, title }: { menus: Menu[]; title?: string }) 
   const toggle = (id: number) => setOpenIds((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next; });
 
   return <aside aria-label={title || "分类导航"} className={`sidebar ${collapsed ? "collapsed" : ""}`}>
-    <button className="sidebar-collapse" title={collapsed ? "展开分类" : "收起分类"} type="button" aria-label={collapsed ? "展开分类" : "收起分类"} onClick={() => { const next = !collapsed; setCollapsed(next); localStorage.setItem("directory_sidebar_collapsed", String(next)); }}>{collapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}</button>
+    <button className="sidebar-collapse" title={collapsed ? "展开分类" : "收起分类"} type="button" aria-label={collapsed ? "展开分类" : "收起分类"} onClick={() => { const next = !collapsed; setCollapsed(next); localStorage.setItem("directory_sidebar_collapsed", String(next)); }}>{collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button>
     <div className="sidebar-main-scroll">
 	  {title && <div className="sidebar-directory-title">{title}</div>}
       {menus.map((menu) => {

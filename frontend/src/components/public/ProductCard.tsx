@@ -21,6 +21,14 @@ function categoryName(product: Product) {
   return "农机配件";
 }
 
+function supplierPrice(product: Product) {
+  const supplier = product.supplier;
+  if (!supplier) return product.priceNote || "面议 / 批量报价";
+  if (supplier.priceValidUntil && new Date(supplier.priceValidUntil).getTime() < Date.now()) return "价格已过期，请询价";
+  if (supplier.negotiable || !supplier.unitPriceCents) return supplier.priceNote || "面议";
+  return "¥" + (supplier.unitPriceCents / 100).toFixed(2) + (supplier.priceUnit ? " / " + supplier.priceUnit : "");
+}
+
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const supplier = product.supplier;
   const vendor = supplier?.vendor || product.vendor;
@@ -42,7 +50,8 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         <p className="product-line">分类：{categoryName(product)}</p>
         {directoryMode ? <p className="product-line supplier-count">支持供应商：{product.supplierCount || 0} 家</p> : <p className="product-line">供应厂商：{vendor?.name || "认证厂商"}</p>}
         {directoryMode && regions && <p className="product-line">供应地区：{regions}</p>}
-        <p className="product-line">价格：{supplier?.priceNote || product.priceNote || "面议 / 批量报价"}</p>
+        <p className="product-line product-live-price">价格：{supplierPrice(product)}</p>
+        {supplier?.priceUpdatedAt && <p className="product-price-time">更新于 {new Date(supplier.priceUpdatedAt).toLocaleString()}</p>}
         <div className="card-actions">
           <Link className="outline-btn small" to={`/products/${product.slug || product.id}`}>产品详情</Link>
           <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : vendorPath(vendor)}>供应厂商</Link>

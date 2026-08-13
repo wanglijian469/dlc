@@ -248,6 +248,18 @@ export interface ProductSupplier {
   description?: string;
 	 detailContent?: string;
   priceNote?: string;
+  unitPriceCents?: number;
+  currency?: "CNY";
+  priceUnit?: string;
+  minOrderQuantity?: number;
+  taxIncluded?: boolean;
+  freightNote?: string;
+  availableQuantity?: number;
+  leadTime?: string;
+  priceValidUntil?: string;
+  negotiable?: boolean;
+  priceVersion?: number;
+  priceUpdatedAt?: string;
 	 supplyAbility?: string;
   inquiryText?: string;
   inquiryPath?: string;
@@ -293,12 +305,118 @@ export interface VendorProductRecord {
 	galleryRaw?: string;
 	specsRaw?: string;
 	priceNote?: string;
+	unitPriceCents?: number;
+	priceUnit?: string;
+	minOrderQuantity?: number;
+	taxIncluded?: boolean;
+	freightNote?: string;
+	availableQuantity?: number;
+	leadTime?: string;
+	priceValidUntil?: string;
+	negotiable?: boolean;
+	priceVersion?: number;
+	priceUpdatedAt?: string;
 	supplyAbility?: string;
 	inquiryText?: string;
 	status: "pending" | "pending_update" | "approved" | "rejected";
 	reviewNote?: string;
 	submissionId?: number;
 	supplierId?: number;
+}
+
+export type VendorPostStatus = "draft" | "pending" | "approved" | "rejected" | "withdrawn";
+export interface VendorPost {
+  id: number;
+  vendorId: number;
+  postType: "update" | "case";
+  title: string;
+  summary?: string;
+  content: string;
+  coverImage?: string;
+  coverAssetId?: number;
+  status: VendorPostStatus;
+  reviewNote?: string;
+  publishedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AuctionStatus = "draft" | "open" | "awaiting_award" | "awarded" | "unawarded" | "cancelled" | "suspended";
+export interface AuctionBid {
+  id: number;
+  auctionId: number;
+  vendorId?: number;
+  vendorName?: string;
+  unitPriceCents: number;
+  totalPriceCents: number;
+  taxIncluded: boolean;
+  freightNote?: string;
+  deliveryDays: number;
+  supplyNote?: string;
+  promiseText?: string;
+  isWinning?: boolean;
+  isLatest?: boolean;
+  createdAt: string;
+}
+
+export interface ProcurementAuction {
+  id: number;
+  title: string;
+  categoryId?: number;
+  category?: Category;
+  specification?: string;
+  compatibleModels?: string;
+  quantity: number;
+  unit: string;
+  deliveryProvince: string;
+  deliveryCity?: string;
+  expectedDeliveryNote?: string;
+  description?: string;
+  image?: string;
+  imageAssetId?: number;
+  maxBudgetCents?: number;
+  currency: "CNY";
+  status: AuctionStatus;
+  originalEndAt?: string;
+  endAt: string;
+  extensionMinutes: number;
+  bidCount: number;
+  leadingPriceCents?: number;
+  myRank?: number;
+  myLatestBid?: AuctionBid;
+  awardedBid?: AuctionBid;
+  cancelReason?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AuctionInput {
+  title: string;
+  categoryId?: number;
+  specification?: string;
+  compatibleModels?: string;
+  quantity: number;
+  unit: string;
+  deliveryProvince: string;
+  deliveryCity?: string;
+  expectedDeliveryNote?: string;
+  description?: string;
+  image?: string;
+  imageAssetId?: number;
+  maxBudgetCents?: number;
+  endAt: string;
+  expectedVersion?: number;
+}
+
+export interface UserNotification {
+  id: number;
+  businessType: string;
+  businessId: number;
+  title: string;
+  content: string;
+  readAt?: string;
+  createdAt: string;
 }
 
 export interface VendorProductDuplicateResult {

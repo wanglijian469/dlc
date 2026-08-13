@@ -1,5 +1,5 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, Product, ProductMatchSuggestion, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorProductDuplicateResult, VendorProductRecord } from "../types/api";
+import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, ProcurementAuction, Product, ProductMatchSuggestion, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorPost, VendorProductDuplicateResult, VendorProductRecord } from "../types/api";
 
 export type { AccountRole } from "../types/api";
 
@@ -278,6 +278,42 @@ export function listProductSubmissions(params: { page: number; pageSize: number;
 
 export function listProductSubmissionMatches(id: number, keyword = "") {
 	return adminClient.get<never, ProductMatchSuggestion[]>(`/api/admin/product-submissions/${id}/matches`, { params: { keyword } });
+}
+
+export function updateOwnProductPrice(id: number, payload: Pick<VendorProductRecord, "unitPriceCents" | "priceUnit" | "minOrderQuantity" | "taxIncluded" | "freightNote" | "availableQuantity" | "leadTime" | "priceValidUntil" | "negotiable"> & { expectedVersion: number }) {
+  return adminClient.put<never, ProductSupplier>("/api/admin/vendor-products/" + id + "/price", payload);
+}
+
+export function listVendorPosts() {
+  return adminClient.get<never, VendorPost[]>("/api/admin/vendor-posts");
+}
+
+export function createVendorPost(payload: Partial<VendorPost>) {
+  return adminClient.post<never, VendorPost>("/api/admin/vendor-posts", payload);
+}
+
+export function updateVendorPost(id: number, payload: Partial<VendorPost>) {
+  return adminClient.put<never, VendorPost>("/api/admin/vendor-posts/" + id, payload);
+}
+
+export function submitVendorPost(id: number) {
+  return adminClient.post<never, { status: string }>("/api/admin/vendor-posts/" + id + "/submit");
+}
+
+export function withdrawVendorPost(id: number) {
+  return adminClient.post<never, { status: string }>("/api/admin/vendor-posts/" + id + "/withdraw");
+}
+
+export function reviewVendorPost(id: number, status: "approved" | "rejected", note = "") {
+  return adminClient.put<never, VendorPost>("/api/admin/vendor-posts/" + id + "/review", { status, note });
+}
+
+export function listAdminAuctions(status = "") {
+  return adminClient.get<never, ProcurementAuction[]>("/api/admin/auctions", { params: status ? { status } : undefined });
+}
+
+export function updateAdminAuctionStatus(id: number, status: "suspended" | "cancelled" | "unawarded", reason: string) {
+  return adminClient.put<never, { status: string }>("/api/admin/auctions/" + id + "/status", { status, reason });
 }
 
 export function reviewProductSubmission(id: number, payload: { status: "approved" | "rejected"; reviewNote: string; resolution?: "create_product" | "link_product"; targetProductId?: number; catalogProduct?: Partial<Product> }) {

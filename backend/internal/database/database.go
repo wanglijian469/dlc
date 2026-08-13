@@ -63,6 +63,16 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 				return err
 			}
 		}
+		if references == 0 {
+			if err := db.Model(&model.VendorPost{}).Where("cover_asset_id = ?", asset.ID).Count(&references).Error; err != nil {
+				return err
+			}
+		}
+		if references == 0 {
+			if err := db.Model(&model.ProcurementAuction{}).Where("image_asset_id = ?", asset.ID).Count(&references).Error; err != nil {
+				return err
+			}
+		}
 		if references > 0 {
 			continue
 		}
@@ -89,6 +99,12 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.Product{},
 		&model.ProductSupplier{},
 		&model.ProductSubmission{},
+		&model.ProductSupplierPriceHistory{},
+		&model.VendorPost{},
+		&model.ProcurementAuction{},
+		&model.AuctionBid{},
+		&model.AuctionEvent{},
+		&model.UserNotification{},
 		&model.Banner{},
 		&model.SiteConfig{},
 		&model.ContentPage{},
@@ -150,7 +166,18 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := ensureAccessProtectionConfig(db); err != nil {
 		return err
 	}
+	if err := ensureAuctionFeatureConfig(db); err != nil {
+		return err
+	}
 	return ensureStructuredContent(db)
+}
+
+func ensureAuctionFeatureConfig(db *gorm.DB) error {
+	var count int64
+	if err := db.Model(&model.SiteConfig{}).Where("config_key = ?", "auction.enabled").Count(&count).Error; err != nil || count > 0 {
+		return err
+	}
+	return db.Create(&model.SiteConfig{ConfigKey: "auction.enabled", ConfigValue: "false", Description: "采购反向竞价功能开关，验证完成后启用"}).Error
 }
 
 func ensureAccessProtectionConfig(db *gorm.DB) error {
@@ -167,7 +194,7 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
 }
 
-const CurrentSchemaVersion uint = 16
+const CurrentSchemaVersion uint = 18
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -189,6 +216,16 @@ func Migrate(db *gorm.DB) error {
 	}
 	if err := AutoMigrate(db); err != nil {
 		return err
+	}
+	if latest < 17 {
+		if err := backfillStructuredSupplierPrices(db); err != nil {
+			return err
+		}
+	}
+	if latest < 18 {
+		if err := EnsurePublicMarketNavigationV5(db); err != nil {
+			return err
+		}
 	}
 	if latest < 5 {
 		if err := InitializeVendorSEO(db); err != nil {
@@ -226,7 +263,13 @@ func Migrate(db *gorm.DB) error {
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "vendor-product-self-entry-v1", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "public-market-navigation-v1", AppliedAt: time.Now()}).Error
+}
+
+func backfillStructuredSupplierPrices(db *gorm.DB) error {
+	return db.Model(&model.ProductSupplier{}).
+		Where("unit_price_cents = ? AND price_note <> ?", 0, "").
+		Updates(map[string]any{"negotiable": true, "currency": "CNY", "price_version": 1}).Error
 }
 
 func removeVendorAfterSalesService(db *gorm.DB) error {

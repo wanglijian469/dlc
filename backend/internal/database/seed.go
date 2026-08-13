@@ -212,7 +212,7 @@ func defaultMenus() []SeedMenu {
 		{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 2},
 		{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 3},
 		{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
-		{Key: "top-purchase", Name: "采购信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
+		{Key: "top-purchase", Name: "供求信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
 		{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
 		{Key: "wearing", Name: "农机易损件", Icon: "wrench", MenuType: "sidebar", Path: "/products?categoryId=1", SortOrder: 2, IsTop: true},
 		{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3},
@@ -388,5 +388,7 @@ func defaultConfigs() []model.SiteConfig {
 		"blockedAiAgents": []string{"GPTBot", "Google-Extended", "ClaudeBot", "CCBot", "PerplexityBot", "OAI-SearchBot"},
 		"allowCidrs":      []string{}, "watermarkEnabled": true, "watermarkOpacity": 25, "watermarkText": "大陆农机配件",
 	})
-	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}, {ConfigKey: "security.antiScrape", ConfigValue: string(protection), Description: "公开访问、AI 爬虫与图片水印保护配置"}}
+	return []model.SiteConfig{{ConfigKey: "site.meta", ConfigValue: string(siteMeta), Description: "站点品牌和顶部入口配置"}, {ConfigKey: "site.theme", ConfigValue: string(theme), Description: "站点主题色"}, {ConfigKey: "home.modules", ConfigValue: string(homeModules), Description: "首页实际展示模块配置"}, {ConfigKey: "security.antiScrape", ConfigValue: string(protection), Description: "公开访问、AI 爬虫与图片水印保护配置"}, {ConfigKey: auctionFeatureSeedKey, ConfigValue: "false", Description: "采购反向竞价功能开关，验证完成后启用"}}
 }
+
+const auctionFeatureSeedKey = "auction.enabled"

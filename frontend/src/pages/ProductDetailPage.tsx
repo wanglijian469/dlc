@@ -2,7 +2,7 @@ import { Building2, CheckCircle2, MapPin, Phone, Settings2 } from "lucide-react"
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getProduct, getProductSuppliers, listProducts } from "../api/public";
-import { getProductIndustryKind, IndustryCover } from "../components/public/IndustryCover";
+import { getProductIndustryKind, getValidCoverImage, IndustryCover } from "../components/public/IndustryCover";
 import { PageFrame } from "../components/public/PageFrame";
 import { ProductCard } from "../components/public/ProductCard";
 import { ErrorState, LoadingState } from "../components/public/StateViews";
@@ -12,13 +12,19 @@ import { getMenuLabel } from "../utils/navigation";
 import { vendorPath } from "../utils/vendorPath";
 import { getStaticPageData } from "../utils/staticPageData";
 
+function supplierPrice(supplier: ProductSupplier) {
+  if (supplier.priceValidUntil && new Date(supplier.priceValidUntil).getTime() < Date.now()) return "价格已过期，请询价";
+  if (supplier.negotiable || !supplier.unitPriceCents) return supplier.priceNote || "面议 / 批量报价";
+  return "¥" + (supplier.unitPriceCents / 100).toFixed(2) + (supplier.priceUnit ? " / " + supplier.priceUnit : "");
+}
+
 export function ProductDetailPage() {
   const { layout } = useSite();
   const productsLabel = getMenuLabel(layout.topMenus, "/products", "配件产品");
   const { id = "" } = useParams();
   const staticData = getStaticPageData("product", id);
   const [product, setProduct] = useState<Product | null>(staticData?.product || null);
-  const [suppliers, setSuppliers] = useState<ProductSupplier[]>(staticData?.suppliers || []);
+  const [suppliers, setSuppliers] = useState<ProductSupplier[]>(staticData?.product ? [] : staticData?.suppliers || []);
   const [related, setRelated] = useState<Product[]>(staticData?.related || []);
   const [loading, setLoading] = useState(!staticData?.product);
   const [error, setError] = useState("");
@@ -31,10 +37,13 @@ export function ProductDetailPage() {
     }).catch(() => setError("产品详情加载失败或产品暂未上架")).finally(() => setLoading(false));
   };
   useEffect(() => {
-    if (staticData?.product) return;
+    if (staticData?.product) {
+      getProductSuppliers(id).then(setSuppliers).catch(() => undefined);
+      return;
+    }
     load();
   }, [id, staticData]);
-  const gallery = useMemo(() => product ? Array.from(new Set([product.image, ...(product.gallery || [])].filter(Boolean) as string[])) : [], [product]);
+  const gallery = useMemo(() => product ? Array.from(new Set([product.image, ...(product.gallery || [])].filter(Boolean).map((src) => getValidCoverImage(String(src))).filter(Boolean))) : [], [product]);
   useEffect(() => { setActiveImage(gallery[0] || ""); }, [gallery]);
 
   if (loading) return <PageFrame breadcrumbs={[{ label: productsLabel, path: "/products" }]} title="产品详情"><LoadingState /></PageFrame>;
@@ -48,7 +57,7 @@ export function ProductDetailPage() {
     </section>
     {gallery.length > 1 && <section className="vendor-section-card"><header><CheckCircle2 size={20} /><h2>产品图片</h2></header><div className="product-gallery">{gallery.map((src) => <img alt={product.name} loading="lazy" key={src} src={src} />)}</div></section>}
     <section className="product-detail-grid">{product.detailContent && <article className="vendor-section-card"><header><CheckCircle2 size={20} /><h2>产品说明</h2></header><p>{product.detailContent}</p></article>}{product.specs?.length ? <article className="vendor-section-card"><header><Settings2 size={20} /><h2>规格参数</h2></header><dl className="spec-table">{product.specs.map((spec) => <div key={spec.name}><dt>{spec.name}</dt><dd>{spec.value}{spec.image && <img alt={`${spec.name}参数图片`} className="spec-photo" loading="lazy" src={spec.image} />}</dd></div>)}</dl></article> : null}</section>
-    <section className="vendor-section-card product-suppliers" id="suppliers"><header><Building2 size={20} /><h2>供应商（{suppliers.length} 家）</h2></header><div className="supplier-list">{suppliers.map((supplier) => <article key={supplier.id}><div><strong>{supplier.vendor?.name || `供应商 #${supplier.vendorId}`}</strong><span><MapPin size={14} />{[supplier.vendor?.province, supplier.vendor?.city].filter(Boolean).join(" · ") || "供应区域请咨询厂商"}</span></div><dl><div><dt>厂商型号</dt><dd>{supplier.vendorModel || "按需匹配"}</dd></div><div><dt>适配信息</dt><dd>{supplier.compatibleModels || product.compatibleModels || "请咨询厂商"}</dd></div><div><dt>价格说明</dt><dd>{supplier.priceNote || "面议 / 批量报价"}</dd></div></dl><p>{supplier.description || "该厂商可供应此产品，具体库存和交期请直接联系。"}</p><Link className="primary-btn small" to={vendorPath(supplier.vendor || { id: supplier.vendorId })}><Phone size={15} />{supplier.inquiryText || "联系该厂商"}</Link></article>)}</div>{!suppliers.length && <p className="structured-empty">暂无已通过审核的供应商。</p>}</section>
+    <section className="vendor-section-card product-suppliers" id="suppliers"><header><Building2 size={20} /><h2>供应商（{suppliers.length} 家）</h2></header><div className="supplier-list">{suppliers.map((supplier) => <article key={supplier.id}><div><strong>{supplier.vendor?.name || `供应商 #${supplier.vendorId}`}</strong><span><MapPin size={14} />{[supplier.vendor?.province, supplier.vendor?.city].filter(Boolean).join(" · ") || "供应区域请咨询厂商"}</span></div><dl><div><dt>厂商型号</dt><dd>{supplier.vendorModel || "按需匹配"}</dd></div><div><dt>适配信息</dt><dd>{supplier.compatibleModels || product.compatibleModels || "请咨询厂商"}</dd></div><div><dt>当前价格</dt><dd>{supplierPrice(supplier)}</dd></div><div><dt>起订 / 库存</dt><dd>{supplier.minOrderQuantity || 1} {supplier.priceUnit || "件"}起订 · 可供应 {supplier.availableQuantity || "请询价"}</dd></div><div><dt>交期与税费</dt><dd>{supplier.leadTime || "请询价"}{supplier.taxIncluded ? " · 含税" : ""}</dd></div></dl>{supplier.priceUpdatedAt && <small>价格更新于 {new Date(supplier.priceUpdatedAt).toLocaleString()}</small>}<p>{supplier.description || "该厂商可供应此产品，具体库存和交期请直接联系。"}</p><Link className="primary-btn small" to={vendorPath(supplier.vendor || { id: supplier.vendorId })}><Phone size={15} />{supplier.inquiryText || "联系该厂商"}</Link></article>)}</div>{!suppliers.length && <p className="structured-empty">暂无已通过审核的供应商。</p>}</section>
     {related.length > 0 && <section className="section-block"><div className="section-title"><h2>相关产品</h2><Link to={product.category?.slug ? `/products/category/${product.category.slug}` : `/products?categoryId=${product.categoryId}`}>查看更多</Link></div><div className="product-grid related-products">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div></section>}
     <div className="mobile-product-action"><a className="primary-btn" href="#suppliers"><Building2 size={17} />查看供应商（{suppliers.length}）</a></div>
   </PageFrame>;

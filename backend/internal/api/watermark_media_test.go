@@ -40,6 +40,32 @@ func TestGenerateWatermarkedImageCreatesSeparateDerivative(t *testing.T) {
 	if string(sourceBytes) == string(targetBytes) {
 		t.Fatal("derivative is identical to source")
 	}
+	output, err := os.Open(target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer output.Close()
+	watermarked, _, err := image.Decode(output)
+	if err != nil {
+		t.Fatal(err)
+	}
+	minChannel, maxChannel := uint32(255), uint32(0)
+	bounds := watermarked.Bounds()
+	for y := maxInt(bounds.Min.Y, bounds.Max.Y-42); y < bounds.Max.Y; y++ {
+		for x := bounds.Min.X; x < bounds.Max.X; x++ {
+			r, _, _, _ := watermarked.At(x, y).RGBA()
+			channel := r >> 8
+			if channel < minChannel {
+				minChannel = channel
+			}
+			if channel > maxChannel {
+				maxChannel = channel
+			}
+		}
+	}
+	if minChannel >= 120 || maxChannel <= 235 {
+		t.Fatalf("watermark contrast is too weak: min=%d max=%d", minChannel, maxChannel)
+	}
 }
 
 func TestWatermarkLabelKeepsChineseAndPathStaysInMediaRoot(t *testing.T) {

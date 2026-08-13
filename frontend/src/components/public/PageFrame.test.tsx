@@ -45,7 +45,7 @@ describe("PageFrame", () => {
 	vi.mocked(getLayoutConfig).mockResolvedValue({
 	  siteMeta: { siteName: "大陆农机配件", brandMark: "农", submitVendorText: "厂商入驻", adminLoginText: "厂商登录", mobileBrandName: "大陆农机配件", mobileBrandMark: "农" },
 	  theme: { primaryColor: "#1559c7", accentColor: "#0d8b6f" },
-	  topMenus: [{ id: 1, name: "首页", path: "/" }, { id: 2, name: "厂商资源", path: "/vendors" }, { id: 3, name: "配件货源", path: "/products" }, { id: 4, name: "加工服务", path: "/service" }],
+	  topMenus: [{ id: 1, name: "首页", path: "/" }, { id: 2, name: "厂商资源", path: "/vendors" }, { id: 3, name: "配件货源", path: "/products" }, { id: 4, name: "加工服务", path: "/service" }, { id: 5, name: "供求信息", path: "/purchase" }],
 	  sidebarMenus: homePayload.sidebarMenus,
 	  auxiliaryMenus: [{ id: 10, name: "厂商入驻", path: "/join" }],
 	  mobileMenus: [], mobileBottomMenus: [], version: "test",
@@ -62,7 +62,7 @@ describe("PageFrame", () => {
     ["/products", "配件货源"],
     ["/vendors", "厂商资源"],
     ["/service", "加工服务"],
-    ["/purchase", "采购信息"],
+    ["/purchase", "供求信息"],
   ])("renders Chinese main navigation and highlights %s", (path, activeLabel) => {
     const { container } = render(
       <MemoryRouter initialEntries={[path]}>
@@ -77,7 +77,7 @@ describe("PageFrame", () => {
     expect(topNav).toHaveTextContent("配件货源");
     expect(topNav).toHaveTextContent("厂商资源");
     expect(topNav).toHaveTextContent("加工服务");
-    expect(topNav).toHaveTextContent("采购信息");
+    expect(topNav).toHaveTextContent("供求信息");
   });
 
   it("renders the same collapsed sidebar categories on desktop subpages and lets parent rows toggle", async () => {

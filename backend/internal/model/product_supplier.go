@@ -20,6 +20,18 @@ type ProductSupplier struct {
 	Description       string         `gorm:"type:text" json:"description"`
 	DetailContent     string         `gorm:"type:text" json:"detailContent"`
 	PriceNote         string         `gorm:"size:255" json:"priceNote"`
+	UnitPriceCents    int64          `gorm:"not null;default:0" json:"unitPriceCents"`
+	Currency          string         `gorm:"size:3;not null;default:CNY" json:"currency"`
+	PriceUnit         string         `gorm:"size:30" json:"priceUnit"`
+	MinOrderQuantity  int64          `gorm:"not null;default:0" json:"minOrderQuantity"`
+	TaxIncluded       bool           `gorm:"not null;default:false" json:"taxIncluded"`
+	FreightNote       string         `gorm:"size:255" json:"freightNote"`
+	AvailableQuantity int64          `gorm:"not null;default:0" json:"availableQuantity"`
+	LeadTime          string         `gorm:"size:100" json:"leadTime"`
+	PriceValidUntil   *time.Time     `gorm:"index" json:"priceValidUntil,omitempty"`
+	Negotiable        bool           `gorm:"not null;default:false" json:"negotiable"`
+	PriceVersion      uint           `gorm:"not null;default:1" json:"priceVersion"`
+	PriceUpdatedAt    *time.Time     `json:"priceUpdatedAt,omitempty"`
 	SupplyAbility     string         `gorm:"size:500" json:"supplyAbility"`
 	InquiryText       string         `gorm:"size:100" json:"inquiryText"`
 	InquiryPath       string         `gorm:"size:255" json:"inquiryPath"`
