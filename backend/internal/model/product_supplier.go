@@ -85,24 +85,25 @@ func productSpecs(raw string) []ProductSpec {
 }
 
 type ProductSubmission struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	VendorID        uint           `gorm:"not null;index" json:"vendorId"`
-	ProductID       *uint          `gorm:"index" json:"productId,omitempty"`
-	SupplierID      *uint          `gorm:"index" json:"supplierId,omitempty"`
-	SubmissionType  string         `gorm:"size:30;not null;index" json:"submissionType"`
-	BaseVersion     uint           `gorm:"not null;default:0" json:"baseVersion"`
-	ProductPayload  string         `gorm:"type:longtext" json:"-"`
-	SupplierPayload string         `gorm:"type:longtext;not null" json:"-"`
-	Status          string         `gorm:"size:20;not null;default:pending;index" json:"status"`
-	ReviewNote      string         `gorm:"type:text" json:"reviewNote"`
-	SubmittedBy     string         `gorm:"size:50" json:"submittedBy"`
-	ReviewedBy      string         `gorm:"size:50" json:"reviewedBy"`
-	ReviewedAt      *time.Time     `json:"reviewedAt,omitempty"`
-	Vendor          Vendor         `json:"vendor,omitempty"`
-	Product         *Product       `json:"product,omitempty"`
-	CreatedAt       time.Time      `json:"createdAt"`
-	UpdatedAt       time.Time      `json:"updatedAt"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	CapturePackageID *uint          `gorm:"index" json:"capturePackageId,omitempty"`
+	VendorID         uint           `gorm:"not null;index" json:"vendorId"`
+	ProductID        *uint          `gorm:"index" json:"productId,omitempty"`
+	SupplierID       *uint          `gorm:"index" json:"supplierId,omitempty"`
+	SubmissionType   string         `gorm:"size:30;not null;index" json:"submissionType"`
+	BaseVersion      uint           `gorm:"not null;default:0" json:"baseVersion"`
+	ProductPayload   string         `gorm:"type:longtext" json:"-"`
+	SupplierPayload  string         `gorm:"type:longtext;not null" json:"-"`
+	Status           string         `gorm:"size:20;not null;default:pending;index" json:"status"`
+	ReviewNote       string         `gorm:"type:text" json:"reviewNote"`
+	SubmittedBy      string         `gorm:"size:50" json:"submittedBy"`
+	ReviewedBy       string         `gorm:"size:50" json:"reviewedBy"`
+	ReviewedAt       *time.Time     `json:"reviewedAt,omitempty"`
+	Vendor           Vendor         `json:"vendor,omitempty"`
+	Product          *Product       `json:"product,omitempty"`
+	CreatedAt        time.Time      `json:"createdAt"`
+	UpdatedAt        time.Time      `json:"updatedAt"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 type ProductSubmissionView struct {

@@ -15,3 +15,18 @@ func TestProductionRequiresCORSOrigins(t *testing.T) {
 		t.Fatal("production should require an explicit CORS origin")
 	}
 }
+
+func TestCaptureAIRequiresTencentCredentials(t *testing.T) {
+	cfg := Config{CaptureAIEnabled: true}
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("capture AI should reject missing Tencent credentials")
+	}
+	cfg.TencentSecretID, cfg.TencentSecretKey = "id", "key"
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("capture AI should reject missing TokenHub API key")
+	}
+	cfg.TencentTokenHubKey = "tokenhub-key"
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("capture AI rejected configured credentials: %v", err)
+	}
+}

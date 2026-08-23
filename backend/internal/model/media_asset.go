@@ -18,6 +18,7 @@ type MediaAsset struct {
 	SHA256           string     `gorm:"size:64;not null;index" json:"sha256"`
 	AltText          string     `gorm:"size:255" json:"altText"`
 	Caption          string     `gorm:"size:500" json:"caption"`
+	Purpose          string     `gorm:"size:30;not null;default:public;index" json:"purpose"`
 	Status           string     `gorm:"size:20;not null;default:staged;index" json:"status"`
 	PublishedAt      *time.Time `json:"publishedAt,omitempty"`
 	CreatedAt        time.Time  `json:"createdAt"`

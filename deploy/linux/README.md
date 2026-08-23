@@ -6,7 +6,8 @@ This package targets Alibaba Cloud Linux 3.2104 LTS x86_64.
    `docs/UPGRADE.md` and run `sudo ./scripts/upgrade.sh`.
 2. Verify/install MySQL Community 8.0.46 and create the application account.
 3. Run `sudo ./scripts/install-layout.sh`.
-4. Edit `/etc/dalu-parts/dlc.env`, run `scripts/migrate.sh`, configure the
+4. Edit `/etc/dalu-parts/dlc.env`, run `scripts/migrate.sh` (or use
+   `scripts/database-upgrade.sh` on an existing installation), configure the
    formal HTTPS site URL, and keep `RUN_MIGRATIONS=false`.
 5. Render and enable the Nginx HTTPS configuration.
 

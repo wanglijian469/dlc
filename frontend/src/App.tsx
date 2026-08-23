@@ -43,6 +43,8 @@ const BuyerAuctionDetailPage = lazy(() => import("./pages/AuctionAccountPages").
 const NotificationsPage = lazy(() => import("./pages/AuctionAccountPages").then((module) => ({ default: module.NotificationsPage })));
 const VendorPostsPage = lazy(() => import("./pages/admin/VendorPostsPage").then((module) => ({ default: module.VendorPostsPage })));
 const AuctionsAdminPage = lazy(() => import("./pages/admin/AuctionsAdminPage").then((module) => ({ default: module.AuctionsAdminPage })));
+const CaptureWorkbenchPage = lazy(() => import("./pages/admin/CaptureWorkbenchPage").then((module) => ({ default: module.CaptureWorkbenchPage })));
+const VendorInvitationPage = lazy(() => import("./pages/VendorInvitationPage").then((module) => ({ default: module.VendorInvitationPage })));
 
 export function App() {
   const location = useLocation();
@@ -83,6 +85,7 @@ export function App() {
       <Route path="/contact" element={<PlaceholderPage title="联系我们" description="如需平台合作、资料更正或厂商认证，请通过平台运营方公布的联系方式与我们联系。" />} />
       <Route path="/feedback" element={<PlaceholderPage title="反馈建议" description="欢迎反馈错误资料、使用问题和功能建议。反馈入口将在运营联系方式配置后开放。" />} />
       <Route path="/account/login" element={<AccountLoginPage />} />
+      <Route path="/vendor-invitation/:token" element={<VendorInvitationPage />} />
       <Route path="/admin/login" element={<AdminLoginPage staffOnly />} />
       <Route
         path="/admin/dashboard"
@@ -97,6 +100,7 @@ export function App() {
       <Route path="/admin/vendor-analytics" element={<ProtectedAdminRoute roles={["vendor"]}><VendorAnalyticsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-posts" element={<ProtectedAdminRoute roles={["vendor"]}><VendorPostsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/account-security" element={<ProtectedAdminRoute roles={["vendor"]}><AccountSecurityPage /></ProtectedAdminRoute>} />
+      <Route path="/admin/capture" element={<ProtectedAdminRoute roles={["admin", "vendor"]}><CaptureWorkbenchPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/market-posts" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><MarketPostReviewsPage /></ProtectedAdminRoute>} />

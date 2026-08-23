@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { batchSaveProductSuppliers, createResource, deleteResource, listConfigs, listResource, listResourcePage, listVendorOptions, suggestVendorSEO, updateResource } from "../../api/admin";
+import { batchSaveProductSuppliers, createResource, deleteResource, getCaptureAISettings, listConfigs, listResource, listResourcePage, listVendorOptions, suggestVendorSEO, updateCaptureAISettings, updateResource } from "../../api/admin";
 import { AdminResourcePage } from "./AdminResourcePage";
 import { processingToggleDescription, productFieldGuidance, vendorFieldGuidance } from "../../config/formGuidance";
 
@@ -9,12 +9,14 @@ vi.mock("../../api/admin", () => ({
   createResource: vi.fn(),
   batchSaveProductSuppliers: vi.fn(),
   deleteResource: vi.fn(),
+  getCaptureAISettings: vi.fn(),
   listConfigs: vi.fn(),
   listResource: vi.fn(),
     listResourcePage: vi.fn(),
     listVendorOptions: vi.fn(),
     importWorkbook: vi.fn(),
   updateConfig: vi.fn(),
+  updateCaptureAISettings: vi.fn(),
   updateResource: vi.fn(),
   uploadFile: vi.fn(),
   suggestVendorSEO: vi.fn(),
@@ -28,6 +30,8 @@ const mockedListResourcePage = vi.mocked(listResourcePage);
 const mockedListVendorOptions = vi.mocked(listVendorOptions);
 const mockedUpdateResource = vi.mocked(updateResource);
 const mockedSuggestVendorSEO = vi.mocked(suggestVendorSEO);
+const mockedGetCaptureAISettings = vi.mocked(getCaptureAISettings);
+const mockedUpdateCaptureAISettings = vi.mocked(updateCaptureAISettings);
 
 function renderAdmin(path: string) {
   return render(
@@ -73,6 +77,8 @@ describe("AdminResourcePage CMS forms", () => {
     mockedBatchSaveProductSuppliers.mockResolvedValue({ created: 1, existing: 0, total: 1 });
     mockedCreateResource.mockResolvedValue({ id: 1, name: "测试记录" });
     mockedUpdateResource.mockResolvedValue({ id: 1, name: "测试记录" });
+    mockedGetCaptureAISettings.mockResolvedValue({ enabled: false, secretIdConfigured: true, secretKeyConfigured: true, tokenHubKeyConfigured: false, region: "ap-guangzhou", baseUrl: "https://tokenhub.tencentmaas.com/v1", visionModel: "hunyuan-t1-vision-20250916", environmentOverrides: [] });
+    mockedUpdateCaptureAISettings.mockResolvedValue({ enabled: true, secretIdConfigured: true, secretKeyConfigured: true, tokenHubKeyConfigured: true, region: "ap-guangzhou", baseUrl: "https://tokenhub.tencentmaas.com/v1", visionModel: "hunyuan-t1-vision-20250916", environmentOverrides: [] });
     mockedSuggestVendorSEO.mockImplementation(async (vendor) => ({
       seoTitle: `${vendor.shortName || vendor.name || "厂商"}｜链条、齿轮厂家`,
       seoDescription: `${vendor.name || "该厂商"}主营链条、齿轮。查看企业资料、产品信息与联系方式。`,
@@ -91,6 +97,29 @@ describe("AdminResourcePage CMS forms", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "首页展示" }));
     expect(await screen.findByText("首页模块编排")).toBeInTheDocument();
+  });
+
+  it("configures Tencent capture credentials without displaying stored secrets", async () => {
+    renderAdmin("/admin/configs?section=capture");
+
+    expect(await screen.findByText("腾讯云 OCR 与 TokenHub 视觉")).toBeInTheDocument();
+    expect(screen.getByLabelText("腾讯云 SecretId")).toHaveValue("");
+    expect(screen.getByLabelText("腾讯云 SecretKey")).toHaveAttribute("placeholder", "已配置；留空表示不修改");
+    fireEvent.click(screen.getByLabelText("启用智能采集识别"));
+    fireEvent.change(screen.getByLabelText("腾讯云 SecretId"), { target: { value: "new-secret-id" } });
+    fireEvent.change(screen.getByLabelText("腾讯云 SecretKey"), { target: { value: "new-secret-key" } });
+    fireEvent.change(screen.getByLabelText("TokenHub API Key"), { target: { value: "new-tokenhub-key" } });
+    fireEvent.click(screen.getByRole("button", { name: "保存并生效" }));
+
+    await waitFor(() => expect(mockedUpdateCaptureAISettings).toHaveBeenCalledWith(expect.objectContaining({
+      enabled: true,
+      secretId: "new-secret-id",
+      secretKey: "new-secret-key",
+      tokenHubKey: "new-tokenhub-key",
+      region: "ap-guangzhou",
+      baseUrl: "https://tokenhub.tencentmaas.com/v1",
+      visionModel: "hunyuan-t1-vision-20250916",
+    })));
   });
 
   it("does not submit preloaded tag objects when editing vendors", async () => {

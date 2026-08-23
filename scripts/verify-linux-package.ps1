@@ -14,7 +14,7 @@ try {
   $roots = @(Get-ChildItem -LiteralPath $WorkDir -Directory)
   if ($roots.Count -ne 1) { throw "Archive must contain exactly one root directory" }
   $root = $roots[0].FullName
-  @("server", "initdb", "VERSION", "SHA256SUMS", "README.md", "public\index.html", "public\favicon.png", "config\dlc.env.example", "systemd\dalu-parts.service", "nginx\dalu-parts.conf.template", "scripts\upgrade.sh", "docs\INSTALL.md", "docs\UPGRADE.md", "docs\RELEASE_NOTES.md") | ForEach-Object {
+  @("server", "initdb", "VERSION", "SHA256SUMS", "README.md", "public\index.html", "public\favicon.png", "config\dlc.env.example", "systemd\dalu-parts.service", "nginx\dalu-parts.conf.template", "scripts\upgrade.sh", "scripts\database-upgrade.sh", "docs\INSTALL.md", "docs\UPGRADE.md", "docs\RELEASE_NOTES.md") | ForEach-Object {
     if (-not (Test-Path -LiteralPath (Join-Path $root $_))) { throw "Missing package entry: $_" }
   }
   if ((Get-Item -LiteralPath (Join-Path $root "public\favicon.png")).Length -gt 32768) { throw "favicon.png must be 32 KiB or smaller" }

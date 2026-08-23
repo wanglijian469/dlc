@@ -32,6 +32,7 @@ type AdminHandler struct {
 	StaticPages      *StaticPageService
 	AccessProtection *AccessProtectionService
 	Watermarks       *WatermarkService
+	Capture          *CaptureService
 }
 
 const (
@@ -468,7 +469,14 @@ func (h AdminHandler) DeleteFriendLink(c *gin.Context) {
 	remove[model.FriendLink](c, h.DB, "friend-links")
 }
 
-func (h AdminHandler) ListConfigs(c *gin.Context) { list[model.SiteConfig](c, h.DB, "config_key asc") }
+func (h AdminHandler) ListConfigs(c *gin.Context) {
+	var rows []model.SiteConfig
+	if err := h.DB.Where("config_key <> ?", captureAIConfigKey).Order("config_key asc").Find(&rows).Error; err != nil {
+		Fail(c, http.StatusInternalServerError, 500, "配置读取失败")
+		return
+	}
+	OK(c, rows)
+}
 
 func (h AdminHandler) UpdateConfig(c *gin.Context) {
 	var req model.SiteConfig
@@ -477,6 +485,10 @@ func (h AdminHandler) UpdateConfig(c *gin.Context) {
 		return
 	}
 	key := c.Param("key")
+	if key == captureAIConfigKey {
+		Fail(c, http.StatusNotFound, 404, "请使用智能采集云服务配置页面")
+		return
+	}
 	if err := validateConfigValue(key, req.ConfigValue); err != nil {
 		Fail(c, http.StatusBadRequest, 400, err.Error())
 		return

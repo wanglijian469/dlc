@@ -208,6 +208,10 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 		Fail(c, 404, 404, "图片不存在")
 		return
 	}
+	if asset.Purpose == "capture_source" || asset.Purpose == "capture_crop" || asset.Status == "private" {
+		Fail(c, 404, 404, "图片不存在")
+		return
+	}
 	var references int64
 	h.DB.Model(&model.Vendor{}).Where("(logo_asset_id = ? OR cover_asset_id = ?) AND is_visible = ? AND publication_status = ? AND (published_at IS NULL OR published_at <= ?)", asset.ID, asset.ID, true, "published", time.Now()).Count(&references)
 	if references == 0 {

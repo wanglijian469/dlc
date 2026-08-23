@@ -1,4 +1,4 @@
-import { BarChart3, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImage, FileText, Gavel, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Newspaper, Package, Settings, Tags, Users, X } from "lucide-react";
+import { BarChart3, Camera, ChevronDown, ChevronRight, ClipboardCheck, Factory, FileImage, FileText, Gavel, History, Home, KeyRound, LayoutDashboard, Link as LinkIcon, ListTree, LogOut, Menu, Newspaper, Package, Settings, Tags, Users, X } from "lucide-react";
 import { NavLink, useLocation } from "react-router-dom";
 import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import type { LucideProps } from "lucide-react";
@@ -16,6 +16,7 @@ type AdminLink = {
 const links: AdminLink[] = [
   { label: "SEO 工作台", path: "/admin/seo", icon: BarChart3, group: "概览", roles: ["admin"] },
   { label: "控制台", path: "/admin/dashboard", icon: LayoutDashboard, group: "概览" },
+  { label: "智能采集", path: "/admin/capture", icon: Camera, group: "业务内容", roles: ["admin", "vendor"] },
   { label: "厂商信息", path: "/admin/vendors", icon: Users, group: "业务内容", roles: ["admin", "editor"] },
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容", roles: ["admin", "editor"] },
@@ -30,7 +31,7 @@ const links: AdminLink[] = [
   { label: "Banner 管理", path: "/admin/banners", icon: FileImage, group: "基础配置" },
   { label: "页面与行业文章", path: "/admin/pages", icon: FileText, group: "基础配置", roles: ["admin", "editor"] },
   { label: "友情链接", path: "/admin/friend-links", icon: LinkIcon, group: "基础配置" },
-  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理", subLinks: [{ label: "站点与页脚", path: "/admin/configs?section=site" }, { label: "首页展示", path: "/admin/configs?section=home" }, { label: "主题样式", path: "/admin/configs?section=theme" }, { label: "静态化与缓存", path: "/admin/configs?section=static" }, { label: "访问与采集防护", path: "/admin/configs?section=security" }] },
+  { label: "平台配置", path: "/admin/configs", icon: Settings, group: "系统管理", subLinks: [{ label: "站点与页脚", path: "/admin/configs?section=site" }, { label: "首页展示", path: "/admin/configs?section=home" }, { label: "主题样式", path: "/admin/configs?section=theme" }, { label: "静态化与缓存", path: "/admin/configs?section=static" }, { label: "访问与采集防护", path: "/admin/configs?section=security" }, { label: "智能采集云服务", path: "/admin/configs?section=capture" }] },
   { label: "CMS 账号", path: "/admin/users", icon: KeyRound, group: "系统管理" },
 	{ label: "操作日志", path: "/admin/operation-logs", icon: History, group: "系统管理" },
 	{ label: "访问分析", path: "/admin/analytics", icon: BarChart3, group: "系统管理" },

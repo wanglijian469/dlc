@@ -52,7 +52,9 @@ func NewRouter(deps Deps) *gin.Engine {
 	router.POST("/api/analytics/events", AnalyticsHandler{DB: deps.DB, Config: deps.Config}.RecordEvent)
 	staticPages := NewStaticPageService(deps.DB, deps.Config)
 	watermarks := NewWatermarkService(deps.DB, deps.Config, accessProtection)
-	registerAdminRoutesWithServices(router, deps.DB, deps.Config, staticPages, accessProtection, watermarks)
+	capture := NewCaptureService(deps.DB, deps.Config)
+	registerAdminRoutesWithServices(router, deps.DB, deps.Config, staticPages, accessProtection, watermarks, capture)
+	capture.Start()
 	RegisterSEORoutes(router, deps.DB, deps.Config)
 	mediaHandler := AdminHandler{DB: deps.DB, Config: deps.Config, Watermarks: watermarks}
 	router.GET("/api/vendors/:id/contact-qr", CMSAuth(deps.DB, deps.Config.AuthSecret), mediaHandler.VendorContactQRCode)
@@ -114,7 +116,9 @@ func OptionalCMSAuth(db *gorm.DB, secret string) gin.HandlerFunc {
 
 func RegisterAdminRoutes(router *gin.Engine, db *gorm.DB, cfg config.Config) {
 	accessProtection := NewAccessProtectionService(db, cfg)
-	registerAdminRoutesWithServices(router, db, cfg, NewStaticPageService(db, cfg), accessProtection, NewWatermarkService(db, cfg, accessProtection))
+	capture := NewCaptureService(db, cfg)
+	registerAdminRoutesWithServices(router, db, cfg, NewStaticPageService(db, cfg), accessProtection, NewWatermarkService(db, cfg, accessProtection), capture)
+	capture.Start()
 }
 
 // RegisterMarketplaceRoutes contains only additive v1 endpoints. Existing web
@@ -170,8 +174,10 @@ func RegisterMarketplaceRoutes(router *gin.Engine, db *gorm.DB, cfg config.Confi
 	media.POST("/media", handler.SecureUpload)
 }
 
-func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config.Config, staticPages *StaticPageService, accessProtection *AccessProtectionService, watermarks *WatermarkService) {
-	handler := AdminHandler{DB: db, Config: cfg, StaticPages: staticPages, AccessProtection: accessProtection, Watermarks: watermarks}
+func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config.Config, staticPages *StaticPageService, accessProtection *AccessProtectionService, watermarks *WatermarkService, capture *CaptureService) {
+	handler := AdminHandler{DB: db, Config: cfg, StaticPages: staticPages, AccessProtection: accessProtection, Watermarks: watermarks, Capture: capture}
+	router.GET("/api/vendor-invitations/:token", handler.GetVendorInvitation)
+	router.POST("/api/vendor-invitations/:token/accept", handler.AcceptVendorInvitation)
 	authAPI := router.Group("/api/auth")
 	authAPI.POST("/login", handler.Login)
 	authAPI.POST("/register", handler.Register)
@@ -244,6 +250,18 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	cmsOnly.DELETE("/vendor-products/:id", handler.DeleteOwnProduct)
 	cmsOnly.PUT("/vendor-products/:id/price", handler.UpdateOwnProductPrice)
 	cmsOnly.GET("/vendor-products/:id/price-history", handler.OwnProductPriceHistory)
+	cmsOnly.GET("/capture-packages", handler.ListCapturePackages)
+	cmsOnly.POST("/capture-packages", handler.CreateCapturePackage)
+	cmsOnly.GET("/capture-packages/:id", handler.GetCapturePackage)
+	cmsOnly.DELETE("/capture-packages/:id", handler.DeleteCapturePackage)
+	cmsOnly.POST("/capture-packages/:id/documents", handler.UploadCaptureDocuments)
+	cmsOnly.POST("/capture-packages/:id/recognize", handler.RecognizeCapturePackage)
+	cmsOnly.PUT("/capture-packages/:id/draft", handler.UpdateCaptureDraft)
+	cmsOnly.POST("/capture-packages/:id/commit", handler.CommitCapturePackage)
+	cmsOnly.GET("/capture-documents/:id/content", handler.CaptureDocumentContent)
+	cmsOnly.PUT("/capture-documents/:id", handler.UpdateCaptureDocument)
+	cmsOnly.DELETE("/capture-documents/:id", handler.DeleteCaptureDocument)
+	cmsOnly.GET("/capture-crops/:id/content", handler.CaptureCropContent)
 
 	vendorOnly := protected.Group("")
 	vendorOnly.Use(RequireRole("vendor"))
@@ -273,6 +291,8 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	adminOnly.POST("/vendors", handler.CreateVendor)
 	adminOnly.PUT("/vendors/:id", handler.UpdateVendor)
 	adminOnly.DELETE("/vendors/:id", handler.DeleteVendor)
+	adminOnly.POST("/vendors/:id/invitations", handler.CreateVendorInvitation)
+	adminOnly.DELETE("/vendor-invitations/:id", handler.RevokeVendorInvitation)
 	adminOnly.GET("/vendor-submissions", handler.ListVendorSubmissions)
 	adminOnly.PUT("/vendor-submissions/:id/review", handler.ReviewVendorSubmission)
 	adminOnly.GET("/product-submissions", handler.ListProductSubmissions)
@@ -313,6 +333,8 @@ func registerAdminRoutesWithServices(router *gin.Engine, db *gorm.DB, cfg config
 	adminOnly.DELETE("/friend-links/:id", handler.DeleteFriendLink)
 	adminOnly.GET("/configs", handler.ListConfigs)
 	adminOnly.PUT("/configs/:key", handler.UpdateConfig)
+	adminOnly.GET("/capture-ai-settings", handler.GetCaptureAISettings)
+	adminOnly.PUT("/capture-ai-settings", handler.UpdateCaptureAISettings)
 	adminOnly.GET("/static-pages/status", handler.StaticPageSummary)
 	adminOnly.PUT("/static-pages/settings", handler.UpdateStaticPageSettings)
 	adminOnly.GET("/static-pages/resources", handler.StaticPageResourceStatuses)

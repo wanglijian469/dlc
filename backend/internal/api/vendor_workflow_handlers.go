@@ -188,7 +188,7 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 			}
 			service.ApplyVendorSEO(&vendor)
 			vendor.ReviewStatus = "verified"
-			if vendor.PublicationStatus == "" || vendor.PublicationStatus == "draft" {
+			if vendor.PublicationStatus == "" || vendor.PublicationStatus == "draft" || (result.CapturePackageID != nil && vendor.PublicationStatus == "hidden") {
 				vendor.PublicationStatus = "published"
 				vendor.IsVisible = true
 			}

@@ -22,6 +22,8 @@ root:root@127.0.0.1:13306/dl_nongji_parts
 
 可用环境变量覆盖：`DB_HOST`、`DB_PORT`、`DB_USER`、`DB_PASSWORD`、`DB_NAME`、`HTTP_ADDR`、`PUBLIC_DIR`、`STATIC_PAGES_ENABLED`、`STATIC_PAGE_DIR`。
 
+智能采集默认关闭。管理员可在“平台配置 → 智能采集云服务”中填写腾讯云 OCR SecretId/SecretKey 与独立的 TokenHub API Key，密钥使用 `AUTH_SECRET` 派生密钥进行 AES-GCM 加密且不会通过读取接口回显。视觉理解通过 TokenHub OpenAI 兼容接口调用；部署环境也可配置 `TENCENT_CLOUD_SECRET_ID`、`TENCENT_CLOUD_SECRET_KEY`、`TENCENT_CLOUD_REGION`、`TENCENT_TOKENHUB_API_KEY`、`TENCENT_TOKENHUB_BASE_URL`、`CAPTURE_AI_ENABLED` 和 `CAPTURE_VISION_MODEL`，环境变量优先于后台配置。原始名片和彩页保存在 `MEDIA_DIR` 私有目录中，不通过前台媒体接口公开。
+
 ## 本地开发
 
 启动后端：

@@ -61,6 +61,18 @@ func TestCMSRoutesAreRegistered(t *testing.T) {
 		"PUT /api/admin/products/:id/merge",
 		"GET /api/admin/users",
 		"POST /api/admin/users",
+		"GET /api/admin/capture-ai-settings",
+		"PUT /api/admin/capture-ai-settings",
+		"GET /api/admin/capture-packages",
+		"POST /api/admin/capture-packages",
+		"POST /api/admin/capture-packages/:id/documents",
+		"POST /api/admin/capture-packages/:id/recognize",
+		"PUT /api/admin/capture-packages/:id/draft",
+		"POST /api/admin/capture-packages/:id/commit",
+		"GET /api/admin/capture-documents/:id/content",
+		"PUT /api/admin/capture-documents/:id",
+		"POST /api/admin/vendors/:id/invitations",
+		"POST /api/vendor-invitations/:token/accept",
 	} {
 		if !routes[want] {
 			t.Fatalf("route %q not registered; routes=%v", want, routes)

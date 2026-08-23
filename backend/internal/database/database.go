@@ -127,6 +127,11 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.ScrapeRiskEvent{},
 		&model.ScrapeClientBlock{},
 		&model.WatermarkBuildJob{},
+		&model.CapturePackage{},
+		&model.CaptureDocument{},
+		&model.CaptureResult{},
+		&model.CaptureProductCrop{},
+		&model.VendorInvitation{},
 	); err != nil {
 		return err
 	}
@@ -194,7 +199,14 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 	return db.Create(&model.SiteConfig{ConfigKey: "security.antiScrape", ConfigValue: string(raw), Description: "公开访问、AI 爬虫与图片水印保护配置"}).Error
 }
 
-const CurrentSchemaVersion uint = 18
+const (
+	CurrentSchemaVersion       uint = 19
+	currentSchemaMigrationName      = "capture-workbench-v1"
+)
+
+func schemaMigrationRequired(latest uint) bool {
+	return latest < CurrentSchemaVersion
+}
 
 // Migrate is invoked explicitly by cmd/initdb in production. Development may
 // opt in through RUN_MIGRATIONS=true for the existing one-command workflow.
@@ -206,7 +218,7 @@ func Migrate(db *gorm.DB) error {
 	if err := db.Model(&model.SchemaMigration{}).Select("COALESCE(MAX(version), 0)").Scan(&latest).Error; err != nil {
 		return err
 	}
-	if latest >= CurrentSchemaVersion {
+	if !schemaMigrationRequired(latest) {
 		return nil
 	}
 	if latest < 15 {
@@ -263,7 +275,7 @@ func Migrate(db *gorm.DB) error {
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
-	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: "public-market-navigation-v1", AppliedAt: time.Now()}).Error
+	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: currentSchemaMigrationName, AppliedAt: time.Now()}).Error
 }
 
 func backfillStructuredSupplierPrices(db *gorm.DB) error {

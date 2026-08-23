@@ -27,8 +27,8 @@ sudo cp /etc/nginx/conf.d/dalu-parts.conf \
 
 ```bash
 cd /tmp
-tar -xzf dlc-deploy-linux-x86_64-v2026.08.12-linux.2.tar.gz
-cd dlc-deploy-linux-x86_64-v2026.08.12-linux.2
+tar -xzf dlc-deploy-linux-x86_64-v2026.08.23-linux.1.tar.gz
+cd dlc-deploy-linux-x86_64-v2026.08.23-linux.1
 chmod +x server initdb scripts/*.sh
 sha256sum -c SHA256SUMS
 sudo ./scripts/upgrade.sh
@@ -56,7 +56,23 @@ sudo ./scripts/upgrade.sh
 `/opt/dalu-parts/public/static-pages` 会自动调整为
 `/var/lib/dalu-parts/static-pages`；已设置的自定义目录不会被修改。
 
-## 三、更新 Nginx 配置
+## 三、仅升级数据库
+
+若程序文件已提前部署，或需要先单独验证数据库迁移，可执行：
+
+```bash
+cd /tmp/dlc-deploy-linux-x86_64-v2026.08.23-linux.1
+sudo ./scripts/database-upgrade.sh
+```
+
+该脚本会备份数据库和媒体文件、停止正在运行的应用、使用升级包内的 `initdb`
+执行迁移，成功后恢复服务并执行健康检查。版本 19 迁移可重复执行；如果数据库已是
+当前版本，脚本会正常完成而不会重复创建表。
+
+若迁移失败，应用会保持停止状态，脚本会输出备份目录。确认并恢复数据库后再重新启动，
+不要在迁移失败后直接运行新版服务。
+
+## 四、更新 Nginx 配置
 
 本版本增加了按 IP 限流、超限返回 `429`、媒体防盗链等配置。升级程序后，请用
 **当前正在使用的域名和证书路径**重新生成 Nginx 配置：
@@ -76,11 +92,12 @@ sudo systemctl reload nginx
 若旧系统未使用 Nginx，应用自身的访问行为识别仍会生效；但按请求速率的限流需要
 部署并启用 Nginx 后才会生效。
 
-## 四、升级后的检查
+## 五、升级后的检查
 
 1. 访问 `https://你的域名/api/health`，应返回正常健康状态。
-2. 使用平台管理员登录后台，检查“平台配置 → 访问与采集防护”。首次上线后的 7 天内，
-   建议保持“仅记录，不自动封禁”。
+2. 使用平台管理员登录后台，检查“平台配置 → 访问与采集防护”和“智能采集云服务”。
+   OCR 使用腾讯云 SecretId/SecretKey，视觉服务需要另行创建 TokenHub API Key。
+   首次上线后的 7 天内，建议保持访问防护“仅记录，不自动封禁”。
 3. 检查 `https://你的域名/robots.txt`，确认 AI 爬虫规则和搜索引擎规则符合预期。
 4. 在后台执行历史图片水印生成；对状态为“需重新生成”的厂商页和产品页重新生成静态页面。
 5. 通过 HTTPS 分别检查一个厂商页面、一个产品页面、一张图片和管理员登录。
@@ -90,7 +107,7 @@ sudo systemctl reload nginx
 sudo journalctl -u dalu-parts -n 100 --no-pager
 ```
 
-## 五、失败处理与回滚
+## 六、失败处理与回滚
 
 如果替换程序、迁移或健康检查失败，`upgrade.sh` 会自动恢复旧版本的程序文件。
 但是，**仅恢复程序不能安全撤销已经执行过的数据库变更**。
@@ -109,7 +126,7 @@ sudo ./scripts/health-check.sh
 运维人员执行。MySQL 服务版本升级应遵循 MySQL 官方升级流程并先完成备份和检查，
 不支持直接原地降级。
 
-## 六、全新安装
+## 七、全新安装
 
 没有旧系统、标准目录不一致，或希望在新服务器部署时，请阅读包内
 `docs/INSTALL.md`（《Linux 安装手册》），不要执行 `upgrade.sh`。

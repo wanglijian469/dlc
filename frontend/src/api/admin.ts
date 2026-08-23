@@ -205,6 +205,36 @@ export function updateConfig(key: string, payload: Partial<SiteConfig>) {
   return adminClient.put<never, SiteConfig>(`/api/admin/configs/${key}`, payload);
 }
 
+export interface CaptureAISettings {
+  enabled: boolean;
+  secretIdConfigured: boolean;
+  secretKeyConfigured: boolean;
+  tokenHubKeyConfigured: boolean;
+  region: string;
+  baseUrl: string;
+  visionModel: string;
+  environmentOverrides: string[];
+}
+
+export interface CaptureAISettingsUpdate {
+  enabled: boolean;
+  secretId?: string;
+  secretKey?: string;
+  tokenHubKey?: string;
+  region: string;
+  baseUrl: string;
+  visionModel: string;
+  clearCredentials?: boolean;
+}
+
+export function getCaptureAISettings() {
+  return adminClient.get<never, CaptureAISettings>("/api/admin/capture-ai-settings");
+}
+
+export function updateCaptureAISettings(payload: CaptureAISettingsUpdate) {
+  return adminClient.put<never, CaptureAISettings>("/api/admin/capture-ai-settings", payload);
+}
+
 export function uploadFile(file: File, metadata: { altText?: string; caption?: string } = {}) {
   const form = new FormData();
   form.append("file", file);
@@ -251,6 +281,31 @@ export function listOwnProducts() {
 export function createOwnProduct(payload: Partial<VendorProductRecord>) {
   return adminClient.post<never, VendorProductRecord>("/api/admin/vendor-products", payload);
 }
+
+export type CaptureStatus = "uploading" | "queued" | "processing" | "needs_review" | "ready" | "committed" | "failed";
+export interface CaptureSourceBox { x: number; y: number; width: number; height: number }
+export interface CaptureField { value: string; confidence: number; sourceDocumentId?: number; sourceBoxes?: CaptureSourceBox[]; confirmed: boolean }
+export interface CaptureSpec { name: CaptureField; value: CaptureField; imageCropId?: number }
+export interface CaptureProductDraft { key: string; fields: Record<string, CaptureField>; specs?: CaptureSpec[]; selectedCropIds?: number[]; targetProductId?: number }
+export interface CaptureDraft { vendorFields: Record<string, CaptureField>; vendorMatchId?: number; products: CaptureProductDraft[]; warnings?: string[] }
+export interface CaptureDocument { id: number; capturePackageId: number; assetId: number; documentType: "unknown" | "business_card" | "brochure"; sortOrder: number; ocrText?: string; ocrConfidence: number; asset: { id: number; originalName: string; width: number; height: number } }
+export interface CaptureCrop { id: number; productKey: string; documentId: number; assetId: number; selected: boolean }
+export interface CapturePackage { id: number; title: string; ownerUsername: string; ownerRole: string; vendorId?: number; vendor?: Vendor; status: CaptureStatus; recognitionVersion: number; errorMessage?: string; documents?: CaptureDocument[]; crops?: CaptureCrop[]; updatedAt: string; createdAt: string }
+export interface CapturePackageDetail { package: CapturePackage; draft: CaptureDraft; aiEnabled: boolean; categories?: Array<{ id: number; name: string }> }
+
+export function listCapturePackages() { return adminClient.get<never, CapturePackage[]>("/api/admin/capture-packages"); }
+export function createCapturePackage(payload: { title: string; vendorId?: number }) { return adminClient.post<never, CapturePackageDetail>("/api/admin/capture-packages", payload); }
+export function getCapturePackage(id: number) { return adminClient.get<never, CapturePackageDetail>(`/api/admin/capture-packages/${id}`); }
+export function deleteCapturePackage(id: number) { return adminClient.delete<never, { deleted: boolean }>(`/api/admin/capture-packages/${id}`); }
+export function uploadCaptureDocuments(id: number, files: File[]) { const form = new FormData(); files.forEach((file) => form.append("files", file)); return adminClient.post<never, CaptureDocument[]>(`/api/admin/capture-packages/${id}/documents`, form, { headers: { "Content-Type": "multipart/form-data" } }); }
+export function deleteCaptureDocument(id: number) { return adminClient.delete<never, { deleted: boolean }>(`/api/admin/capture-documents/${id}`); }
+export function updateCaptureDocument(id: number, payload: { sortOrder: number; documentType: CaptureDocument["documentType"] }) { return adminClient.put<never, CapturePackageDetail>(`/api/admin/capture-documents/${id}`, payload); }
+export function recognizeCapturePackage(id: number) { return adminClient.post<never, CapturePackageDetail>(`/api/admin/capture-packages/${id}/recognize`); }
+export function updateCaptureDraft(id: number, draft: CaptureDraft) { return adminClient.put<never, CapturePackageDetail>(`/api/admin/capture-packages/${id}/draft`, draft); }
+export function commitCapturePackage(id: number) { return adminClient.post<never, CapturePackageDetail>(`/api/admin/capture-packages/${id}/commit`); }
+export function createVendorInvitation(vendorId: number) { return adminClient.post<never, { id: number; expiresAt: string; inviteUrl: string }>(`/api/admin/vendors/${vendorId}/invitations`); }
+export function getVendorInvitation(token: string) { return publicClient.get<never, { vendorName: string; expiresAt: string }>(`/api/vendor-invitations/${encodeURIComponent(token)}`); }
+export function acceptVendorInvitation(token: string, payload: { username: string; password: string }) { return publicClient.post<never, { username: string; vendorId: number; accepted: boolean }>(`/api/vendor-invitations/${encodeURIComponent(token)}/accept`, payload); }
 
 export function checkOwnProductDuplicate(params: { name: string; model?: string; excludeType?: string; excludeId?: number }) {
 	return adminClient.get<never, VendorProductDuplicateResult>("/api/admin/vendor-products/duplicate-check", { params });

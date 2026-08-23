@@ -6,6 +6,7 @@ import {
   batchSaveProductSuppliers,
   deleteResource,
 	 downloadRemoteImage,
+  getCaptureAISettings,
   importWorkbook,
   listConfigs,
   listResource,
@@ -16,6 +17,7 @@ import {
   suggestVendorSEO,
   submitRevision,
   updateConfig,
+  updateCaptureAISettings,
   updateResource,
   uploadFile,
   type BulkImportResult,
@@ -803,7 +805,7 @@ function ProductResourceTable({
   );
 }
 
-type ConfigSection = "site" | "home" | "theme" | "static" | "security";
+type ConfigSection = "site" | "home" | "theme" | "static" | "security" | "capture";
 
 const configSections: Array<{ key: ConfigSection; label: string; description: string; keys: string[] }> = [
   { key: "site", label: "站点与页脚", description: "品牌、页脚版权与备案信息", keys: ["site.meta"] },
@@ -811,6 +813,7 @@ const configSections: Array<{ key: ConfigSection; label: string; description: st
   { key: "theme", label: "主题样式", description: "前台主色与强调色", keys: ["site.theme"] },
   { key: "static", label: "静态化与缓存", description: "手动生成厂商与产品公开静态页，管理更新与失败状态", keys: [] },
   { key: "security", label: "访问与采集防护", description: "管理行为识别、封禁、AI 爬虫规则、联系方式额度和公开图片水印", keys: [] },
+  { key: "capture", label: "智能采集云服务", description: "配置腾讯云 OCR 与混元视觉识别，不在页面回显密钥", keys: [] },
 ];
 
 function ConfigPage() {
@@ -838,10 +841,55 @@ function ConfigPage() {
           ? <StaticPageManager />
           : activeSection === "security"
             ? <AccessProtectionManager />
+            : activeSection === "capture"
+              ? <CaptureAISettingsManager onMessage={setMessage} />
             : visibleRows.map((row) => row.configKey === "home.modules" || row.configKey === "site.theme" ? <AdvancedConfigEditor key={row.configKey} row={row} onMessage={setMessage} /> : <ReadableConfigEditor key={row.configKey} row={row} onMessage={setMessage} />)}
       </div>
     </AdminLayout>
   );
+}
+
+function CaptureAISettingsManager({ onMessage }: { onMessage: (message: string) => void }) {
+  const [settings, setSettings] = useState({ enabled: false, secretIdConfigured: false, secretKeyConfigured: false, tokenHubKeyConfigured: false, region: "ap-guangzhou", baseUrl: "https://tokenhub.tencentmaas.com/v1", visionModel: "hunyuan-t1-vision-20250916", environmentOverrides: [] as string[] });
+  const [secretId, setSecretId] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [tokenHubKey, setTokenHubKey] = useState("");
+  const [clearCredentials, setClearCredentials] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    void getCaptureAISettings().then(setSettings).catch((error) => onMessage(getApiErrorMessage(error, "智能采集配置加载失败"))).finally(() => setLoading(false));
+  }, [onMessage]);
+  const save = () => {
+    setSaving(true);
+    void updateCaptureAISettings({ enabled: settings.enabled, secretId, secretKey, tokenHubKey, region: settings.region, baseUrl: settings.baseUrl, visionModel: settings.visionModel, clearCredentials })
+      .then((next) => {
+        setSettings(next);
+        setSecretId("");
+        setSecretKey("");
+        setTokenHubKey("");
+        setClearCredentials(false);
+        onMessage("智能采集云服务配置已保存并即时生效");
+      })
+      .catch((error) => onMessage(getApiErrorMessage(error, "智能采集配置保存失败")))
+      .finally(() => setSaving(false));
+  };
+  if (loading) return <section className="config-card"><p>正在读取智能采集配置…</p></section>;
+  return <section className="config-card capture-ai-settings-card">
+    <header><div><strong>腾讯云 OCR 与 TokenHub 视觉</strong><small>OCR 与视觉服务使用不同密钥；所有密钥均加密保存且不会回显。</small></div><button className="primary-btn small" disabled={saving} type="button" onClick={save}>{saving ? "正在保存…" : "保存并生效"}</button></header>
+    {settings.environmentOverrides.length > 0 && <p className="capture-ai-override-note">以下环境变量优先于页面配置：{settings.environmentOverrides.join("、")}</p>}
+    <div className="config-field-grid">
+      <label className="checkbox-field field-wide"><input checked={settings.enabled} type="checkbox" onChange={(event) => setSettings({ ...settings, enabled: event.target.checked })} />启用智能采集识别</label>
+      <label>腾讯云 SecretId<input aria-label="腾讯云 SecretId" autoComplete="off" placeholder={settings.secretIdConfigured ? "已配置；留空表示不修改" : "请输入 SecretId"} type="password" value={secretId} onChange={(event) => { setSecretId(event.target.value); setClearCredentials(false); }} /><small>{settings.secretIdConfigured ? "当前已配置" : "当前未配置"}</small></label>
+      <label>腾讯云 SecretKey<input aria-label="腾讯云 SecretKey" autoComplete="new-password" placeholder={settings.secretKeyConfigured ? "已配置；留空表示不修改" : "请输入 SecretKey"} type="password" value={secretKey} onChange={(event) => { setSecretKey(event.target.value); setClearCredentials(false); }} /><small>{settings.secretKeyConfigured ? "当前已配置" : "当前未配置"}</small></label>
+      <label className="field-wide">TokenHub API Key<input aria-label="TokenHub API Key" autoComplete="new-password" placeholder={settings.tokenHubKeyConfigured ? "已配置；留空表示不修改" : "请输入 TokenHub API Key"} type="password" value={tokenHubKey} onChange={(event) => { setTokenHubKey(event.target.value); setClearCredentials(false); }} /><small>{settings.tokenHubKeyConfigured ? "当前已配置" : "当前未配置；需在 TokenHub 控制台创建"}</small></label>
+      <ConfigInput label="腾讯云地域" value={settings.region} onChange={(region) => setSettings({ ...settings, region })} />
+      <label>TokenHub 接入地址<select aria-label="TokenHub 接入地址" value={settings.baseUrl} onChange={(event) => setSettings({ ...settings, baseUrl: event.target.value })}><option value="https://tokenhub.tencentmaas.com/v1">广州（中国大陆）</option><option value="https://tokenhub-intl.tencentmaas.com/v1">新加坡（全球）</option></select></label>
+      <ConfigInput label="视觉模型" value={settings.visionModel} onChange={(visionModel) => setSettings({ ...settings, visionModel })} />
+      {(settings.secretIdConfigured || settings.secretKeyConfigured || settings.tokenHubKeyConfigured) && <label className="checkbox-field field-wide capture-ai-clear"><input checked={clearCredentials} type="checkbox" onChange={(event) => setClearCredentials(event.target.checked)} />清除后台已保存的 OCR 与 TokenHub 密钥</label>}
+    </div>
+    <p className="config-hint">保存时不会记录密钥、OCR 原文或联系方式。环境变量已设置的字段始终优先。</p>
+  </section>;
 }
 
 function AdvancedConfigEditor({ row, onMessage }: { row: SiteConfig; onMessage: (message: string) => void }) {

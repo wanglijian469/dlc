@@ -27,7 +27,7 @@ describe("AdminLayout navigation", () => {
     }
     const systemGroup = screen.getByText("系统管理").closest(".admin-nav-group") as HTMLElement;
     const configSubmenu = within(systemGroup).getByLabelText("平台配置子菜单");
-    for (const name of ["站点与页脚", "首页展示", "主题样式", "静态化与缓存", "访问与采集防护"]) {
+    for (const name of ["站点与页脚", "首页展示", "主题样式", "静态化与缓存", "访问与采集防护", "智能采集云服务"]) {
       expect(within(configSubmenu).getByRole("link", { name: `导航：${name}` })).toBeInTheDocument();
     }
   });
@@ -65,8 +65,8 @@ describe("AdminLayout navigation", () => {
     expect(within(navigation).queryByText("业务内容")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("基础配置")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("系统管理")).not.toBeInTheDocument();
-    const labels = ["我的厂商资料", "我的产品资料", "企业动态与案例", "访问数据", "账号安全"];
-    expect(within(navigation).getAllByRole("link")).toHaveLength(5);
+    const labels = ["智能采集", "我的厂商资料", "我的产品资料", "企业动态与案例", "访问数据", "账号安全"];
+    expect(within(navigation).getAllByRole("link")).toHaveLength(6);
     for (const label of labels) expect(within(navigation).getByRole("link", { name: `导航：${label}` })).toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "导航：我的产品资料" })).toHaveClass("active");
   });
