@@ -14,6 +14,7 @@ type AdminLink = {
 };
 
 const links: AdminLink[] = [
+  { label: "厂商工作台", path: "/admin/vendor-workspace", icon: LayoutDashboard, group: "概览", roles: ["vendor"] },
   { label: "SEO 工作台", path: "/admin/seo", icon: BarChart3, group: "概览", roles: ["admin"] },
   { label: "控制台", path: "/admin/dashboard", icon: LayoutDashboard, group: "概览" },
   { label: "智能采集", path: "/admin/capture", icon: Camera, group: "业务内容", roles: ["admin", "vendor"] },
@@ -67,13 +68,13 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
     return next;
   });
   return (
-    <div className="admin-shell">
+    <div className={role === "vendor" ? "admin-shell vendor-workspace-shell" : "admin-shell"}>
       {menuOpen && <button aria-label="关闭后台导航" className="admin-nav-backdrop" type="button" onClick={() => setMenuOpen(false)} />}
       <aside className={`admin-sidebar ${menuOpen ? "open" : ""}`} aria-label="后台导航">
         <div className="admin-brand-block">
           <img alt="" className="admin-brand-mark" src="/favicon.svg?v=2" />
           <div>
-            <strong>大陆农机配件 CMS</strong>
+            <strong>{role === "vendor" ? "大陆农机 · 厂商中心" : "大陆农机配件 CMS"}</strong>
           </div>
           <button aria-label="关闭后台导航" className="admin-nav-close" type="button" onClick={() => setMenuOpen(false)}><X size={19} /></button>
         </div>
@@ -102,7 +103,7 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
         <header className="admin-topbar">
           <button aria-label="打开后台导航" className="admin-menu-button" type="button" onClick={() => setMenuOpen(true)}><Menu size={20} /></button>
           <div>
-            <span className="admin-breadcrumb">后台管理 / {title}</span>
+            <span className="admin-breadcrumb">{role === "vendor" ? "厂商中心" : "后台管理"} / {title}</span>
             <h1>{title}</h1>
           </div>
           <div className="admin-topbar-actions">
@@ -116,7 +117,7 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
               localStorage.removeItem("cms_authenticated");
               localStorage.removeItem("cms_role");
               localStorage.removeItem("cms_username");
-              window.location.href = "/admin/login";
+              window.location.href = role === "vendor" ? "/account/login" : "/admin/login";
             }}>
               <LogOut aria-hidden="true" size={15} />
               退出
@@ -125,6 +126,7 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
         </header>
         <section className="admin-content">{children}</section>
       </main>
+      {role === "vendor" && <nav className="vendor-workspace-bottom" aria-label="厂商手机导航">{[["工作台", "/admin/vendor-workspace"], ["产品", "/admin/vendor-products"], ["发布", "/admin/vendor-products?new=1"], ["推广", "/admin/vendor-analytics"], ["我的", "/admin/vendor-profile"]].map(([label, path]) => <NavLink key={label} className={() => linkClass(path)} to={path}>{label}</NavLink>)}</nav>}
     </div>
   );
 }

@@ -26,11 +26,11 @@ export function ProtectedAdminRoute({ children, roles }: { children: ReactNode; 
   if (checking && session) return <>{children}</>;
   if (checking) return <div className="admin-route-loading" role="status">正在验证登录状态…</div>;
   if (!session) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={(roles?.includes("vendor") ? "/account/login" : "/admin/login") + "?returnTo=" + encodeURIComponent(window.location.pathname + window.location.search)} replace />;
   }
   const role = session.role;
   if (roles && !roles.includes(role)) {
-    return <Navigate to={role === "vendor" ? "/admin/vendor-profile" : "/admin/dashboard"} replace />;
+    return <Navigate to={role === "vendor" ? "/admin/vendor-workspace" : "/admin/dashboard"} replace />;
   }
   return <>{children}</>;
 }

@@ -32,11 +32,12 @@ adminClient.interceptors.response.use(
   (response) => unwrap(response.data),
   (error) => {
     if (error.response?.status === 401) {
+      const vendorRoute = localStorage.getItem("cms_role") === "vendor" || /\/admin\/(vendor-|capture)/.test(window.location.pathname);
       localStorage.removeItem("cms_authenticated");
       localStorage.removeItem("cms_role");
       localStorage.removeItem("cms_username");
       if (window.location.pathname !== "/admin/login") {
-        window.location.href = "/admin/login";
+        window.location.href = (vendorRoute ? "/account/login" : "/admin/login") + "?returnTo=" + encodeURIComponent(window.location.pathname + window.location.search);
       }
     }
     return Promise.reject(error);

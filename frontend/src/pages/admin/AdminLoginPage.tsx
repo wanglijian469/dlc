@@ -142,7 +142,7 @@ function readExistingSession(): ExistingSession | null {
 }
 
 function destinationForRole(role: AccountRole) {
-  return role === "vendor" ? "/admin/vendor-profile" : "/admin/dashboard";
+  return role === "vendor" ? "/admin/vendor-workspace" : "/admin/dashboard";
 }
 
 function destinationLabel(role: AccountRole) {

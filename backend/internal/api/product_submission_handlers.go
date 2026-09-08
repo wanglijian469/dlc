@@ -43,7 +43,7 @@ func decodeProductSubmission(row model.ProductSubmission) model.ProductSubmissio
 
 func (h AdminHandler) ListProductSubmissions(c *gin.Context) {
 	var rows []model.ProductSubmission
-	query := h.DB.Preload("Vendor").Preload("Product.Category").Order("created_at desc, id desc")
+	query := h.DB.Preload("Vendor").Preload("Product.Category").Order("created_at asc, id asc")
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
 		query = query.Where("status = ?", status)
 	}
@@ -139,7 +139,10 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 			result.ReviewNote = strings.TrimSpace(req.ReviewNote)
 			result.ReviewedBy = c.GetString("username")
 			result.ReviewedAt = &now
-			return tx.Save(&result).Error
+			if err := tx.Save(&result).Error; err != nil {
+				return err
+			}
+			return notifyVendorReview(tx, result.VendorID, result.ID, "product_review", req.Status, req.ReviewNote)
 		}
 		var supplier model.ProductSupplier
 		if result.SupplierID == nil || tx.First(&supplier, *result.SupplierID).Error != nil {
@@ -213,7 +216,10 @@ func (h AdminHandler) ReviewProductSubmission(c *gin.Context) {
 		result.ReviewNote = strings.TrimSpace(req.ReviewNote)
 		result.ReviewedBy = c.GetString("username")
 		result.ReviewedAt = &now
-		return tx.Save(&result).Error
+		if err := tx.Save(&result).Error; err != nil {
+			return err
+		}
+		return notifyVendorReview(tx, result.VendorID, result.ID, "product_review", req.Status, req.ReviewNote)
 	})
 	if err != nil {
 		switch err {
@@ -501,6 +507,13 @@ func (h AdminHandler) SaveAdminProductSupplier(c *gin.Context) {
 	OK(c, row)
 }
 
+func publishableProductSuppliers(db *gorm.DB, productID uint, now time.Time) *gorm.DB {
+	return db.Model(&model.ProductSupplier{}).
+		Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id AND vendors.deleted_at IS NULL").
+		Where("product_suppliers.product_id = ? AND product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (vendors.published_at IS NULL OR vendors.published_at <= ?)",
+			productID, "approved", true, "published", now)
+}
+
 func (h AdminHandler) DisableAdminProductSupplier(c *gin.Context) {
 	var row model.ProductSupplier
 	err := h.DB.Transaction(func(tx *gorm.DB) error {
@@ -513,15 +526,18 @@ func (h AdminHandler) DisableAdminProductSupplier(c *gin.Context) {
 		}
 		if product.PublicationStatus == "published" {
 			var currentQualifies, remaining int64
-			publishable := tx.Model(&model.ProductSupplier{}).
-				Joins("JOIN vendors ON vendors.id = product_suppliers.vendor_id AND vendors.deleted_at IS NULL").
-				Where("product_suppliers.product_id = ? AND product_suppliers.status = ? AND vendors.is_visible = ? AND vendors.publication_status = ? AND (vendors.published_at IS NULL OR vendors.published_at <= ?)",
-					product.ID, "approved", true, "published", time.Now())
-			if err := publishable.Where("product_suppliers.id = ?", row.ID).Count(&currentQualifies).Error; err != nil {
+			now := time.Now()
+			if err := publishableProductSuppliers(tx, product.ID, now).
+				Where("product_suppliers.id = ?", row.ID).
+				Count(&currentQualifies).Error; err != nil {
 				return err
 			}
 			if currentQualifies > 0 {
-				if err := publishable.Where("product_suppliers.id <> ?", row.ID).Count(&remaining).Error; err != nil {
+				// Build a fresh query. Reusing the current-row query would retain
+				// `id = row.ID` and make the remaining count always zero.
+				if err := publishableProductSuppliers(tx, product.ID, now).
+					Where("product_suppliers.id <> ?", row.ID).
+					Count(&remaining).Error; err != nil {
 					return err
 				}
 				if remaining == 0 {

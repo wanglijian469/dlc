@@ -10,6 +10,10 @@ MIGRATION_BINARY="${MIGRATION_BINARY:-/opt/dalu-parts/initdb}"
 MIGRATION_WORKING_DIRECTORY="${MIGRATION_WORKING_DIRECTORY:-/opt/dalu-parts}"
 [[ -x "${MIGRATION_BINARY}" ]] || { echo "migration binary is missing: ${MIGRATION_BINARY}" >&2; exit 2; }
 [[ -r /etc/dalu-parts/dlc.env ]] || { echo "missing /etc/dalu-parts/dlc.env" >&2; exit 2; }
+MIGRATION_ARGS=()
+if [[ "${MIGRATION_ONLY:-false}" == "true" ]]; then
+  MIGRATION_ARGS+=(--migrate-only)
+fi
 UNIT="dalu-parts-initdb-$(date -u +%Y%m%dT%H%M%SZ)"
 
 systemd-run \
@@ -19,4 +23,4 @@ systemd-run \
 	--property=Group=dlc \
 	--property="WorkingDirectory=${MIGRATION_WORKING_DIRECTORY}" \
 	--property=EnvironmentFile=/etc/dalu-parts/dlc.env \
-	"${MIGRATION_BINARY}"
+	"${MIGRATION_BINARY}" "${MIGRATION_ARGS[@]}"

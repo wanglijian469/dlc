@@ -8,7 +8,7 @@ describe("public analytics", () => {
   it("reports public route visits through the existing HTTP client", () => {
     const post = vi.spyOn(publicClient, "post").mockResolvedValue({} as never);
     trackRoute("/products", "?categoryId=8");
-    expect(post).toHaveBeenCalledWith("/api/analytics/events", { eventType: "page_view", path: "/products", contentType: "category", contentId: 8 });
+    expect(post).toHaveBeenCalledWith("/api/analytics/events", { eventType: "page_view", path: "/products", contentType: "category", contentId: 8, source: "unknown" });
   });
 
   it("does not report administrative routes", () => {

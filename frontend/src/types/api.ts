@@ -234,6 +234,9 @@ export interface Product {
 }
 
 export interface ProductSupplier {
+ updatedAt?: string;
+ showroomFeatured?: boolean;
+ showroomOrder?: number;
   id: number;
   productId: number;
   vendorId: number;
@@ -292,6 +295,8 @@ export interface ProductSubmission {
 }
 
 export interface VendorProductRecord {
+ showroomFeatured?: boolean;
+ showroomOrder?: number;
 	id: number;
 	recordType: "submission" | "supplier";
 	vendorProductName: string;
@@ -318,7 +323,7 @@ export interface VendorProductRecord {
 	priceUpdatedAt?: string;
 	supplyAbility?: string;
 	inquiryText?: string;
-	status: "pending" | "pending_update" | "approved" | "rejected";
+	status: "pending" | "pending_update" | "approved" | "rejected" | "rejected_update";
 	reviewNote?: string;
 	submissionId?: number;
 	supplierId?: number;

@@ -31,8 +31,8 @@ describe("menu navigation", () => {
       { id: 2, name: "厂商", path: "/vendors", icon: "factory" },
       { id: 3, name: "厂商", path: "/account/login", icon: "user" },
     ]} /></MemoryRouter>);
-    expect(screen.getByRole("link", { name: "分类" })).toHaveAttribute("href", "/categories");
-    expect(screen.getByRole("link", { name: "发布" })).toHaveAttribute("href", "/publish");
+    expect(screen.getByRole("link", { name: "找产品" })).toHaveAttribute("href", "/products");
+    expect(screen.getByRole("link", { name: "找厂商" })).toHaveAttribute("href", "/vendors");
     expect(screen.getByRole("link", { name: "供求" })).toHaveAttribute("href", "/purchase");
     expect(screen.getByRole("link", { name: "我的" })).toHaveAttribute("href", "/account/posts");
   });

@@ -13,11 +13,12 @@ export function VendorCard({ vendor, compact = false, directory = false }: Vendo
   const region = [vendor.province, vendor.city].filter(Boolean).join(" · ");
   return (
     <article className={`${compact ? "vendor-card compact" : "vendor-card"} ${directory ? "directory-card" : ""}`}>
+      <Link className="vendor-card-visual" to={vendorPath(vendor)}>{vendor.coverImage ? <img loading="lazy" src={vendor.coverImage} alt={vendor.name + " 企业展示"}/> : <span>{vendor.shortName?.slice(0, 4) || vendor.name.slice(0, 2)} · 企业展厅</span>}{vendor.logo && <img className="vendor-card-logo" src={vendor.logo} alt={vendor.name + " Logo"}/>}</Link>
       <div className="vendor-card-header">
         <div className="vendor-title-block">
           <h3 title={vendor.name}>{vendor.name}</h3>
           <div className="tag-row">
-            {vendor.isVerified && <span className="tag-blue">平台认证</span>}
+
             {vendor.isRecommended && <span className="tag-green">推荐厂商</span>}
           </div>
         </div>
@@ -29,11 +30,11 @@ export function VendorCard({ vendor, compact = false, directory = false }: Vendo
         <div className="tag-row service-tags">{vendor.tags?.slice(0, compact ? 2 : 3).map((tag) => <span className="tag-green" key={tag.id}>{tag.name}</span>)}</div>
       </div>
       <div className="card-actions vendor-card-actions">
-        <Link className="primary-btn small" to={vendorPath(vendor)}>查看详情</Link>
-        <Link className="outline-btn small" to={`/products?vendorId=${vendor.id}`}>查看产品</Link>
+        <Link className="primary-btn small" to={vendorPath(vendor)}>进入展厅</Link>
+        <Link className="outline-btn small" to={vendorPath(vendor) + "#showroom-products"}>查看产品</Link>
         {vendor.websiteUrl
           ? <a aria-label={`${vendor.name} 访问官网`} className="outline-btn small website-action" href={vendor.websiteUrl} rel="noreferrer" target="_blank"><ExternalLink size={14} />访问官网</a>
-          : <span aria-disabled="true" className="outline-btn small website-action disabled">暂无官网</span>}
+          : null}
       </div>
     </article>
   );

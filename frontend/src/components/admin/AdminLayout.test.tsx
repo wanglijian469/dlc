@@ -65,8 +65,8 @@ describe("AdminLayout navigation", () => {
     expect(within(navigation).queryByText("业务内容")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("基础配置")).not.toBeInTheDocument();
     expect(within(navigation).queryByText("系统管理")).not.toBeInTheDocument();
-    const labels = ["智能采集", "我的厂商资料", "我的产品资料", "企业动态与案例", "访问数据", "账号安全"];
-    expect(within(navigation).getAllByRole("link")).toHaveLength(6);
+    const labels = ["厂商工作台", "智能采集", "我的厂商资料", "我的产品资料", "企业动态与案例", "访问数据", "账号安全"];
+    expect(within(navigation).getAllByRole("link")).toHaveLength(7);
     for (const label of labels) expect(within(navigation).getByRole("link", { name: `导航：${label}` })).toBeInTheDocument();
     expect(within(navigation).getByRole("link", { name: "导航：我的产品资料" })).toHaveClass("active");
   });

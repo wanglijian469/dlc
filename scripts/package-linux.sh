@@ -3,7 +3,7 @@ set -euo pipefail
 export LC_ALL=C
 export TZ=UTC
 
-VERSION="${1:-v2026.08.23-linux.1}"
+VERSION="${1:-v2026.09.08-linux.1}"
 case "$VERSION" in
   *[!A-Za-z0-9._-]*|'')
     echo "version may contain only letters, numbers, dots, underscores, and hyphens" >&2
@@ -56,6 +56,7 @@ cp "${ROOT}/deploy/linux/scripts/"*.sh "${PACKAGE_ROOT}/scripts/"
 cp "${ROOT}/deploy/linux/README.md" "${PACKAGE_ROOT}/README.md"
 cp "${ROOT}/deploy/linux/INSTALL.md" "${PACKAGE_ROOT}/docs/"
 cp "${ROOT}/deploy/linux/UPGRADE.md" "${PACKAGE_ROOT}/docs/"
+cp "${ROOT}/deploy/linux/VENDOR_PROMOTION_UPGRADE.md" "${PACKAGE_ROOT}/docs/"
 cp "${ROOT}/deploy/linux/RELEASE_NOTES.md" "${PACKAGE_ROOT}/docs/"
 
 chmod 0755 "${PACKAGE_ROOT}/server" "${PACKAGE_ROOT}/initdb" "${PACKAGE_ROOT}/scripts/"*.sh

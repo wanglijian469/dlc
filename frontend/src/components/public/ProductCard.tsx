@@ -32,14 +32,15 @@ function supplierPrice(product: Product) {
 export function ProductCard({ product, compact = false }: { product: Product; compact?: boolean }) {
   const supplier = product.supplier;
   const vendor = supplier?.vendor || product.vendor;
+  const detailPath = supplier && vendor?.slug ? `/v/${vendor.slug}/products/${supplier.id}` : `/products/${product.slug || product.id}`;
   const directoryMode = !supplier && !product.vendor;
   const regions = product.supplierRegions?.filter(Boolean).join(" · ");
   return (
     <article className={compact ? "product-card compact" : "product-card"}>
-      <ProductCover product={product} />
+      <Link className="product-cover-link" aria-label={"查看产品：" + (supplier?.vendorProductName || product.name)} to={detailPath}><ProductCover product={supplier ? { ...product, image: supplier.image } : product} /></Link>
       <div className="product-card-main">
         <div className="product-card-title">
-          <h3>{product.name}</h3>
+          <h3><Link to={detailPath}>{supplier?.vendorProductName || product.name}</Link></h3>
           <div className="tag-row">
             {product.isHot && <span className="tag-orange">热销</span>}
             {product.isRecommended && <span className="tag-blue">推荐</span>}
@@ -48,12 +49,12 @@ export function ProductCard({ product, compact = false }: { product: Product; co
         <p className="product-line">型号：{supplier?.vendorModel || "按供应商型号匹配"}</p>
         <p className="product-line">适配机型：{supplier?.compatibleModels || product.compatibleModels || "通用农机配件"}</p>
         <p className="product-line">分类：{categoryName(product)}</p>
-        {directoryMode ? <p className="product-line supplier-count">支持供应商：{product.supplierCount || 0} 家</p> : <p className="product-line">供应厂商：{vendor?.name || "认证厂商"}</p>}
+        {directoryMode ? <p className="product-line supplier-count">支持供应商：{product.supplierCount || 0} 家</p> : <p className="product-line">供应厂商：{vendor?.name || "供应厂商"}</p>}
         {directoryMode && regions && <p className="product-line">供应地区：{regions}</p>}
         <p className="product-line product-live-price">价格：{supplierPrice(product)}</p>
         {supplier?.priceUpdatedAt && <p className="product-price-time">更新于 {new Date(supplier.priceUpdatedAt).toLocaleString()}</p>}
         <div className="card-actions">
-          <Link className="outline-btn small" to={`/products/${product.slug || product.id}`}>产品详情</Link>
+          <Link className="outline-btn small" to={detailPath}>产品详情</Link>
           <Link className="primary-btn small" to={directoryMode || !vendor?.id ? `/products/${product.id}#suppliers` : vendorPath(vendor)}>供应厂商</Link>
         </div>
       </div>

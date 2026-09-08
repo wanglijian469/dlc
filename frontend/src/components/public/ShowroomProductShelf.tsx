@@ -1,0 +1,16 @@
+import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
+import { getShowroomProducts } from "../../api/workspace";
+import { getFilterOptions } from "../../api/public";
+import type { Category, PageResult, Product } from "../../types/api";
+import { ProductCard } from "./ProductCard";
+export function ShowroomProductShelf({ vendor }: { vendor: { id: number; slug?: string } }) {
+ const [params, setParams] = useSearchParams();
+ const [keyword, setKeyword] = useState(params.get("productKeyword") || ""), [result, setResult] = useState<PageResult<Product> | null>(null), [categories,setCategories]=useState<Category[]>([]), [error,setError]=useState(""),[loading,setLoading]=useState(true),[reload,setReload]=useState(0);
+ const search=params.get("productKeyword")||"",category=params.get("productCategory")||"",page=Number(params.get("productPage")||1);
+ useEffect(()=>{getFilterOptions().then(data=>setCategories(data.categories)).catch(()=>setCategories([]));},[]);
+ useEffect(()=>{let active=true;setLoading(true);setError("");setKeyword(search);getShowroomProducts(vendor.slug || vendor.id,{keyword:search,categoryId:Number(category)||undefined,page,pageSize:12}).then(data=>{if(active)setResult(data);}).catch(()=>{if(active)setError("本厂产品加载失败，请重试");}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[vendor.id,vendor.slug,search,category,page,reload]);
+ const update=(values: Record<string,string>)=>{const next=new URLSearchParams(params);Object.entries(values).forEach(([key,value])=>value?next.set(key,value):next.delete(key));setParams(next,{preventScrollReset:true});};
+ const submit=(e:FormEvent)=>{e.preventDefault();update({productKeyword:keyword.trim(),productPage:"1"});};
+ return <section id="showroom-products" className="section-block showroom-product-shelf"><div className="section-title"><h2>主营产品</h2><span>本厂产品 · {result?.total || 0} 款</span></div><form className="workspace-filter" onSubmit={submit}><input aria-label="搜索本厂型号" placeholder="输入产品名称、型号或适配信息" value={keyword} onChange={e=>setKeyword(e.target.value)}/><select aria-label="展厅产品分类" value={category} onChange={e=>update({productCategory:e.target.value,productPage:"1"})}><option value="">全部分类</option>{categories.filter(c=>!c.parentId).map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select><button className="primary-btn">搜索产品</button>{(search||category)&&<button type="button" className="outline-btn" onClick={()=>update({productCategory:"",productKeyword:"",productPage:""})}>清除筛选</button>}</form>{loading?<p role="status">正在加载本厂产品…</p>:error?<p role="alert">{error}<button onClick={()=>setReload(v=>v+1)}>重试</button></p>:<><div className="product-grid">{result?.items.map(product=><ProductCard key={product.id} product={product}/>)}</div>{!result?.items.length&&<p className="structured-empty">{search||category?"暂无匹配产品，请调整筛选条件。":"厂商正在完善产品资料，可直接联系了解供应情况。"}</p>}{result&&result.total>12&&<div className="promotion-actions"><button className="outline-btn" disabled={page<=1} onClick={()=>update({productPage:String(page-1)})}>上一页</button><span>{page} / {Math.ceil(result.total/12)}</span><button className="outline-btn" disabled={page*12>=result.total} onClick={()=>update({productPage:String(page+1)})}>下一页</button></div>}</>}</section>;
+}

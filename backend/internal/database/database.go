@@ -64,6 +64,11 @@ func CleanupOrphanedMedia(db *gorm.DB, mediaDir string) error {
 			}
 		}
 		if references == 0 {
+			if err := db.Model(&model.VendorWorkDraft{}).Where("committed_at IS NULL AND (INSTR(payload, ?) > 0 OR payload REGEXP ?)", url, fmt.Sprintf("\"(assetId|logoAssetId|coverAssetId|wechatQrCodeAssetId)\"[[:space:]]*:[[:space:]]*%d([^0-9]|$)", asset.ID)).Count(&references).Error; err != nil {
+				return err
+			}
+		}
+		if references == 0 {
 			if err := db.Model(&model.VendorPost{}).Where("cover_asset_id = ?", asset.ID).Count(&references).Error; err != nil {
 				return err
 			}
@@ -99,6 +104,7 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.Product{},
 		&model.ProductSupplier{},
 		&model.ProductSubmission{},
+		&model.VendorWorkDraft{},
 		&model.ProductSupplierPriceHistory{},
 		&model.VendorPost{},
 		&model.ProcurementAuction{},
@@ -200,8 +206,8 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 }
 
 const (
-	CurrentSchemaVersion       uint = 19
-	currentSchemaMigrationName      = "capture-workbench-v1"
+	CurrentSchemaVersion       uint = 20
+	currentSchemaMigrationName      = "vendor-showroom-workspace-v1"
 )
 
 func schemaMigrationRequired(latest uint) bool {
@@ -220,6 +226,13 @@ func Migrate(db *gorm.DB) error {
 	}
 	if !schemaMigrationRequired(latest) {
 		return nil
+	}
+	// Version 19 upgrades are strictly additive; do not rerun legacy cleanup/backfills.
+	if latest == 19 {
+		if err := migrateVendorPromotion(db); err != nil {
+			return err
+		}
+		return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: currentSchemaMigrationName, AppliedAt: time.Now()}).Error
 	}
 	if latest < 15 {
 		if err := removeVendorAfterSalesService(db); err != nil {
@@ -275,7 +288,34 @@ func Migrate(db *gorm.DB) error {
 	if err := PurgeOrdinaryAccounts(db); err != nil {
 		return err
 	}
+	if err := migrateVendorPromotion(db); err != nil {
+		return err
+	}
 	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: currentSchemaMigrationName, AppliedAt: time.Now()}).Error
+}
+
+func migrateVendorPromotion(db *gorm.DB) error {
+	if err := db.AutoMigrate(&model.VendorWorkDraft{}); err != nil {
+		return err
+	}
+	for _, field := range []struct {
+		table any
+		name  string
+	}{{&model.ProductSupplier{}, "ShowroomFeatured"}, {&model.ProductSupplier{}, "ShowroomOrder"}, {&model.AnalyticsEvent{}, "VendorID"}, {&model.AnalyticsEvent{}, "SupplierID"}, {&model.AnalyticsEvent{}, "Source"}} {
+		if !db.Migrator().HasColumn(field.table, field.name) {
+			if err := db.Migrator().AddColumn(field.table, field.name); err != nil {
+				return err
+			}
+		}
+	}
+	for _, index := range []string{"idx_analytics_events_vendor_id", "idx_analytics_events_supplier_id"} {
+		if !db.Migrator().HasIndex(&model.AnalyticsEvent{}, index) {
+			if err := db.Migrator().CreateIndex(&model.AnalyticsEvent{}, index); err != nil {
+				return err
+			}
+		}
+	}
+	return db.Model(&model.StaticPageBuild{}).Where("status IN ?", []string{"ready", "generating"}).Updates(map[string]any{"status": "stale", "error_message": "企业展厅升级，请重新生成静态页面"}).Error
 }
 
 func backfillStructuredSupplierPrices(db *gorm.DB) error {

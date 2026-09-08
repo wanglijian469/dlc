@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { CheckCircle2, Clipboard, Clock3, ExternalLink, ImageUp, Send } from "lucide-react";
-import { getVendorProfile, submitVendorProfile, uploadFile } from "../../api/admin";
+import { getVendorProfile, uploadFile } from "../../api/admin";
 import { AdminLayout } from "../../components/admin/AdminLayout";
 import type { Vendor } from "../../types/api";
 import { VendorMediaEditor } from "../../components/admin/StructuredEditors";
@@ -8,6 +8,8 @@ import type { VendorMedia } from "../../types/api";
 import { ProtectedMediaImage } from "../../components/admin/ProtectedMediaImage";
 import { processingToggleDescription, vendorFieldGuidance } from "../../config/formGuidance";
 
+import { commitWorkDraft, listWorkDrafts } from "../../api/workspace";
+import { usePrivateDraft } from "../../hooks/usePrivateDraft";
 type Field = { key: keyof Vendor; label: string; type?: "textarea" | "checkbox" | "image"; placeholder?: string; maxLength?: number };
 
 const fields: Field[] = [
@@ -48,9 +50,12 @@ export function VendorProfilePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const original = useRef("");
+  const privateDraft = usePrivateDraft("profile", form, !loading && JSON.stringify(form) !== original.current);
 
-  const load = () => getVendorProfile().then((result) => {
-    setForm(result.draft);
+  const load = () => Promise.all([getVendorProfile(), listWorkDrafts<Partial<Vendor>>()]).then(([result, drafts]) => {
+    const saved = drafts.find(row => row.kind === "profile");
+    privateDraft.activate(saved);
+    setForm(saved?.payload || result.draft);
 		setPublicWebsiteURL(result.vendor.slug ? `${window.location.origin}/v/${result.vendor.slug}` : "");
     original.current = JSON.stringify(result.draft);
     setStatus(result.submission?.status || (result.vendor.publicationStatus === "draft" ? "draft" : "published"));
@@ -60,20 +65,22 @@ export function VendorProfilePage() {
   useEffect(() => { void load(); }, []);
   const dirty = !loading && JSON.stringify(form) !== original.current;
   useEffect(() => {
-    const warn = (event: BeforeUnloadEvent) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } };
+    const warn = (event: BeforeUnloadEvent) => { if (privateDraft.dirty) { event.preventDefault(); event.returnValue = ""; } };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  }, [privateDraft.dirty]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
+    if (saving) return;
     setMessage("");
     if (Array.from(String(form.serviceAdvantages || "")).length > 80) {
       setMessage("服务优势不能超过 80 个字符，请缩短后再提交");
       return;
     }
     setSaving(true);
-    submitVendorProfile(form).then(() => {
+    privateDraft.save().then(row => commitWorkDraft(row.id, row.version)).then(() => {
+      privateDraft.activate();
       setStatus("pending");
       setReviewNote("");
       setMessage("资料已提交，管理员审核通过后将在前台更新");
@@ -100,8 +107,9 @@ export function VendorProfilePage() {
         <form className="admin-form vendor-profile-form vendor-profile-grouped" onSubmit={submit}>
           {groups.map((group, groupIndex) => <details className="vendor-profile-section" key={group.title} open={groupIndex < 2}><summary>{group.title}</summary><div className="vendor-profile-fields">{fields.filter((field) => group.keys.includes(field.key)).map((field) => field.type === "checkbox" ? <label className="admin-toggle-field wide-field" key={field.key}><VendorField field={field} form={form} setForm={setForm} /><span><strong>{field.label}</strong><small>{field.key === "providesProcessing" ? processingToggleDescription : "公开后可能被搜索引擎和第三方采集；修改将在管理员审核通过后生效。"}</small></span></label> : <label className={field.type === "textarea" ? "wide-field" : ""} key={field.key}>{field.label}<VendorField field={field} form={form} setForm={setForm} /></label>)}{group.title === "展示信息" && <div className="wide-field"><VendorMediaEditor value={(form.media as VendorMedia[] | undefined) || []} onChange={(media) => setForm({ ...form, media })} /></div>}</div></details>)}
           <div className="wide-field form-submit-row vendor-sticky-submit">
+            <span role="status">{privateDraft.status}</span><button className="outline-btn" disabled={saving} type="button" onClick={() => void privateDraft.save().catch(() => undefined)}>保存草稿</button>
             <button className="primary-btn" disabled={saving || !dirty} type="submit"><Send size={16} />{saving ? "正在提交…" : "提交管理员审核"}</button>
-            {dirty && <strong className="unsaved-indicator">有未保存修改</strong>}
+            {privateDraft.dirty && <strong className="unsaved-indicator">有未保存修改</strong>}
             <span>提交不会立即覆盖前台正在展示的已审核资料。</span>
           </div>
         </form>

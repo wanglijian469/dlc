@@ -39,6 +39,7 @@ type StaticPageService struct {
 }
 
 type StaticPagePayload struct {
+	Supplier  *model.ProductSupplier  `json:"supplier,omitempty"`
 	Kind      string                  `json:"kind"`
 	Slug      string                  `json:"slug"`
 	Layout    service.LayoutConfig    `json:"layout"`
@@ -152,7 +153,9 @@ func (s *StaticPageService) Summary() StaticPageSummary {
 	for _, row := range counts {
 		result.Counts[row.Status] = row.Count
 	}
-	result.Counts["unbuilt"] = publicVendors + publicProducts - builtPublic
+	var publicSuppliers int64
+	showroomSupplierQuery(s.db).Count(&publicSuppliers)
+	result.Counts["unbuilt"] = publicVendors + publicProducts + publicSuppliers - builtPublic
 	if result.Counts["unbuilt"] < 0 {
 		result.Counts["unbuilt"] = 0
 	}
@@ -168,11 +171,11 @@ func publicStaticBuildQuery(db *gorm.DB) *gorm.DB {
 	return db.Model(&model.StaticPageBuild{}).
 		Where("(resource_type = ? AND resource_id IN (?)) OR (resource_type = ? AND resource_id IN (?))",
 			"vendor", publishedVendorQuery(db).Select("vendors.id"),
-			"product", visibleProductQuery(db).Select("products.id"))
+			"product", visibleProductQuery(db).Select("products.id")).Or("resource_type = ? AND resource_id IN (?)", "supplier", showroomSupplierQuery(db).Select("product_suppliers.id"))
 }
 
 func (s *StaticPageService) ResourceStatuses(resourceType string, ids []uint) []StaticPageResourceStatus {
-	if resourceType != "vendor" && resourceType != "product" {
+	if resourceType != "vendor" && resourceType != "product" && resourceType != "supplier" {
 		return nil
 	}
 	builds := make([]model.StaticPageBuild, 0)
@@ -204,6 +207,12 @@ func (s *StaticPageService) canGenerate(resourceType string, id uint) (bool, str
 		return false, ""
 	}
 	switch resourceType {
+	case "supplier":
+		var supplier model.ProductSupplier
+		if showroomSupplierQuery(s.db).Preload("Vendor").First(&supplier, id).Error != nil || supplier.Vendor.Slug == "" {
+			return false, ""
+		}
+		return true, showroomPath(supplier)
 	case "vendor":
 		var vendor model.Vendor
 		if publishedVendorQuery(s.db).First(&vendor, id).Error != nil || vendor.Slug == "" {
@@ -228,7 +237,7 @@ func (s *StaticPageService) StartJob(scope, resourceType string, resourceIDs []u
 	if scope != "all" && scope != "single" {
 		return model.StaticBuildJob{}, errors.New("生成范围无效")
 	}
-	if scope == "single" && (resourceType != "vendor" && resourceType != "product" || len(resourceIDs) == 0) {
+	if scope == "single" && (resourceType != "vendor" && resourceType != "product" && resourceType != "supplier" || len(resourceIDs) == 0) {
 		return model.StaticBuildJob{}, errors.New("请选择需要生成的厂商或产品")
 	}
 	resourceIDs = uniqueUintIDs(resourceIDs)
@@ -293,6 +302,11 @@ func (s *StaticPageService) targets(scope, resourceType string, resourceIDs []ui
 	}
 	for _, id := range productIDs {
 		result = append(result, staticBuildTarget{ResourceType: "product", ResourceID: id})
+	}
+	var supplierIDs []uint
+	showroomSupplierQuery(s.db).Order("product_suppliers.id asc").Pluck("product_suppliers.id", &supplierIDs)
+	for _, id := range supplierIDs {
+		result = append(result, staticBuildTarget{ResourceType: "supplier", ResourceID: id})
 	}
 	return result
 }
@@ -383,9 +397,13 @@ func (s *StaticPageService) generate(target staticBuildTarget) (model.StaticPage
 	generatedAt := time.Now()
 	build.Slug, build.Status, build.ContentVersion = slug, model.StaticPageStatusReady, version
 	build.FilePath, build.ContentHash, build.ErrorMessage, build.GeneratedAt = relativePath, hash, "", &generatedAt
-	if err := s.db.Save(&build).Error; err != nil {
+	result := s.db.Model(&model.StaticPageBuild{}).Where("id = ? AND status = ?", build.ID, model.StaticPageStatusGenerating).Select("*").Updates(&build)
+	if err := result.Error; err != nil {
 		_ = os.Remove(absolutePath)
 		return build, err
+	}
+	if result.RowsAffected != 1 {
+		return build, errors.New("生成过程中资料已变化，请重新生成")
 	}
 	if oldPath != "" && oldPath != relativePath {
 		if oldAbsolute, safe := s.safeAbsolutePath(oldPath); safe {
@@ -414,6 +432,18 @@ func trimError(err error) string {
 func (s *StaticPageService) buildPayload(target staticBuildTarget) (StaticPagePayload, string, uint, string, error) {
 	payload := StaticPagePayload{Kind: target.ResourceType, Layout: service.HomeService{DB: s.db}.Layout(context.Background())}
 	switch target.ResourceType {
+	case "supplier":
+		var current model.ProductSupplier
+		if showroomSupplierQuery(s.db).Preload("Vendor").First(&current, target.ResourceID).Error != nil {
+			return payload, "", 0, "", errors.New("本厂产品未发布")
+		}
+		supplier, err := loadShowroomSupplier(s.db, current.Vendor.Slug, current.ID)
+		if err != nil {
+			return payload, "", 0, "", err
+		}
+		slug := fmt.Sprintf("%s/products/%d", supplier.Vendor.Slug, supplier.ID)
+		payload.Slug, payload.Supplier = slug, &supplier
+		return payload, slug, supplier.ContentVersion, showroomPath(supplier), nil
 	case "vendor":
 		var vendor model.Vendor
 		if err := publishedVendorQuery(s.db).Preload("Tags").Preload("VendorCategories").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&vendor, target.ResourceID).Error; err != nil {
@@ -428,6 +458,11 @@ func (s *StaticPageService) buildPayload(target staticBuildTarget) (StaticPagePa
 			Where("EXISTS (SELECT 1 FROM product_suppliers ps WHERE ps.product_id = products.id AND ps.vendor_id = ? AND ps.status = 'approved' AND ps.deleted_at IS NULL)", vendor.ID).
 			Order("products.is_recommended desc, products.sort_order asc, products.id asc").Limit(6).Find(&products)
 		enrichProductSummaries(s.db, products, vendor.ID)
+		for i := range products {
+			if products[i].Supplier != nil {
+				redactVendor(&products[i].Supplier.Vendor)
+			}
+		}
 		var posts []model.VendorPost
 		s.db.Where("vendor_id = ? AND status = ? AND published_at <= ?", vendor.ID, "approved", time.Now()).Order("published_at desc, id desc").Limit(6).Find(&posts)
 		payload.Slug, payload.Vendor, payload.Products, payload.Posts = vendor.Slug, &vendor, products, posts
@@ -486,6 +521,14 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 		body.WriteString(`<a href="` + template.HTMLEscapeString(item.URL) + `">` + template.HTMLEscapeString(item.Name) + `</a> / `)
 	}
 	body.WriteString(`</nav><h1>` + template.HTMLEscapeString(doc.BodyTitle) + `</h1><p>` + template.HTMLEscapeString(doc.BodyText) + `</p>`)
+	if payload.Supplier != nil {
+		supplier := payload.Supplier
+		body.WriteString("<section><h2>" + template.HTMLEscapeString(supplier.Vendor.Name) + "</h2><p>" + template.HTMLEscapeString(supplier.VendorModel) + "</p><p>" + template.HTMLEscapeString(supplier.Description) + "</p>")
+		if supplier.Image != "" {
+			body.WriteString("<img alt=\"本厂产品\" src=\"" + template.HTMLEscapeString(supplier.Image) + "\">")
+		}
+		body.WriteString("<p>" + template.HTMLEscapeString(supplier.LeadTime) + " · " + template.HTMLEscapeString(supplier.SupplyAbility) + "</p></section>")
+	}
 	if payload.Vendor != nil {
 		vendor := payload.Vendor
 		body.WriteString(`<section><h2>厂商概况</h2>`)
@@ -521,7 +564,11 @@ func staticSemanticFallback(payload StaticPagePayload, doc seoDocument) string {
 		if len(payload.Products) > 0 {
 			body.WriteString(`<section><h2>关联产品</h2><ul>`)
 			for _, product := range payload.Products {
-				body.WriteString(`<li><a href="/products/` + template.HTMLEscapeString(product.Slug) + `">` + template.HTMLEscapeString(product.Name) + `</a></li>`)
+				path, name := "/products/"+product.Slug, product.Name
+				if product.Supplier != nil {
+					path, name = showroomPath(*product.Supplier), product.Supplier.VendorProductName
+				}
+				body.WriteString(`<li><a href="` + template.HTMLEscapeString(path) + `">` + template.HTMLEscapeString(name) + `</a></li>`)
 			}
 			body.WriteString(`</ul></section>`)
 		}
@@ -631,6 +678,9 @@ func (s *StaticPageService) Serve(c *gin.Context) bool {
 	if s.db.Where("resource_type = ? AND slug = ? AND status = ?", resourceType, slug, model.StaticPageStatusReady).First(&build).Error != nil {
 		return false
 	}
+	if allowed, canonical := s.canGenerate(resourceType, build.ResourceID); !allowed || canonical != c.Request.URL.Path {
+		return false
+	}
 	path, safe := s.safeAbsolutePath(build.FilePath)
 	if !safe {
 		return false
@@ -640,7 +690,7 @@ func (s *StaticPageService) Serve(c *gin.Context) bool {
 	}
 	etag := `"` + build.ContentHash + `"`
 	c.Header("ETag", etag)
-	c.Header("Cache-Control", "public, max-age=60, s-maxage=86400, stale-while-revalidate=604800")
+	c.Header("Cache-Control", "public, no-cache, must-revalidate")
 	c.Header("X-Static-Page", "HIT")
 	if c.GetHeader("If-None-Match") == etag {
 		c.Status(http.StatusNotModified)
@@ -656,6 +706,9 @@ func (s *StaticPageService) Serve(c *gin.Context) bool {
 }
 
 func staticRoute(path string) (string, string, bool) {
+	if slug, id, ok := parseShowroomPath(path); ok {
+		return "supplier", fmt.Sprintf("%s/products/%d", slug, id), true
+	}
 	for prefix, resourceType := range map[string]string{"/v/": "vendor", "/products/": "product"} {
 		if strings.HasPrefix(path, prefix) {
 			slug := strings.Trim(strings.TrimPrefix(path, prefix), "/")

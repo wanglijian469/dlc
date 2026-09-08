@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useNavigationType } from "react-router-dom";
 import { lazy, Suspense, useEffect } from "react";
 import { trackRoute } from "./analytics";
 import { ContentPage } from "./pages/ContentPage";
@@ -46,8 +46,13 @@ const AuctionsAdminPage = lazy(() => import("./pages/admin/AuctionsAdminPage").t
 const CaptureWorkbenchPage = lazy(() => import("./pages/admin/CaptureWorkbenchPage").then((module) => ({ default: module.CaptureWorkbenchPage })));
 const VendorInvitationPage = lazy(() => import("./pages/VendorInvitationPage").then((module) => ({ default: module.VendorInvitationPage })));
 
+const VendorWorkspacePage = lazy(() => import("./pages/admin/VendorWorkspacePage").then(m => ({ default: m.VendorWorkspacePage })));
+const ShowroomProductPage = lazy(() => import("./pages/ShowroomProductPage").then(m => ({ default: m.ShowroomProductPage })));
+
 export function App() {
   const location = useLocation();
+  const navigation = useNavigationType();
+  useEffect(() => { if (navigation !== "POP" && !location.hash) window.scrollTo({ top: 0, behavior: "instant" }); }, [location.pathname, navigation]);
   useEffect(() => { trackRoute(location.pathname, location.search); }, [location.pathname, location.search]);
   return (
     <Suspense fallback={<div className="state-page">正在加载页面…</div>}>
@@ -57,6 +62,7 @@ export function App() {
       <Route path="/vendors" element={<VendorsPage />} />
       <Route path="/vendors/:id" element={<VendorDetailPage />} />
 	  <Route path="/v/:id" element={<VendorDetailPage />} />
+      <Route path="/v/:slug/products/:supplierId" element={<ShowroomProductPage />} />
       <Route path="/products" element={<ProductsPage />} />
       <Route path="/products/category/:slug" element={<ProductsPage />} />
       <Route path="/products/:id" element={<ProductDetailPage />} />
@@ -95,6 +101,7 @@ export function App() {
           </ProtectedAdminRoute>
         }
       />
+      <Route path="/admin/vendor-workspace" element={<ProtectedAdminRoute roles={["vendor"]}><VendorWorkspacePage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-profile" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProfilePage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-products" element={<ProtectedAdminRoute roles={["vendor"]}><VendorProductsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-analytics" element={<ProtectedAdminRoute roles={["vendor"]}><VendorAnalyticsPage /></ProtectedAdminRoute>} />
@@ -133,7 +140,7 @@ export function App() {
 }
 
 function AdminIndexRedirect() {
-  return <Navigate to={localStorage.getItem("cms_role") === "vendor" ? "/admin/vendor-profile" : "/admin/dashboard"} replace />;
+  return <Navigate to={localStorage.getItem("cms_role") === "vendor" ? "/admin/vendor-workspace" : "/admin/dashboard"} replace />;
 }
 
 function GuideRoute() {

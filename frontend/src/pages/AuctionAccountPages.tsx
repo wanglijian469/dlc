@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { awardAuction, cancelAuction, createAuction, getOwnAuction, listNotifications, listOwnAuctions, publishAuction, readAllNotifications, updateAuction, uploadMarketImage } from "../api/market";
+import { awardAuction, cancelAuction, createAuction, getOwnAuction, listNotifications, listOwnAuctions, publishAuction, readAllNotifications, readNotification, updateAuction, uploadMarketImage } from "../api/market";
 import { getApiErrorMessage } from "../api/client";
 import { PageFrame } from "../components/public/PageFrame";
 import type { AuctionBid, ProcurementAuction, UserNotification } from "../types/api";
@@ -54,5 +54,5 @@ export function NotificationsPage() {
   const [unread, setUnread] = useState(0);
   const load = () => listNotifications().then((result) => { setItems(result.items); setUnread(result.unreadCount); });
   useEffect(() => { void load(); }, []);
-  return <PageFrame breadcrumbs={[{ label: "首页", path: "/" }]} title="站内消息" subtitle={"未读 " + unread + " 条"}><div className="section-title"><span>竞价、排名和定标结果都会在这里保留。</span><button className="outline-btn small" type="button" onClick={() => readAllNotifications().then(load)}>全部已读</button></div><div className="notification-list">{items.map((item) => <Link className={item.readAt ? "" : "unread"} key={item.id} to={item.businessType === "auction" ? "/auctions/" + item.businessId : "/"}><strong>{item.title}</strong><p>{item.content}</p><time>{new Date(item.createdAt).toLocaleString()}</time></Link>)}</div></PageFrame>;
+  return <PageFrame breadcrumbs={[{ label: "首页", path: "/" }]} title="站内消息" subtitle={"未读 " + unread + " 条"}><div className="section-title"><span>企业及产品审核结果、竞价动态都会在这里保留。</span><button className="outline-btn small" type="button" onClick={() => readAllNotifications().then(load)}>全部已读</button></div><div className="notification-list">{items.map((item) => <Link onClick={() => { if (!item.readAt) void readNotification(item.id).catch(() => undefined); }} className={item.readAt ? "" : "unread"} key={item.id} to={item.businessType === "auction" ? "/auctions/" + item.businessId : item.businessType === "vendor_review" ? "/admin/vendor-profile" : item.businessType === "product_review" ? "/admin/vendor-products?review=" + item.businessId : "/"}><strong>{item.title}</strong><p>{item.content}</p><time>{new Date(item.createdAt).toLocaleString()}</time></Link>)}</div></PageFrame>;
 }

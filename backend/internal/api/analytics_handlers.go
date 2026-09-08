@@ -30,6 +30,7 @@ var analyticsEvents = map[string]bool{
 	"vendor_register_success": true,
 	"contact_phone_click":     true,
 	"contact_wechat_copy":     true,
+	"contact_wechat_qr_view":  true,
 	"vendor_website_click":    true,
 	"search_zero_results":     true,
 	"not_found":               true,
@@ -41,6 +42,7 @@ type AnalyticsHandler struct {
 }
 
 type analyticsRequest struct {
+	Source      string `json:"source"`
 	EventType   string `json:"eventType"`
 	Path        string `json:"path"`
 	ContentType string `json:"contentType"`
@@ -68,10 +70,31 @@ func (h AnalyticsHandler) RecordEvent(c *gin.Context) {
 		Fail(c, http.StatusBadRequest, 400, "转化事件与页面不匹配")
 		return
 	}
+	vendorID, supplierID := uint(0), uint(0)
+	if contentType == "vendor" {
+		vendorID = contentID
+	}
+	if contentType == "supplier" {
+		var supplier model.ProductSupplier
+		if h.DB.First(&supplier, contentID).Error != nil {
+			Fail(c, 400, 400, "访问内容不可统计")
+			return
+		}
+		vendorID, supplierID = supplier.VendorID, supplier.ID
+	}
+	if c.GetString("role") == "admin" || (vendorID > 0 && c.GetString("role") == "vendor" && c.GetUint("vendorId") == vendorID) {
+		OK(c, gin.H{"recorded": false})
+		return
+	}
+	source := "unknown"
+	if req.Source == "share" || req.Source == "qr" || req.Source == "site" {
+		source = req.Source
+	}
 	visitor := h.visitorHash(c)
 	window := analyticsWindow(req.EventType, time.Now())
 	event := model.AnalyticsEvent{
 		EventType: req.EventType, Path: path, ContentType: contentType, ContentID: contentID,
+		VendorID: vendorID, SupplierID: supplierID, Source: source,
 		Province: provinceForIP(c.ClientIP(), h.Config.GeoIPDBPath), VisitorHash: visitor, EventWindow: window,
 	}
 	if err := h.DB.Create(&event).Error; err != nil {
@@ -103,6 +126,13 @@ func (h AnalyticsHandler) resolveTarget(path, contentType string, contentID uint
 			return "", "", 0, false
 		}
 		return path, "", 0, true
+	}
+	if slug, id, ok := parseShowroomPath(path); ok {
+		supplier, err := loadShowroomSupplier(h.DB, slug, id)
+		if err != nil {
+			return "", "", 0, false
+		}
+		return showroomPath(supplier), "supplier", supplier.ID, true
 	}
 	if id, ok := numericRoute(path, "/vendors/"); ok {
 		var vendor model.Vendor
@@ -193,8 +223,8 @@ func isConversionTargetAllowed(eventType, path, contentType string) bool {
 		return path == "/search"
 	case "join_cta_click", "vendor_register_success":
 		return path == "/join"
-	case "contact_phone_click", "contact_wechat_copy", "vendor_website_click":
-		return contentType == "vendor"
+	case "contact_phone_click", "contact_wechat_copy", "contact_wechat_qr_view", "vendor_website_click":
+		return contentType == "vendor" || contentType == "supplier"
 	default:
 		return false
 	}
@@ -338,10 +368,10 @@ func (h AnalyticsHandler) VendorSummary(c *gin.Context) {
 	vendorEvents := h.DB.Model(&model.AnalyticsEvent{}).
 		Where("created_at >= ? AND content_type = ? AND content_id = ?", start, "vendor", vendorID)
 	var vendorPV, vendorUV, contacts int64
-	vendorEvents.Where("event_type = ?", "page_view").Count(&vendorPV)
-	vendorEvents.Where("event_type = ?", "page_view").Distinct("visitor_hash").Count(&vendorUV)
-	contactTypes := []string{"contact_phone_click", "contact_wechat_copy", "vendor_website_click"}
-	vendorEvents.Where("event_type IN ?", contactTypes).Count(&contacts)
+	vendorEvents.Session(&gorm.Session{}).Where("event_type = ?", "page_view").Count(&vendorPV)
+	vendorEvents.Session(&gorm.Session{}).Where("event_type = ?", "page_view").Distinct("visitor_hash").Count(&vendorUV)
+	contactTypes := []string{"contact_phone_click", "contact_wechat_copy", "contact_wechat_qr_view", "vendor_website_click"}
+	vendorEvents.Session(&gorm.Session{}).Where("event_type IN ?", contactTypes).Count(&contacts)
 	contactEvents := []analyticsCount{}
 	h.DB.Model(&model.AnalyticsEvent{}).
 		Select("event_type AS label, COUNT(*) AS count").
@@ -370,8 +400,8 @@ func (h AnalyticsHandler) VendorSummary(c *gin.Context) {
 	if len(productIDs) > 0 {
 		productEvents := h.DB.Model(&model.AnalyticsEvent{}).
 			Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id IN ?", start, "page_view", "product", productIDs)
-		productEvents.Count(&productPV)
-		productEvents.Distinct("visitor_hash").Count(&productUV)
+		productEvents.Session(&gorm.Session{}).Count(&productPV)
+		productEvents.Session(&gorm.Session{}).Distinct("visitor_hash").Count(&productUV)
 		h.DB.Model(&model.AnalyticsEvent{}).
 			Select("DATE(created_at) AS date, COUNT(*) AS pv, COUNT(DISTINCT visitor_hash) AS uv").
 			Where("created_at >= ? AND event_type = ? AND content_type = ? AND content_id IN ?", start, "page_view", "product", productIDs).
@@ -405,7 +435,13 @@ func (h AnalyticsHandler) VendorSummary(c *gin.Context) {
 		return items[i].Name < items[j].Name
 	})
 
+	showroom, err := h.showroomAnalytics(vendorID, start)
+	if err != nil {
+		Fail(c, 500, 500, "推广统计暂时不可用，请稍后重试")
+		return
+	}
 	OK(c, gin.H{
+		"showroom": showroom,
 		"days":     days,
 		"vendor":   gin.H{"id": vendor.ID, "name": vendor.Name, "pv": vendorPV, "uv": vendorUV, "contacts": contacts, "contactEvents": contactEvents, "trend": vendorTrend},
 		"products": gin.H{"pv": productPV, "uv": productUV, "trend": productTrend, "items": items},
@@ -417,9 +453,9 @@ func (h AnalyticsHandler) Summary(c *gin.Context) {
 	start := time.Now().AddDate(0, 0, -days)
 	base := h.DB.Model(&model.AnalyticsEvent{}).Where("created_at >= ?", start)
 	var pv, uv, conversions int64
-	base.Where("event_type = ?", "page_view").Count(&pv)
-	base.Where("event_type = ?", "page_view").Distinct("visitor_hash").Count(&uv)
-	base.Where("event_type <> ?", "page_view").Count(&conversions)
+	base.Session(&gorm.Session{}).Where("event_type = ?", "page_view").Count(&pv)
+	base.Session(&gorm.Session{}).Where("event_type = ?", "page_view").Distinct("visitor_hash").Count(&uv)
+	base.Session(&gorm.Session{}).Where("event_type <> ?", "page_view").Count(&conversions)
 	trend := []analyticsTrend{}
 	h.DB.Model(&model.AnalyticsEvent{}).Select("DATE(created_at) AS date, COUNT(*) AS pv, COUNT(DISTINCT visitor_hash) AS uv").Where("created_at >= ? AND event_type = ?", start, "page_view").Group("DATE(created_at)").Order("date asc").Scan(&trend)
 	provinces := []analyticsCount{}

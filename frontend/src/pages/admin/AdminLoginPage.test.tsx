@@ -30,7 +30,7 @@ describe("AdminLoginPage", () => {
       <MemoryRouter initialEntries={["/account/login"]}>
         <Routes>
           <Route path="/account/login" element={<AdminLoginPage />} />
-          <Route path="/admin/vendor-profile" element={<div>厂商资料页</div>} />
+          <Route path="/admin/vendor-workspace" element={<div>厂商资料页</div>} />
         </Routes>
       </MemoryRouter>,
     );

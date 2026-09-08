@@ -1,4 +1,5 @@
-﻿import { FormEvent, useEffect, useMemo, useState } from "react";
+﻿import { useListScrollRestoration } from "../hooks/useListScrollRestoration";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams } from "react-router-dom";
 import { getFilterOptions, listProducts, type ProductListParams } from "../api/public";
 import { PageFrame } from "../components/public/PageFrame";
@@ -54,10 +55,16 @@ export function ProductsPage() {
   };
 
   useEffect(load, [query]);
+  useListScrollRestoration(!loading && !error && !!result);
+  useEffect(() => {
+    setKeyword(params.get("keyword") || "");
+    setCategoryId(params.get("categoryId") || params.get("category") || ""); setOnlyHot(params.get("hot") === "true");
+  }, [params]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
     const next = new URLSearchParams();
+    if (params.get("vendorId")) next.set("vendorId", params.get("vendorId")!);
     if (keyword.trim()) next.set("keyword", keyword.trim());
     if (categoryId) next.set("categoryId", categoryId);
     if (onlyHot) next.set("hot", "true");
@@ -68,14 +75,14 @@ export function ProductsPage() {
   const total = result?.total || 0;
   const currentPage = result?.page || 1;
   const activeFilters = [keyword.trim(), categoryId ? filters.categories.find((category) => String(category.id) === categoryId)?.name : "", onlyHot ? "只看热门" : ""].filter(Boolean) as string[];
-  const clearFilters = () => { setKeyword(""); setCategoryId(""); setOnlyHot(false); setParams(new URLSearchParams()); };
+  const clearFilters = () => { setKeyword(""); setCategoryId(""); setOnlyHot(false); const next = new URLSearchParams(); if (params.get("vendorId")) next.set("vendorId", params.get("vendorId")!); setParams(next); };
 
   return (
     <PageFrame title={pageTitle} subtitle={`按分类、关键词和热门标识查找${pageTitle}`}>
-      <MobileDirectorySearch value={keyword} placeholder="搜索配件名称、适配机型" onChange={setKeyword} onSubmit={submit} />
+      <MobileDirectorySearch value={keyword} placeholder="搜索产品名称、型号或厂商" onChange={setKeyword} onSubmit={submit} />
       <button aria-expanded={filterOpen} className="mobile-filter-toggle" type="button" onClick={() => setFilterOpen(!filterOpen)}><SlidersHorizontal size={17} />筛选产品{activeFilters.length > 0 && <span>{activeFilters.length}</span>}</button>
       <form className={`filter-bar ${filterOpen ? "open" : ""}`} onSubmit={submit}>
-        <input className="filter-keyword" value={keyword} placeholder="搜索配件名称、适配机型" onChange={(event) => setKeyword(event.target.value)} />
+        <input className="filter-keyword" value={keyword} placeholder="搜索产品名称、型号或厂商" onChange={(event) => setKeyword(event.target.value)} />
         <select value={categoryId} onChange={(event) => setCategoryId(event.target.value)}>
           <option value="">全部分类</option>
           {hierarchicalCategoryOptions(filters.categories).map((category) => (

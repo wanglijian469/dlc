@@ -2,6 +2,10 @@
 
 可运行 MVP：Gin + GORM + MySQL 后端，React + TypeScript + Vite 前台与后台 CMS。
 
+## 厂商推广工作台
+
+厂商工作台、三步产品录入、私有草稿、企业展厅、本厂详情与推广统计已接入。数据库需从 Schema 19 增量升级至 20；见 [升级与验收说明](deploy/linux/VENDOR_PROMOTION_UPGRADE.md)。本次改动不会自动发布厂商资料。
+
 ## 环境要求
 
 - Go 1.25+
@@ -66,6 +70,25 @@ powershell -ExecutionPolicy Bypass -File scripts\package-windows.ps1
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
 ```
+
+## Linux x86_64 部署包
+
+在 Windows PowerShell 构建真正的 Linux ELF64 x86_64 升级包：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts\package-linux.ps1 -Version v2026.08.24-linux.1
+powershell -ExecutionPolicy Bypass -File scripts\verify-linux-package.ps1 -Archive release\dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
+```
+
+在已安装 Bash 的 Linux/macOS 构建机上也可执行：
+
+```bash
+./scripts/package-linux.sh v2026.08.24-linux.1
+./scripts/verify-linux-package.sh release/dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
+```
+
+包内包含一键升级、数据库独立升级、备份、健康检查和失败回滚脚本，不包含生产
+密钥、数据库、上传媒体或用户文档。服务器升级步骤见包内 `docs/UPGRADE.md`。
 
 ## 后台
 

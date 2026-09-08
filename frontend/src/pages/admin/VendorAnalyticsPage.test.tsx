@@ -19,8 +19,8 @@ describe("VendorAnalyticsPage", () => {
 
   it("shows scoped metrics, ranking and shared-product notice", async () => {
     render(<MemoryRouter><VendorAnalyticsPage /></MemoryRouter>);
-    expect(await screen.findByText("汉丰农机访问概览")).toBeInTheDocument();
-    expect(screen.getByText("收割机链条")).toBeInTheDocument();
+    expect(await screen.findByText("汉丰农机推广效果")).toBeInTheDocument();
+    expect(screen.getByText(/收割机链条：16/)).toBeInTheDocument();
     expect(screen.getByText(/不等同于本厂独立曝光/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "近 7 天" }));
     await waitFor(() => expect(mockedGetVendorAnalytics).toHaveBeenLastCalledWith(7));

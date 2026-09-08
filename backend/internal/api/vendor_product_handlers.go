@@ -38,6 +38,8 @@ type vendorProductDraft struct {
 }
 
 type vendorProductRecord struct {
+	ShowroomFeatured  bool       `json:"showroomFeatured"`
+	ShowroomOrder     int        `json:"showroomOrder"`
 	ID                uint       `json:"id"`
 	RecordType        string     `json:"recordType"`
 	VendorProductName string     `json:"vendorProductName"`
@@ -372,6 +374,17 @@ func (h AdminHandler) vendorProductRecords(vendorID uint) ([]vendorProductRecord
 }
 
 func recordFromSupplier(supplier model.ProductSupplier, latest *model.ProductSubmission) vendorProductRecord {
+	submissionID := uint(0)
+	if latest != nil {
+		submissionID = latest.ID
+		if latest.Status == "pending" || latest.Status == "rejected" {
+			view := decodeProductSubmission(*latest)
+			currentPrice := priceSnapshot(supplier)
+			applySupplierDraft(&supplier, view.SupplierDraft)
+			restoreSupplierPrice(&supplier, currentPrice)
+			supplier.ReviewNote = latest.ReviewNote
+		}
+	}
 	name := supplier.VendorProductName
 	if name == "" {
 		name = supplier.Product.Name
@@ -380,11 +393,14 @@ func recordFromSupplier(supplier model.ProductSupplier, latest *model.ProductSub
 	if latest != nil && latest.Status == "pending" && supplier.Status == "approved" {
 		status = "pending_update"
 	}
+	if latest != nil && latest.Status == "rejected" && supplier.Status == "approved" {
+		status = "rejected_update"
+	}
 	categoryID := supplier.Product.CategoryID
 	if supplier.Product.Category.ParentID > 0 {
 		categoryID = supplier.Product.Category.ParentID
 	}
-	return vendorProductRecord{ID: supplier.ID, RecordType: "supplier", SupplierID: supplier.ID, VendorProductName: name, VendorModel: supplier.VendorModel, CategoryID: categoryID, CategoryName: supplier.Product.Category.Name, CompatibleModels: supplier.CompatibleModels, Description: supplier.Description, DetailContent: supplier.DetailContent, Image: supplier.Image, GalleryRaw: supplier.GalleryRaw, SpecsRaw: supplier.SpecsRaw, PriceNote: supplier.PriceNote, UnitPriceCents: supplier.UnitPriceCents, PriceUnit: supplier.PriceUnit, MinOrderQuantity: supplier.MinOrderQuantity, TaxIncluded: supplier.TaxIncluded, FreightNote: supplier.FreightNote, AvailableQuantity: supplier.AvailableQuantity, LeadTime: supplier.LeadTime, PriceValidUntil: supplier.PriceValidUntil, Negotiable: supplier.Negotiable, PriceVersion: supplier.PriceVersion, PriceUpdatedAt: supplier.PriceUpdatedAt, SupplyAbility: supplier.SupplyAbility, InquiryText: supplier.InquiryText, Status: status, ReviewNote: supplier.ReviewNote}
+	return vendorProductRecord{SubmissionID: submissionID, ShowroomFeatured: supplier.ShowroomFeatured, ShowroomOrder: supplier.ShowroomOrder, ID: supplier.ID, RecordType: "supplier", SupplierID: supplier.ID, VendorProductName: name, VendorModel: supplier.VendorModel, CategoryID: categoryID, CategoryName: supplier.Product.Category.Name, CompatibleModels: supplier.CompatibleModels, Description: supplier.Description, DetailContent: supplier.DetailContent, Image: supplier.Image, GalleryRaw: supplier.GalleryRaw, SpecsRaw: supplier.SpecsRaw, PriceNote: supplier.PriceNote, UnitPriceCents: supplier.UnitPriceCents, PriceUnit: supplier.PriceUnit, MinOrderQuantity: supplier.MinOrderQuantity, TaxIncluded: supplier.TaxIncluded, FreightNote: supplier.FreightNote, AvailableQuantity: supplier.AvailableQuantity, LeadTime: supplier.LeadTime, PriceValidUntil: supplier.PriceValidUntil, Negotiable: supplier.Negotiable, PriceVersion: supplier.PriceVersion, PriceUpdatedAt: supplier.PriceUpdatedAt, SupplyAbility: supplier.SupplyAbility, InquiryText: supplier.InquiryText, Status: status, ReviewNote: supplier.ReviewNote}
 }
 
 func recordFromSubmission(submission model.ProductSubmission) vendorProductRecord {

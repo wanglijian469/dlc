@@ -217,7 +217,7 @@ func (h PublicHandler) Products(c *gin.Context) {
 	query := visibleProductQuery(h.DB).Preload("Category")
 	if keyword := strings.TrimSpace(c.Query("keyword")); keyword != "" {
 		like := "%" + keyword + "%"
-		query = query.Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like)
+		query = query.Where(productDiscoveryPredicate, like, like, like, like, like, like)
 	}
 	if categoryID := queryUint(c, "categoryId"); categoryID > 0 {
 		query = query.Where("products.category_id IN ?", productCategoryIDs(h.DB, categoryID))
@@ -339,7 +339,7 @@ func (h PublicHandler) Search(c *gin.Context) {
 	var products []model.Product
 	var categories []model.Category
 	vendorQuery := h.DB.Model(&model.Vendor{}).Preload("Tags").Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Where("is_visible = ? AND publication_status = ? AND (name LIKE ? OR short_name LIKE ? OR main_products LIKE ?)", true, "published", like, like, like).Order("is_recommended desc, sort_order asc, id asc")
-	productQuery := visibleProductQuery(h.DB).Preload("Category").Where("products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ?", like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
+	productQuery := visibleProductQuery(h.DB).Preload("Category").Where(productDiscoveryPredicate, like, like, like, like, like, like).Order("products.is_recommended desc, products.sort_order asc, products.id asc")
 	categoryQuery := publishedCategoryQuery(h.DB).Where("name LIKE ?", like).Order("sort_order asc, id asc")
 	vendorResult, err := paginate(vendorQuery, &vendors, page, pageSize)
 	if err != nil {
@@ -473,3 +473,6 @@ func clamp(value, min, max int) int {
 	}
 	return value
 }
+
+// Supplier names and models are searchable only through a live public relationship.
+const productDiscoveryPredicate = `products.name LIKE ? OR products.compatible_models LIKE ? OR products.description LIKE ? OR EXISTS (SELECT 1 FROM product_suppliers ps JOIN vendors v ON v.id = ps.vendor_id WHERE ps.product_id = products.id AND ps.deleted_at IS NULL AND ps.status = 'approved' AND v.deleted_at IS NULL AND v.is_visible = 1 AND v.publication_status = 'published' AND (v.published_at IS NULL OR v.published_at <= CURRENT_TIMESTAMP) AND (ps.vendor_product_name LIKE ? OR ps.vendor_model LIKE ? OR v.name LIKE ?))`

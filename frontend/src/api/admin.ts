@@ -102,6 +102,7 @@ export function getAnalyticsSummary(days: 7 | 30 | 90) {
 }
 
 export interface VendorAnalyticsSummary {
+ showroom?: { pv: number; uv: number; productPV: number; productUV: number; contactUV: number; conversionRate: number; contactEvents: Array<{label: string; count: number}>; sources: Array<{label: string; count: number}>; items: Array<{supplierId: number; name: string; path: string; pv: number; uv: number}> };
   days: number;
   vendor: {
     id: number;
@@ -235,12 +236,12 @@ export function updateCaptureAISettings(payload: CaptureAISettingsUpdate) {
   return adminClient.put<never, CaptureAISettings>("/api/admin/capture-ai-settings", payload);
 }
 
-export function uploadFile(file: File, metadata: { altText?: string; caption?: string } = {}) {
+export function uploadFile(file: File, metadata: { altText?: string; caption?: string } = {}, onProgress?: (percent: number) => void) {
   const form = new FormData();
   form.append("file", file);
   if (metadata.altText) form.append("altText", metadata.altText);
   if (metadata.caption) form.append("caption", metadata.caption);
-  return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/uploads", form, { headers: { "Content-Type": "multipart/form-data" } });
+  return adminClient.post<never, { assetId: number; status: "staged" | "published"; url: string; previewUrl: string; width: number; height: number; size: number; mime: string; sha256: string }>("/api/admin/uploads", form, { onUploadProgress: e => onProgress?.(Math.round((e.loaded / (e.total || e.loaded || 1)) * 100)), headers: { "Content-Type": "multipart/form-data" } });
 }
 
 export function downloadRemoteImage(url: string) {
@@ -335,7 +336,7 @@ export function listProductSubmissionMatches(id: number, keyword = "") {
 	return adminClient.get<never, ProductMatchSuggestion[]>(`/api/admin/product-submissions/${id}/matches`, { params: { keyword } });
 }
 
-export function updateOwnProductPrice(id: number, payload: Pick<VendorProductRecord, "unitPriceCents" | "priceUnit" | "minOrderQuantity" | "taxIncluded" | "freightNote" | "availableQuantity" | "leadTime" | "priceValidUntil" | "negotiable"> & { expectedVersion: number }) {
+export function updateOwnProductPrice(id: number, payload: Pick<VendorProductRecord, "unitPriceCents" | "priceUnit" | "minOrderQuantity" | "taxIncluded" | "freightNote" | "availableQuantity" | "leadTime" | "priceValidUntil" | "negotiable" | "supplyAbility"> & { expectedVersion: number }) {
   return adminClient.put<never, ProductSupplier>("/api/admin/vendor-products/" + id + "/price", payload);
 }
 

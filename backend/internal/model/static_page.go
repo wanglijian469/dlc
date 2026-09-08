@@ -79,7 +79,12 @@ func (vendor *Vendor) AfterSave(tx *gorm.DB) error {
 	if err := markStaticBuildsStale(tx, "vendor", []uint{vendor.ID}); err != nil {
 		return err
 	}
-	return markStaticBuildsStale(tx, "product", associatedProductIDs(tx, vendor.ID))
+	if err := markStaticBuildsStale(tx, "product", associatedProductIDs(tx, vendor.ID)); err != nil {
+		return err
+	}
+	var ids []uint
+	tx.Model(&ProductSupplier{}).Where("vendor_id = ?", vendor.ID).Pluck("id", &ids)
+	return markStaticBuildsStale(tx, "supplier", ids)
 }
 
 func (vendor *Vendor) AfterDelete(tx *gorm.DB) error {
@@ -90,7 +95,12 @@ func (product *Product) AfterSave(tx *gorm.DB) error {
 	if err := markStaticBuildsStale(tx, "product", []uint{product.ID}); err != nil {
 		return err
 	}
-	return markStaticBuildsStale(tx, "vendor", associatedVendorIDs(tx, product.ID))
+	if err := markStaticBuildsStale(tx, "vendor", associatedVendorIDs(tx, product.ID)); err != nil {
+		return err
+	}
+	var ids []uint
+	tx.Model(&ProductSupplier{}).Where("product_id = ?", product.ID).Pluck("id", &ids)
+	return markStaticBuildsStale(tx, "supplier", ids)
 }
 
 func (product *Product) AfterDelete(tx *gorm.DB) error {
@@ -98,6 +108,9 @@ func (product *Product) AfterDelete(tx *gorm.DB) error {
 }
 
 func (supplier *ProductSupplier) AfterSave(tx *gorm.DB) error {
+	if err := markStaticBuildsStale(tx, "supplier", []uint{supplier.ID}); err != nil {
+		return err
+	}
 	if err := markStaticBuildsStale(tx, "product", []uint{supplier.ProductID}); err != nil {
 		return err
 	}

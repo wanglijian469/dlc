@@ -1,11 +1,17 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getHome, getVendor, getVendorContact, getVendorContactQRCode, getVendorPosts, listProducts } from "../api/public";
+import { getHome, getVendor, getVendorContact, getVendorContactQRCode, getVendorPosts } from "../api/public";
 import { VendorDetailPage } from "./VendorDetailPage";
+
+import { getShowroomProducts } from "../api/workspace";
+vi.mock("../api/workspace", () => ({ getShowroomProducts: vi.fn() }));
+vi.mock("../analytics", () => ({ trackAnalytics: vi.fn() }));
 
 vi.mock("../api/public", () => ({
   getHome: vi.fn(),
+  getFilterOptions: vi.fn().mockResolvedValue({ categories: [] }),
   getVendor: vi.fn(),
   getVendorContact: vi.fn(),
   getVendorContactQRCode: vi.fn(),
@@ -18,7 +24,7 @@ const mockedGetVendor = vi.mocked(getVendor);
 const mockedGetVendorContact = vi.mocked(getVendorContact);
 const mockedGetVendorContactQRCode = vi.mocked(getVendorContactQRCode);
 const mockedGetVendorPosts = vi.mocked(getVendorPosts);
-const mockedListProducts = vi.mocked(listProducts);
+const mockedListProducts = vi.mocked(getShowroomProducts);
 
 function renderDetail(path = "/vendors/8") {
   return render(
@@ -78,7 +84,7 @@ describe("VendorDetailPage", () => {
       serviceAdvantages: "源头工厂、支持定制、交付稳定",
       description: "专注农机液压件生产与配套服务。",
       websiteUrl: "https://vendor.example.com",
-      phone: "400-800-0008",
+      phone: "400-800-0008", phonePublic: true,
       contactName: "王经理",
       isVerified: true,
       establishedYear: "2012 年",
@@ -110,10 +116,10 @@ describe("VendorDetailPage", () => {
     expect(screen.getByText("加工服务能力")).toBeInTheDocument();
     expect(screen.getByText(/数控车削、焊接加工/)).toBeInTheDocument();
     expect(screen.getByText(/数控车床、焊接工位/)).toBeInTheDocument();
-    expect(screen.getByText("液压油缸总成")).toBeInTheDocument();
+    expect(await screen.findByText("液压油缸总成")).toBeInTheDocument();
     const breadcrumbs = screen.getByRole("navigation", { name: "面包屑" });
     expect(breadcrumbs.querySelector('a[href="/vendors"]')).toHaveTextContent("厂商资源");
-    await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith({ vendorId: "8", pageSize: 6 }));
+    await waitFor(() => expect(mockedListProducts).toHaveBeenCalledWith(8, expect.objectContaining({ pageSize: 12 })));
   });
 
   it("does not invent a website or inquiry entry when contact details are missing", async () => {
@@ -131,6 +137,23 @@ describe("VendorDetailPage", () => {
     expect(screen.queryByRole("link", { name: "访问官网" })).not.toBeInTheDocument();
     expect(screen.queryByText("在线询价")).not.toBeInTheDocument();
     expect(screen.queryByText("生产能力")).not.toBeInTheDocument();
+  });
+
+  it("renders enterprise gallery images in the complete-image grid", async () => {
+    mockedGetVendor.mockResolvedValue({
+      id: 11,
+      name: "图集测试厂商",
+      media: [{ id: 1, kind: "factory", caption: "竖版厂房", url: "/api/media/11" }, { id: 2, kind: "equipment", caption: "加工中心", url: "/api/media/12" }],
+    });
+    const { container } = renderDetail("/vendors/11");
+    expect(await screen.findByRole("heading", { name: "企业图集" })).toBeInTheDocument();
+    expect(container.querySelector(".vendor-media-grid img")?.getAttribute("src")).toMatch(/^\/api\/media\/11(?:\?|$)/);
+    fireEvent.click(screen.getByRole("button", { name: "放大企业图片：竖版厂房" }));
+    const dialog = screen.getByRole("dialog", { name: "图片预览" });
+    expect(dialog).toHaveTextContent("厂房 · 竖版厂房");
+    expect(within(dialog).getByRole("img", { name: "竖版厂房" }).getAttribute("src")).toMatch(/^\/api\/media\/11(?:\?|$)/);
+    fireEvent.click(screen.getByRole("button", { name: "下一张图片" }));
+    expect(within(dialog).getByRole("img", { name: "加工中心" })).toBeInTheDocument();
   });
 
 	it("loads the branded vendor site route", async () => {
@@ -156,18 +179,18 @@ describe("VendorDetailPage", () => {
     });
     mockedGetVendorContactQRCode.mockResolvedValue(new Blob(["qr"], { type: "image/png" }));
     renderDetail();
-    const buttons = await screen.findAllByRole("button", { name: "查看联系方式" });
+    const buttons = await screen.findAllByRole("button", { name: "查看联系电话" });
     fireEvent.click(buttons[0]);
-    expect(await screen.findByRole("link", { name: "13812345678" })).toHaveAttribute("href", "tel:13812345678");
+    expect(await screen.findByRole("link", { name: /13812345678/ })).toHaveAttribute("href", "tel:13812345678");
     fireEvent.click(screen.getByRole("button", { name: "微信联系" }));
     expect(screen.getByText("hanfeng-parts")).toBeInTheDocument();
     expect(await screen.findByRole("img", { name: "测试厂商 微信二维码" })).toHaveAttribute("src", "blob:vendor-qr");
     expect(screen.queryByText(/今日还可查看/)).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /复制电话|复制微信/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /复制微信/ })).toBeInTheDocument();
     expect(mockedGetVendorContact).toHaveBeenCalledWith(8);
   });
 
-  it("shows public phone, WeChat and QR code directly without copy actions", async () => {
+  it("shows public phone and WeChat with explicit successful-copy action", async () => {
     mockedGetVendor.mockResolvedValue({
       id: 10,
       name: "公开联系厂商",
@@ -178,11 +201,11 @@ describe("VendorDetailPage", () => {
       wechatPublic: true,
     });
     renderDetail("/v/publicvendor");
-    expect(await screen.findByRole("link", { name: "0319-5666294" })).toHaveAttribute("href", "tel:0319-5666294");
+    expect(await screen.findByRole("link", { name: /0319-5666294/ })).toHaveAttribute("href", "tel:0319-5666294");
     fireEvent.click(screen.getByRole("button", { name: "微信联系" }));
     expect(screen.getByText("public-wechat")).toBeInTheDocument();
     expect(screen.getByRole("img", { name: "公开联系厂商 微信二维码" })).toHaveAttribute("src", "/api/media/88");
-    expect(screen.queryByRole("button", { name: /复制电话|复制微信|电话联系/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /复制微信/ })).toBeInTheDocument();
   });
 
   it("shows vendor posts as a compact list, expands it and opens the full article", async () => {

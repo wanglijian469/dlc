@@ -52,13 +52,24 @@ func TestPublicAwardResultOnlyContainsPriceAndTime(t *testing.T) {
 	}
 }
 
-func TestSupplierContentApprovalPreservesRealtimePrice(t *testing.T) {
+func TestSupplierContentApprovalPreservesRealtimePriceAndSupplyAbility(t *testing.T) {
 	now := time.Now()
-	current := model.ProductSupplier{UnitPriceCents: 129900, Currency: "CNY", PriceUnit: "套", AvailableQuantity: 28, LeadTime: "现货", PriceVersion: 6, PriceUpdatedAt: &now}
+	current := model.ProductSupplier{UnitPriceCents: 129900, Currency: "CNY", PriceUnit: "套", AvailableQuantity: 28, LeadTime: "现货", SupplyAbility: "支持批量供货", PriceVersion: 6, PriceUpdatedAt: &now}
 	snapshot := priceSnapshot(current)
-	applySupplierDraft(&current, model.ProductSupplier{UnitPriceCents: 100, PriceUnit: "件", Description: "new reviewed content"})
+	applySupplierDraft(&current, model.ProductSupplier{UnitPriceCents: 100, PriceUnit: "件", SupplyAbility: "旧审核内容", Description: "new reviewed content"})
 	restoreSupplierPrice(&current, snapshot)
-	if current.UnitPriceCents != 129900 || current.PriceUnit != "套" || current.PriceVersion != 6 || current.Description != "new reviewed content" {
+	if current.UnitPriceCents != 129900 || current.PriceUnit != "套" || current.SupplyAbility != "支持批量供货" || current.PriceVersion != 6 || current.Description != "new reviewed content" {
 		t.Fatalf("reviewed content overwrote realtime price: %#v", current)
+	}
+}
+
+func TestSupplierPriceSnapshotIncludesSupplyAbility(t *testing.T) {
+	snapshot := priceSnapshot(model.ProductSupplier{SupplyAbility: "按订单生产", PriceVersion: 3})
+	payload, err := json.Marshal(snapshot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(payload), `"supplyAbility":"按订单生产"`) {
+		t.Fatalf("price snapshot omitted supply ability: %s", payload)
 	}
 }

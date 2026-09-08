@@ -42,6 +42,8 @@ type ProductSupplier struct {
 	ReviewedBy        string         `gorm:"size:50" json:"reviewedBy"`
 	ReviewedAt        *time.Time     `json:"reviewedAt,omitempty"`
 	ContentVersion    uint           `gorm:"not null;default:1" json:"contentVersion"`
+	ShowroomFeatured  bool           `gorm:"not null;default:false" json:"showroomFeatured"`
+	ShowroomOrder     int            `gorm:"not null;default:0" json:"showroomOrder"`
 	Product           Product        `json:"product,omitempty"`
 	Vendor            Vendor         `json:"vendor,omitempty"`
 	CreatedAt         time.Time      `json:"createdAt"`

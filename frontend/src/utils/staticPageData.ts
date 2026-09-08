@@ -1,13 +1,14 @@
 import type { LayoutConfig, Product, ProductSupplier, Vendor, VendorPost } from "../types/api";
 
 export interface StaticPageData {
-  kind: "vendor" | "product";
+  kind: "vendor" | "product" | "supplier";
   slug: string;
   layout: LayoutConfig;
   vendor?: Vendor;
   products?: Product[];
   product?: Product;
   suppliers?: ProductSupplier[];
+ supplier?: ProductSupplier;
   related?: Product[];
   posts?: VendorPost[];
 }

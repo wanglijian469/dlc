@@ -198,6 +198,13 @@ func (h SEOHandler) sitemapSections(base string) map[string][]sitemapURL {
 			appendURL("products", "/products/"+item.Slug, item.PublishedAt, item.UpdatedAt)
 		}
 	}
+	var showroomRows []model.ProductSupplier
+	showroomSupplierQuery(h.DB).Preload("Vendor").Order("product_suppliers.id asc").Find(&showroomRows)
+	for _, row := range showroomRows {
+		if row.Vendor.Slug != "" {
+			appendURL("products", showroomPath(row), nil, row.UpdatedAt)
+		}
+	}
 	var marketPosts []model.MarketPost
 	h.DB.Where("status = ? AND expires_at > ?", "published", time.Now()).Order("id asc").Find(&marketPosts)
 	for _, item := range marketPosts {
@@ -390,6 +397,19 @@ func (h SEOHandler) document(c *gin.Context) (seoDocument, bool) {
 		doc.BodyTitle = label
 		doc.Description = "联系平台运营方，反馈厂商资料、产品信息或平台使用问题。"
 		doc.BodyText = doc.Description
+		return doc, true
+	}
+	if slug, id, ok := parseShowroomPath(path); ok {
+		row, err := loadShowroomSupplier(h.DB, slug, id)
+		if err != nil {
+			return seoDocument{}, false
+		}
+		doc.Title = row.VendorProductName + "｜" + row.Vendor.Name + "｜" + meta.SiteName
+		doc.Description = fallbackSEO(row.Description, row.VendorProductName+"，型号 "+row.VendorModel+"。查看本厂供货信息与联系方式。")
+		doc.BodyTitle, doc.BodyText = row.VendorProductName, doc.Description
+		doc.Image = absoluteURL(base, row.Image)
+		doc.Breadcrumbs = []seoBreadcrumb{{Name: row.Vendor.Name, URL: base + "/v/" + slug}, {Name: row.VendorProductName, URL: canonical}}
+		doc.Schema = withBreadcrumbSchema(map[string]any{"@context": "https://schema.org", "@type": "Product", "name": row.VendorProductName, "model": row.VendorModel, "description": doc.Description, "url": canonical, "image": doc.Image, "manufacturer": map[string]any{"@type": "Organization", "name": row.Vendor.Name}}, doc.Breadcrumbs)
 		return doc, true
 	}
 	if slug, ok := routeSlug(path, "/v/"); ok {

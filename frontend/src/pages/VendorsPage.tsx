@@ -1,3 +1,4 @@
+import { useListScrollRestoration } from "../hooks/useListScrollRestoration";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { getFilterOptions, listVendors, type VendorListParams } from "../api/public";
@@ -55,6 +56,11 @@ export function VendorsPage() {
   };
 
   useEffect(load, [query]);
+  useListScrollRestoration(!loading && !error && !!result);
+  useEffect(() => {
+    setKeyword(params.get("keyword") || "");
+    setProvince(params.get("province") || ""); setTagId(params.get("tagId") || ""); setSort(params.get("sort") === "latest" ? "latest" : "recommended");
+  }, [params]);
 
   const submit = (event: FormEvent) => {
     event.preventDefault();

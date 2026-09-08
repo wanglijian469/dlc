@@ -32,7 +32,7 @@ fi
 echo "[3/4] Applying database schema migration"
 if ! MIGRATION_BINARY="${MIGRATION_BINARY}" \
   MIGRATION_WORKING_DIRECTORY="${PACKAGE_ROOT}" \
-  "${PACKAGE_ROOT}/scripts/migrate.sh"; then
+  MIGRATION_ONLY=true "${PACKAGE_ROOT}/scripts/migrate.sh"; then
   echo "database migration failed; the application remains stopped" >&2
   echo "restore backup before retrying: ${BACKUP_PATH}" >&2
   exit 1

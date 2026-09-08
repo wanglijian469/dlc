@@ -114,7 +114,7 @@ func (h AdminHandler) SubmitVendorProfile(c *gin.Context) {
 
 func (h AdminHandler) ListVendorSubmissions(c *gin.Context) {
 	var rows []model.VendorSubmission
-	query := h.DB.Model(&model.VendorSubmission{}).Preload("Vendor").Preload("Vendor.Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Order("created_at desc, id desc")
+	query := h.DB.Model(&model.VendorSubmission{}).Preload("Vendor").Preload("Vendor.Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).Order("created_at asc, id asc")
 	if status := strings.TrimSpace(c.Query("status")); status != "" {
 		query = query.Where("status = ?", status)
 	}
@@ -226,7 +226,10 @@ func (h AdminHandler) ReviewVendorSubmission(c *gin.Context) {
 		result.ReviewNote = strings.TrimSpace(req.ReviewNote)
 		result.ReviewedBy = c.GetString("username")
 		result.ReviewedAt = &now
-		return tx.Save(&result).Error
+		if err := tx.Save(&result).Error; err != nil {
+			return err
+		}
+		return notifyVendorReview(tx, result.VendorID, result.ID, "vendor_review", req.Status, req.ReviewNote)
 	})
 	if err != nil {
 		if err == errSubmissionReviewed {

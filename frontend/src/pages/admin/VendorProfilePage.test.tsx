@@ -1,9 +1,12 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getVendorProfile, submitVendorProfile } from "../../api/admin";
+import { getVendorProfile } from "../../api/admin";
 import { processingToggleDescription, vendorFieldGuidance } from "../../config/formGuidance";
 import { VendorProfilePage } from "./VendorProfilePage";
+
+import { saveWorkDraft, commitWorkDraft } from "../../api/workspace";
+vi.mock("../../api/workspace", () => ({ listWorkDrafts: vi.fn().mockResolvedValue([]), saveWorkDraft: vi.fn().mockImplementation(async (key, input) => ({ id: 2, clientKey: key, ...input, version: 1 })), commitWorkDraft: vi.fn().mockResolvedValue({}) }));
 
 vi.mock("../../api/admin", () => ({
   getVendorProfile: vi.fn(),
@@ -21,7 +24,7 @@ vi.mock("../../components/admin/VendorProductsEditor", () => ({
 }));
 
 const mockedGetVendorProfile = vi.mocked(getVendorProfile);
-const mockedSubmitVendorProfile = vi.mocked(submitVendorProfile);
+
 
 const guidedFields = [
   ["厂商简称", vendorFieldGuidance.shortName],
@@ -46,7 +49,6 @@ describe("VendorProfilePage writing guidance", () => {
       vendor: { id: 7, slug: "testvendor", name: "测试厂商", publicationStatus: "draft" },
       draft: { id: 7, slug: "testvendor", name: "测试厂商" },
     } as never);
-    mockedSubmitVendorProfile.mockResolvedValue({} as never);
   });
 
   afterEach(() => {
@@ -75,6 +77,7 @@ describe("VendorProfilePage writing guidance", () => {
 
     fireEvent.click(processingToggle);
     fireEvent.click(screen.getByRole("button", { name: "提交管理员审核" }));
-    await waitFor(() => expect(mockedSubmitVendorProfile).toHaveBeenCalledWith(expect.objectContaining({ providesProcessing: true })));
+    await waitFor(() => expect(saveWorkDraft).toHaveBeenCalledWith(expect.any(String), expect.objectContaining({ payload: expect.objectContaining({ providesProcessing: true }) })));
+    await waitFor(() => expect(commitWorkDraft).toHaveBeenCalledWith(2, 1));
   });
 });

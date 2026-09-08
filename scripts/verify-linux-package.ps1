@@ -1,38 +1,88 @@
 param(
-  [Parameter(Mandatory = $true)]
-  [string]$Archive
+  [Parameter(Mandatory = $true)][string]$Archive
 )
 
 $ErrorActionPreference = "Stop"
-$ArchivePath = (Resolve-Path $Archive).Path
-if (-not $ArchivePath.EndsWith(".tar.gz")) { throw "Archive must end in .tar.gz" }
-$WorkDir = Join-Path ([System.IO.Path]::GetTempPath()) ("dlc-linux-verify-" + [guid]::NewGuid().ToString("N"))
+$ArchivePath = [IO.Path]::GetFullPath($Archive)
+if (-not $ArchivePath.EndsWith(".tar.gz", [StringComparison]::OrdinalIgnoreCase)) {
+  throw "Archive must end in .tar.gz"
+}
+if (-not (Test-Path -LiteralPath $ArchivePath -PathType Leaf)) {
+  throw "Archive does not exist: $ArchivePath"
+}
+
+$TaskTempRoot = Join-Path ([IO.Path]::GetTempPath()) ("dlc-linux-verify-" + [Guid]::NewGuid().ToString("N"))
 try {
-  New-Item -ItemType Directory -Force $WorkDir | Out-Null
-  & tar.exe -xzf $ArchivePath -C $WorkDir
-  if ($LASTEXITCODE -ne 0) { throw "Archive extraction failed" }
-  $roots = @(Get-ChildItem -LiteralPath $WorkDir -Directory)
-  if ($roots.Count -ne 1) { throw "Archive must contain exactly one root directory" }
-  $root = $roots[0].FullName
-  @("server", "initdb", "VERSION", "SHA256SUMS", "README.md", "public\index.html", "public\favicon.png", "config\dlc.env.example", "systemd\dalu-parts.service", "nginx\dalu-parts.conf.template", "scripts\upgrade.sh", "scripts\database-upgrade.sh", "docs\INSTALL.md", "docs\UPGRADE.md", "docs\RELEASE_NOTES.md") | ForEach-Object {
-    if (-not (Test-Path -LiteralPath (Join-Path $root $_))) { throw "Missing package entry: $_" }
+  New-Item -ItemType Directory -Force $TaskTempRoot | Out-Null
+  & tar.exe -xzf $ArchivePath -C $TaskTempRoot
+  if ($LASTEXITCODE -ne 0) { throw "Unable to extract archive" }
+
+  $Roots = @(Get-ChildItem -Directory $TaskTempRoot)
+  if ($Roots.Count -ne 1) { throw "Archive must contain exactly one root directory" }
+  $PackageRoot = $Roots[0].FullName
+  $Required = @(
+    "server", "initdb", "VERSION", "SHA256SUMS", "README.md",
+    "public/index.html", "config/dlc.env.example",
+    "systemd/dalu-parts.service", "nginx/dalu-parts.conf.template",
+    "scripts/install-layout.sh", "scripts/install-mysql-8.0.46.sh",
+    "scripts/create-mysql-user.sh", "scripts/configure-site-url.sh",
+    "scripts/render-nginx-config.sh", "scripts/migrate.sh",
+    "scripts/database-upgrade.sh", "scripts/upgrade.sh", "scripts/start.sh",
+    "scripts/stop.sh", "scripts/health-check.sh", "scripts/backup.sh",
+    "docs/INSTALL.md", "docs/UPGRADE.md", "docs/RELEASE_NOTES.md",
+    "docs/VENDOR_PROMOTION_UPGRADE.md"
+  )
+  foreach ($Relative in $Required) {
+    if (-not (Test-Path -LiteralPath (Join-Path $PackageRoot $Relative))) {
+      throw "Missing package entry: $Relative"
+    }
   }
-  if ((Get-Item -LiteralPath (Join-Path $root "public\favicon.png")).Length -gt 32768) { throw "favicon.png must be 32 KiB or smaller" }
-  $serverBytes = [System.IO.File]::ReadAllBytes((Join-Path $root "server"))
-  $initdbBytes = [System.IO.File]::ReadAllBytes((Join-Path $root "initdb"))
-  if ($serverBytes.Length -lt 4 -or $serverBytes[0] -ne 0x7f -or $serverBytes[1] -ne 0x45 -or $initdbBytes[0] -ne 0x7f -or $initdbBytes[1] -ne 0x45) { throw "server or initdb is not an ELF binary" }
-  if ([System.IO.File]::ReadAllBytes((Join-Path $root "SHA256SUMS")) -contains 0x0d) { throw "SHA256SUMS must use Unix LF line endings" }
-  Get-ChildItem -LiteralPath (Join-Path $root "scripts") -Filter "*.sh" -File | ForEach-Object {
-    if ([System.IO.File]::ReadAllBytes($_.FullName) -contains 0x0d) { throw "Shell script must use Unix LF line endings: $($_.Name)" }
+
+  foreach ($BinaryName in @("server", "initdb")) {
+    $Bytes = [IO.File]::ReadAllBytes((Join-Path $PackageRoot $BinaryName))
+    if ($Bytes.Length -lt 20 -or $Bytes[0] -ne 0x7f -or $Bytes[1] -ne 0x45 -or $Bytes[2] -ne 0x4c -or $Bytes[3] -ne 0x46) {
+      throw "$BinaryName is not an ELF binary"
+    }
+    if ($Bytes[4] -ne 2 -or $Bytes[5] -ne 1 -or [BitConverter]::ToUInt16($Bytes, 18) -ne 62) {
+      throw "$BinaryName is not a Linux ELF64 x86_64 binary"
+    }
   }
-  Get-Content -Encoding UTF8 -LiteralPath (Join-Path $root "SHA256SUMS") | ForEach-Object {
-    if ($_ -notmatch '^([0-9a-f]{64})  \./(.+)$') { throw "Invalid checksum record: $_" }
-    $expected = $Matches[1]
-    $relative = $Matches[2]
-    $actual = (Get-FileHash -LiteralPath (Join-Path $root $relative) -Algorithm SHA256).Hash.ToLowerInvariant()
-    if ($actual -ne $expected) { throw "Checksum mismatch: $relative" }
+
+  foreach ($Script in (Get-ChildItem (Join-Path $PackageRoot "scripts") -Filter '*.sh')) {
+    $Bytes = [IO.File]::ReadAllBytes($Script.FullName)
+    if ($Bytes.Length -lt 2 -or $Bytes[0] -ne 35 -or $Bytes[1] -ne 33 -or $Bytes -contains 13) {
+      throw "Shell script must have a shebang and LF line endings without BOM: $($Script.Name)"
+    }
   }
-  Write-Host "Verified Linux deployment package: $ArchivePath"
+
+  $Forbidden = Get-ChildItem -Recurse -File $PackageRoot | Where-Object {
+    $_.Name -eq ".env" -or $_.Extension -in @(".sql", ".db", ".sqlite", ".xls") -or
+    ($_.Extension -eq ".xlsx" -and $_.FullName -notlike "*\public\templates\*")
+  }
+  if ($Forbidden) {
+    throw "Package contains a secret, database, or unexpected user document: $($Forbidden[0].FullName)"
+  }
+  if (Test-Path -LiteralPath (Join-Path $PackageRoot "media_storage")) {
+    throw "Package must not contain media_storage"
+  }
+
+  foreach ($Line in [IO.File]::ReadAllLines((Join-Path $PackageRoot "SHA256SUMS"))) {
+    if ($Line -notmatch '^([0-9a-f]{64})  \./(.+)$') { throw "Invalid SHA256SUMS line: $Line" }
+    $Expected = $Matches[1]
+    $Relative = $Matches[2].Replace('/', [IO.Path]::DirectorySeparatorChar)
+    $FilePath = Join-Path $PackageRoot $Relative
+    if (-not (Test-Path -LiteralPath $FilePath -PathType Leaf)) { throw "Checksum file is missing: $Relative" }
+    $Actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $FilePath).Hash.ToLowerInvariant()
+    if ($Actual -ne $Expected) { throw "Checksum mismatch: $Relative" }
+  }
+
+  Write-Output "verified $ArchivePath"
 } finally {
-  if (Test-Path -LiteralPath $WorkDir) { Remove-Item -LiteralPath $WorkDir -Recurse -Force }
+  if (Test-Path -LiteralPath $TaskTempRoot) {
+    $ResolvedTemp = [IO.Path]::GetFullPath($TaskTempRoot)
+    $ExpectedParent = [IO.Path]::GetFullPath([IO.Path]::GetTempPath())
+    if ($ResolvedTemp.StartsWith($ExpectedParent, [StringComparison]::OrdinalIgnoreCase)) {
+      Remove-Item -Recurse -Force -LiteralPath $ResolvedTemp
+    }
+  }
 }

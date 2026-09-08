@@ -8,6 +8,7 @@ import "./styles/upgrade.css";
 import "./styles/admin-upgrade.css";
 import "./styles/mobile-public.css";
 import "./styles/marketplace.css";
+import "./styles/vendor-promotion.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

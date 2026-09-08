@@ -20,6 +20,7 @@ type supplierPriceInput struct {
 	FreightNote       string     `json:"freightNote"`
 	AvailableQuantity int64      `json:"availableQuantity"`
 	LeadTime          string     `json:"leadTime"`
+	SupplyAbility     string     `json:"supplyAbility"`
 	PriceValidUntil   *time.Time `json:"priceValidUntil"`
 	Negotiable        bool       `json:"negotiable"`
 	ExpectedVersion   uint       `json:"expectedVersion"`
@@ -34,6 +35,7 @@ type supplierPriceSnapshot struct {
 	FreightNote       string     `json:"freightNote"`
 	AvailableQuantity int64      `json:"availableQuantity"`
 	LeadTime          string     `json:"leadTime"`
+	SupplyAbility     string     `json:"supplyAbility"`
 	PriceValidUntil   *time.Time `json:"priceValidUntil,omitempty"`
 	Negotiable        bool       `json:"negotiable"`
 	PriceVersion      uint       `json:"priceVersion"`
@@ -41,7 +43,12 @@ type supplierPriceSnapshot struct {
 }
 
 func priceSnapshot(row model.ProductSupplier) supplierPriceSnapshot {
-	return supplierPriceSnapshot{row.UnitPriceCents, row.Currency, row.PriceUnit, row.MinOrderQuantity, row.TaxIncluded, row.FreightNote, row.AvailableQuantity, row.LeadTime, row.PriceValidUntil, row.Negotiable, row.PriceVersion, row.PriceUpdatedAt}
+	return supplierPriceSnapshot{
+		UnitPriceCents: row.UnitPriceCents, Currency: row.Currency, PriceUnit: row.PriceUnit,
+		MinOrderQuantity: row.MinOrderQuantity, TaxIncluded: row.TaxIncluded, FreightNote: row.FreightNote,
+		AvailableQuantity: row.AvailableQuantity, LeadTime: row.LeadTime, SupplyAbility: row.SupplyAbility,
+		PriceValidUntil: row.PriceValidUntil, Negotiable: row.Negotiable, PriceVersion: row.PriceVersion, PriceUpdatedAt: row.PriceUpdatedAt,
+	}
 }
 
 func restoreSupplierPrice(row *model.ProductSupplier, value supplierPriceSnapshot) {
@@ -53,6 +60,7 @@ func restoreSupplierPrice(row *model.ProductSupplier, value supplierPriceSnapsho
 	row.FreightNote = value.FreightNote
 	row.AvailableQuantity = value.AvailableQuantity
 	row.LeadTime = value.LeadTime
+	row.SupplyAbility = value.SupplyAbility
 	row.PriceValidUntil = value.PriceValidUntil
 	row.Negotiable = value.Negotiable
 	row.PriceVersion = value.PriceVersion
@@ -73,6 +81,7 @@ func (h AdminHandler) UpdateOwnProductPrice(c *gin.Context) {
 	input.PriceUnit = strings.TrimSpace(input.PriceUnit)
 	input.FreightNote = strings.TrimSpace(input.FreightNote)
 	input.LeadTime = strings.TrimSpace(input.LeadTime)
+	input.SupplyAbility = strings.TrimSpace(input.SupplyAbility)
 	if input.UnitPriceCents < 0 || input.MinOrderQuantity < 0 || input.AvailableQuantity < 0 || (!input.Negotiable && (input.UnitPriceCents == 0 || input.PriceUnit == "")) {
 		Fail(c, http.StatusBadRequest, 400, "请填写有效价格、计价单位、起订量和库存")
 		return
@@ -89,7 +98,7 @@ func (h AdminHandler) UpdateOwnProductPrice(c *gin.Context) {
 			"unit_price_cents": input.UnitPriceCents, "currency": "CNY", "price_unit": input.PriceUnit,
 			"min_order_quantity": input.MinOrderQuantity, "tax_included": input.TaxIncluded,
 			"freight_note": input.FreightNote, "available_quantity": input.AvailableQuantity,
-			"lead_time": input.LeadTime, "price_valid_until": input.PriceValidUntil,
+			"lead_time": input.LeadTime, "supply_ability": input.SupplyAbility, "price_valid_until": input.PriceValidUntil,
 			"negotiable": input.Negotiable, "price_version": input.ExpectedVersion + 1, "price_updated_at": &now,
 		}
 		result := tx.Model(&model.ProductSupplier{}).Where("id = ? AND vendor_id = ? AND status = ? AND price_version = ?", current.ID, vendorID, "approved", input.ExpectedVersion).Updates(updates)

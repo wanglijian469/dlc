@@ -1,7 +1,9 @@
 ﻿import { render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { fireEvent } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { within } from "@testing-library/react";
+import { cleanup } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getHome, getProduct, getProductSuppliers, listProducts } from "../api/public";
 import { ProductDetailPage } from "./ProductDetailPage";
 
@@ -18,6 +20,8 @@ const mockedGetProductSuppliers = vi.mocked(getProductSuppliers);
 const mockedListProducts = vi.mocked(listProducts);
 
 describe("ProductDetailPage", () => {
+  afterEach(() => cleanup());
+
   beforeEach(() => {
     mockedGetHome.mockResolvedValue({
       topMenus: [],
@@ -114,6 +118,7 @@ describe("ProductDetailPage", () => {
       name: "花键轴总成",
       image: "/uploads/shaft-main.jpg",
       gallery: ["/uploads/shaft-side.jpg", "/uploads/shaft-detail.jpg"],
+      specs: [{ name: "轴径", value: "35mm", image: "/uploads/shaft-spec.jpg" }],
     });
     const { container } = render(
       <MemoryRouter initialEntries={["/products/18"]}>
@@ -128,5 +133,16 @@ describe("ProductDetailPage", () => {
     expect(container.querySelectorAll(".product-gallery img")).toHaveLength(3);
     fireEvent.click(container.querySelectorAll<HTMLButtonElement>('[aria-label="查看第 3 张产品图片"]')[0]);
     expect(container.querySelector(".product-main-media .industry-cover-photo")).toHaveAttribute("src", "/uploads/shaft-detail.jpg");
+
+    fireEvent.click(screen.getByRole("button", { name: "放大产品主图：花键轴总成" }));
+    expect(within(screen.getByRole("dialog", { name: "图片预览" })).getByRole("img", { name: "花键轴总成" })).toHaveAttribute("src", "/uploads/shaft-detail.jpg");
+    fireEvent.click(screen.getByRole("button", { name: "关闭图片预览" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "放大第 2 张产品图片" }));
+    expect(within(screen.getByRole("dialog", { name: "图片预览" })).getByRole("img", { name: "花键轴总成" })).toHaveAttribute("src", "/uploads/shaft-side.jpg");
+    fireEvent.click(screen.getByRole("button", { name: "关闭图片预览" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "放大参数图片：轴径" }));
+    expect(within(screen.getByRole("dialog", { name: "图片预览" })).getByRole("img", { name: "轴径参数图片" })).toHaveAttribute("src", "/uploads/shaft-spec.jpg");
   });
 });

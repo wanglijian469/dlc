@@ -83,7 +83,7 @@ elif ! grep -q '^STATIC_PAGE_DIR=' /etc/dalu-parts/dlc.env; then
 fi
 
 echo "[5/6] Applying database migration"
-"${PACKAGE_ROOT}/scripts/migrate.sh"
+MIGRATION_ONLY=true "${PACKAGE_ROOT}/scripts/migrate.sh"
 
 echo "[6/6] Starting and checking the new service"
 systemctl start dalu-parts.service

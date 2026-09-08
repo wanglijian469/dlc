@@ -9,6 +9,8 @@
 升级会保留现有配置和已上传文件。**不要**用安装包中的示例配置覆盖
 `/etc/dalu-parts/dlc.env`。
 
+当前厂商推广版需要数据库 Schema 20。Schema 19 升级请先阅读 [厂商推广增量升级说明](VENDOR_PROMOTION_UPGRADE.md)，使用本次重新构建的程序包；旧发布包不包含这些功能。
+
 ## 一、升级前准备
 
 1. 使用具备 `sudo` 权限的管理员登录 Linux 服务器。
@@ -27,8 +29,8 @@ sudo cp /etc/nginx/conf.d/dalu-parts.conf \
 
 ```bash
 cd /tmp
-tar -xzf dlc-deploy-linux-x86_64-v2026.08.23-linux.1.tar.gz
-cd dlc-deploy-linux-x86_64-v2026.08.23-linux.1
+tar -xzf dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
+cd dlc-deploy-linux-x86_64-v2026.08.24-linux.1
 chmod +x server initdb scripts/*.sh
 sha256sum -c SHA256SUMS
 sudo ./scripts/upgrade.sh
@@ -61,7 +63,7 @@ sudo ./scripts/upgrade.sh
 若程序文件已提前部署，或需要先单独验证数据库迁移，可执行：
 
 ```bash
-cd /tmp/dlc-deploy-linux-x86_64-v2026.08.23-linux.1
+cd /tmp/dlc-deploy-linux-x86_64-v2026.08.24-linux.1
 sudo ./scripts/database-upgrade.sh
 ```
 
