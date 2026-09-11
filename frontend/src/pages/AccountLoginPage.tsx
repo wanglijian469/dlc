@@ -30,7 +30,7 @@ export function AccountLoginPage() {
     localStorage.setItem("cms_username", result.username);
     const requested = params.get("returnTo") || "";
     const safeReturn = requested.startsWith("/") && !requested.startsWith("//") && !requested.includes("\\") && !/[\u0000-\u001f]/.test(requested) ? requested : "";
-    navigate(safeReturn || (result.role === "vendor" ? "/admin/vendor-workspace" : "/account/posts"), { replace: true });
+    navigate(safeReturn || (result.role === "vendor" ? "/admin/vendor-workspace" : "/account/profile"), { replace: true });
   };
 
   const submit = (event: FormEvent) => {
@@ -44,10 +44,10 @@ export function AccountLoginPage() {
   };
 
   if (currentUser && (currentRole === "buyer" || currentRole === "vendor")) {
-    return <main className="account-auth-page"><section className="account-auth-card account-session-card"><span>当前已登录</span><h1>{currentUser}</h1><p>{currentRole === "vendor" ? "厂商账号" : "采购商账号"}</p><button className="primary-btn" onClick={() => navigate(currentRole === "vendor" ? "/admin/vendor-workspace" : "/account/posts")}>进入我的中心</button><button className="outline-btn" onClick={() => void logoutSession().finally(() => { localStorage.clear(); window.location.reload(); })}>切换账号</button></section></main>;
+    return <main className="account-auth-page"><section className="account-auth-card account-session-card"><span>当前已登录</span><h1>{currentUser}</h1><p>{currentRole === "vendor" ? "厂商账号" : "采购商账号"}</p><button className="primary-btn" onClick={() => navigate(currentRole === "vendor" ? "/admin/vendor-workspace" : "/account/profile")}>进入我的中心</button><button className="outline-btn" onClick={() => void logoutSession().finally(() => { localStorage.clear(); window.location.reload(); })}>切换账号</button></section></main>;
   }
 
-  return <main className="account-auth-page"><section className="account-auth-intro"><Link to="/">大陆农机配件</Link><h1>连接真实需求与源头厂家</h1><p>查产品、找厂家、发布供求信息，一套账号在网页和 App 中使用。</p></section><form className="account-auth-card" onSubmit={submit}>
+  return <main className="account-auth-page"><section className="account-auth-intro"><Link to="/">大陆农机配件</Link><h1>连接真实需求与源头厂家</h1><p>查产品、找厂家、维护账号资料，一套账号在网页和 App 中使用。</p></section><form className="account-auth-card" onSubmit={submit}>
     <div className="account-auth-tabs"><button className={mode === "login" ? "active" : ""} type="button" onClick={() => setMode("login")}>登录</button><button className={mode === "register" ? "active" : ""} type="button" onClick={() => setMode("register")}>注册</button></div>
     <h2>{mode === "login" ? "账号登录" : "创建平台账号"}</h2>
     {mode === "register" && <div className="account-role-tabs"><button className={role === "vendor" ? "active" : ""} type="button" onClick={() => setRole("vendor")}>我是厂商</button><button className={role === "buyer" ? "active" : ""} type="button" onClick={() => setRole("buyer")}>我是采购商</button></div>}

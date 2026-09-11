@@ -33,7 +33,7 @@ func TestNormalizeTopMenusRestoresRequiredEntriesAndOrder(t *testing.T) {
 	}
 
 	got := NormalizeTopMenus(menus)
-	wantPaths := []string{"/", "/vendors", "/products", "/service", "/purchase", "/custom"}
+	wantPaths := []string{"/", "/vendors", "/products", "/service", "/custom"}
 	if len(got) != len(wantPaths) {
 		t.Fatalf("len(menus) = %d, want %d: %#v", len(got), len(wantPaths), got)
 	}
@@ -42,8 +42,8 @@ func TestNormalizeTopMenusRestoresRequiredEntriesAndOrder(t *testing.T) {
 			t.Fatalf("menu[%d].Path = %q, want %q", index, got[index].Path, path)
 		}
 	}
-	if got[4].ID != 91 || got[4].Name != "供求信息" || got[4].Icon != "clipboard" || !got[4].IsEnabled {
-		t.Fatalf("purchase menu was not normalized: %#v", got[4])
+	if got[4].ID != 92 {
+		t.Fatalf("custom menu not preserved: %#v", got[4])
 	}
 }
 

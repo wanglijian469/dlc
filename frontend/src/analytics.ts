@@ -7,7 +7,7 @@ type AnalyticsPayload = { eventType: AnalyticsEventType; path: string; contentTy
 let previousPath = "";
 let campaign: {owner: string; source: string} | undefined;
 let routeSource = "unknown";
-const publicPaths = ["/", "/vendors", "/products", "/service", "/join", "/about", "/purchase", "/links", "/guides", "/search"];
+const publicPaths = ["/", "/vendors", "/products", "/service", "/join", "/about", "/links", "/guides", "/search"];
 
 export function trackAnalytics(payload: AnalyticsPayload) {
   if (payload.eventType !== "not_found" && !isPublicPath(payload.path)) return;

@@ -4,7 +4,7 @@
 
 ## 厂商推广工作台
 
-厂商工作台、三步产品录入、私有草稿、企业展厅、本厂详情与推广统计已接入。数据库需从 Schema 19 增量升级至 20；见 [升级与验收说明](deploy/linux/VENDOR_PROMOTION_UPGRADE.md)。本次改动不会自动发布厂商资料。
+厂商工作台、三步产品录入、私有草稿、企业展厅、本厂详情与推广统计已接入。数据库当前为 Schema 23；升级会清理已退出运行代码的 `master_*` 原型表、遗留目录字段和已移除的供求功能数据。厂商推广升级说明见 [升级与验收说明](deploy/linux/VENDOR_PROMOTION_UPGRADE.md)。本次改动不会自动发布厂商资料。
 
 ## 环境要求
 
@@ -76,15 +76,15 @@ powershell -ExecutionPolicy Bypass -File .\start-windows.ps1
 在 Windows PowerShell 构建真正的 Linux ELF64 x86_64 升级包：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts\package-linux.ps1 -Version v2026.08.24-linux.1
-powershell -ExecutionPolicy Bypass -File scripts\verify-linux-package.ps1 -Archive release\dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
+powershell -ExecutionPolicy Bypass -File scripts\package-linux.ps1 -Version v2026.09.11-linux.1
+powershell -ExecutionPolicy Bypass -File scripts\verify-linux-package.ps1 -Archive release\dlc-deploy-linux-x86_64-v2026.09.11-linux.1.tar.gz
 ```
 
 在已安装 Bash 的 Linux/macOS 构建机上也可执行：
 
 ```bash
-./scripts/package-linux.sh v2026.08.24-linux.1
-./scripts/verify-linux-package.sh release/dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
+./scripts/package-linux.sh v2026.09.11-linux.1
+./scripts/verify-linux-package.sh release/dlc-deploy-linux-x86_64-v2026.09.11-linux.1.tar.gz
 ```
 
 包内包含一键升级、数据库独立升级、备份、健康检查和失败回滚脚本，不包含生产
@@ -135,5 +135,4 @@ flutter build apk --debug --dart-define=API_BASE_URL=http://10.0.2.2:8080
 仓库通过 `mobile/.fvmrc` 和 CI 固定 Flutter `3.44.9`。本地 Android 构建需先安装
 Android SDK；CI 会同时生成 debug/release APK，并上传 release 构建产物。
 
-供求信息通过 `/purchase` 在 PC 与移动网页共享同一 URL。采购商只能发布求购，
-厂商只能发布供应；联系方式不在公开列表和详情响应中返回，必须登录后单独获取。
+当前已移除供求信息功能。Schema 23 会删除供求专用表、旧菜单与占位页面；升级前请备份数据库。

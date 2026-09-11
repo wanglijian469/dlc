@@ -28,7 +28,7 @@ describe("SiteProvider", () => {
   it("refreshes vendor categories even when the page uses a static layout payload", async () => {
 	render(<SiteProvider><Probe /></SiteProvider>);
 	expect(screen.getByText(/静态站点/)).toBeInTheDocument();
-	expect(screen.getByText(/首页,厂商资源,配件货源,加工服务,供求信息/)).toBeInTheDocument();
+	expect(screen.getByText(/首页,厂商资源,配件货源,加工服务/)).toBeInTheDocument();
 	expect(await screen.findByText(/最新厂商分类/)).toBeInTheDocument();
 	expect(getVendorCategories).toHaveBeenCalledTimes(1);
 	await waitFor(() => expect(getLayoutConfig).not.toHaveBeenCalled());

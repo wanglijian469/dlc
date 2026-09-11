@@ -204,18 +204,6 @@ class _JsonDetail extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Scaffold(
         appBar: AppBar(title: Text(title)),
-        bottomNavigationBar: SafeArea(
-          minimum: const EdgeInsets.fromLTRB(14, 8, 14, 12),
-          child: FilledButton.icon(
-            onPressed: () => kind == 'vendor'
-                ? context.go('/market')
-                : context.go('/publish'),
-            icon: Icon(kind == 'vendor'
-                ? Icons.storefront_outlined
-                : Icons.add_circle_outline),
-            label: Text(kind == 'vendor' ? '查看供求信息' : '发布求购'),
-          ),
-        ),
         body: FutureBuilder<Map<String, dynamic>>(
           future: future,
           builder: (context, snapshot) {
@@ -251,13 +239,6 @@ class _JsonDetail extends StatelessWidget {
                     Text('${data['province']} · ${data['city'] ?? ''}'),
                   const SizedBox(height: 18),
                   Text(description, style: const TextStyle(height: 1.7)),
-                  if (kind == 'vendor') ...[
-                    const SizedBox(height: 22),
-                    const Card(
-                        child: Padding(
-                            padding: EdgeInsets.all(14),
-                            child: Text('登录后可在厂家供求信息中查看受保护联系方式。'))),
-                  ],
                 ]);
           },
         ),

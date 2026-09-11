@@ -94,7 +94,7 @@ void main() {
     });
 
     final result = await ApiClient(store, baseUrl: origin.toString())
-        .getJson('/api/v1/market-posts');
+        .getJson('/api/products');
 
     expect(result['items'], isEmpty);
     expect(attempts, 2);

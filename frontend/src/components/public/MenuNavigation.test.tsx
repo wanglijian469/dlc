@@ -14,7 +14,7 @@ const menus: Menu[] = [
   ] },
 ];
 const renderSidebar = (path = "/") => render(<MemoryRouter initialEntries={[path]}><SidebarNav menus={menus} /></MemoryRouter>);
-afterEach(cleanup);
+afterEach(() => { cleanup(); localStorage.clear(); });
 
 describe("menu navigation", () => {
   it("renders semantic SVG icons", () => { const { container } = renderSidebar(); expect(container.querySelectorAll(".menu-icon svg")).toHaveLength(2); });
@@ -33,8 +33,8 @@ describe("menu navigation", () => {
     ]} /></MemoryRouter>);
     expect(screen.getByRole("link", { name: "找产品" })).toHaveAttribute("href", "/products");
     expect(screen.getByRole("link", { name: "找厂商" })).toHaveAttribute("href", "/vendors");
-    expect(screen.getByRole("link", { name: "供求" })).toHaveAttribute("href", "/purchase");
-    expect(screen.getByRole("link", { name: "我的" })).toHaveAttribute("href", "/account/posts");
+    expect(screen.getByRole("link", { name: "加工服务" })).toHaveAttribute("href", "/service");
+    expect(screen.getByRole("link", { name: "我的" })).toHaveAttribute("href", "/account/profile");
   });
   it("honors isDefaultOpen and toggles the whole parent row", () => {
     renderSidebar(); expect(screen.getByText("变速箱齿轮")).toBeInTheDocument();
@@ -50,5 +50,16 @@ describe("menu navigation", () => {
 	expect(container.querySelector(".lucide-panel-left-open")).toBeInTheDocument();
   });
   it("matches a structured parent URL", () => { const { container } = renderSidebar("/products?categoryId=2"); expect(container.querySelector(".menu-row.selected")).toHaveTextContent("传动配件"); });
+  it("opens the selected group when its icon is clicked in the persisted collapsed sidebar", () => {
+    localStorage.setItem("directory_sidebar_collapsed", "true");
+    renderSidebar();
+    const category = screen.getByRole("button", { name: "传动配件" });
+    expect(category).toHaveAttribute("title", "传动配件");
+    expect(category).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(category);
+    expect(category).toHaveAttribute("aria-expanded", "true");
+    expect(localStorage.getItem("directory_sidebar_collapsed")).toBe("false");
+    expect(screen.getByRole("link", { name: "变速箱齿轮" })).toBeInTheDocument();
+  });
   it("auto-expands and highlights a matching child URL", () => { renderSidebar("/products?keyword=齿轮"); expect(screen.getByText("变速箱齿轮").closest("a")).toHaveClass("active"); });
 });

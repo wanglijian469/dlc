@@ -1,5 +1,5 @@
 ﻿import { adminClient, publicClient } from "./client";
-import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, MarketPost, Menu, PageResult, ProcurementAuction, Product, ProductMatchSuggestion, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorPost, VendorProductDuplicateResult, VendorProductRecord } from "../types/api";
+import type { AccountRole, Banner, Category, ContentPageRecord, FriendLink, Menu, PageResult, ProcurementAuction, Product, ProductMatchSuggestion, ProductSubmission, ProductSupplier, SiteConfig, Tag, Vendor, VendorCategory, VendorOption, VendorPost, VendorProductDuplicateResult, VendorProductRecord } from "../types/api";
 
 export type { AccountRole } from "../types/api";
 
@@ -77,13 +77,7 @@ export function getDashboardStats() {
   return adminClient.get<never, { vendors: number; products: number; pendingReviews: number; pendingProductReviews: number; missingImages: number }>("/api/admin/dashboard");
 }
 
-export function listAdminMarketPosts(params: { page: number; pageSize: number; status?: string; keyword?: string }) {
-  return adminClient.get<never, PageResult<MarketPost>>("/api/admin/market-posts", { params });
-}
 
-export function updateAdminMarketPostStatus(id: number, status: "published" | "removed", reason = "") {
-  return adminClient.put<never, MarketPost>(`/api/admin/market-posts/${id}/status`, { status, reason });
-}
 
 export interface AnalyticsSummary {
   days: number;

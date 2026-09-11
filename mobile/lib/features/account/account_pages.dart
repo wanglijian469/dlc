@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/auth_controller.dart';
-import '../../core/models/models.dart';
-import '../../core/network/api_client.dart';
-import '../market/market_pages.dart';
 
 class LoginPage extends ConsumerStatefulWidget {
   const LoginPage({this.returnTo, super.key});
@@ -145,13 +142,6 @@ class _LoginPageState extends ConsumerState<LoginPage>
   }
 }
 
-final ownPostsProvider = FutureProvider<PageData<MarketPost>>((ref) async {
-  final data = await ref
-      .watch(apiClientProvider)
-      .getJson('/api/v1/me/market-posts', query: {'pageSize': 40});
-  return ApiClient.page(data, MarketPost.fromJson);
-});
-
 class MyPage extends ConsumerWidget {
   const MyPage({super.key});
   @override
@@ -172,92 +162,41 @@ class MyPage extends ConsumerWidget {
             onPressed: () => ref.read(authControllerProvider.notifier).logout(),
             icon: const Icon(Icons.logout))
       ]),
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(ownPostsProvider.future),
-        child: ListView(padding: const EdgeInsets.all(14), children: [
+      body: ListView(padding: const EdgeInsets.all(14), children: [
+        Card(
+            child: ListTile(
+                leading: CircleAvatar(
+                    child: Text(account.username.isEmpty
+                        ? '农'
+                        : account.username.substring(0, 1))),
+                title: Text(account.username),
+                subtitle: Text(account.isVendor ? '厂商账号' : '采购商账号'))),
+        const SizedBox(height: 12),
+        if (account.isVendor) ...[
           Card(
               child: ListTile(
-                  leading: CircleAvatar(
-                      child: Text(account.username.isEmpty
-                          ? '农'
-                          : account.username.substring(0, 1))),
-                  title: Text(account.username),
-                  subtitle: Text(account.isVendor ? '厂商账号' : '采购商账号'))),
-          const SizedBox(height: 12),
-          if (account.isVendor) ...[
-            Card(
-                child: ListTile(
-                    onTap: () => context.push('/vendor-center'),
-                    leading: const Icon(Icons.factory_outlined),
-                    title: const Text('厂家资料'),
-                    subtitle: const Text('维护企业资料和提审状态'),
-                    trailing: const Icon(Icons.chevron_right))),
-            Card(
-                child: ListTile(
-                    onTap: () => context.push('/vendor-products'),
-                    leading: const Icon(Icons.inventory_2_outlined),
-                    title: const Text('产品管理'),
-                    subtitle: const Text('维护自身产品和供应信息'),
-                    trailing: const Icon(Icons.chevron_right))),
-          ] else ...[
-            Card(
-                child: ListTile(
-                    onTap: () => context.push('/buyer-profile'),
-                    leading: const Icon(Icons.badge_outlined),
-                    title: const Text('采购商资料'),
-                    subtitle: const Text('维护联系人、电话和地区'),
-                    trailing: const Icon(Icons.chevron_right))),
-          ],
-          Card(
-              child: ListTile(
-                  onTap: () => context.go('/publish'),
-                  leading: const Icon(Icons.add_circle_outline),
-                  title: Text(account.isVendor ? '发布供应' : '发布求购'),
+                  onTap: () => context.push('/vendor-center'),
+                  leading: const Icon(Icons.factory_outlined),
+                  title: const Text('厂家资料'),
+                  subtitle: const Text('维护企业资料和提审状态'),
                   trailing: const Icon(Icons.chevron_right))),
-          Padding(
-              padding: const EdgeInsets.fromLTRB(4, 22, 4, 10),
-              child: Text('我的发布',
-                  style: Theme.of(context)
-                      .textTheme
-                      .titleLarge
-                      ?.copyWith(fontWeight: FontWeight.bold))),
-          ref.watch(ownPostsProvider).when(
-                loading: () => const Center(child: CircularProgressIndicator()),
-                error: (error, _) => Text('加载失败：$error'),
-                data: (page) => page.items.isEmpty
-                    ? const Padding(
-                        padding: EdgeInsets.all(30),
-                        child: Center(child: Text('还没有发布信息')))
-                    : Column(
-                        children: page.items
-                            .map((post) => Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: MarketPostCard(post,
-                                    trailing: PopupMenuButton<String>(
-                                        onSelected: (value) async {
-                                          if (value == 'edit') {
-                                            context.push('/publish/${post.id}');
-                                          }
-                                          if (value == 'withdraw') {
-                                            await ref
-                                                .read(apiClientProvider)
-                                                .deleteJson(
-                                                    '/api/v1/me/market-posts/${post.id}');
-                                            ref.invalidate(ownPostsProvider);
-                                          }
-                                        },
-                                        itemBuilder: (_) => const [
-                                              PopupMenuItem(
-                                                  value: 'edit',
-                                                  child: Text('编辑')),
-                                              PopupMenuItem(
-                                                  value: 'withdraw',
-                                                  child: Text('撤回'))
-                                            ]))))
-                            .toList()),
-              ),
-        ]),
-      ),
+          Card(
+              child: ListTile(
+                  onTap: () => context.push('/vendor-products'),
+                  leading: const Icon(Icons.inventory_2_outlined),
+                  title: const Text('产品管理'),
+                  subtitle: const Text('维护自身产品和供应信息'),
+                  trailing: const Icon(Icons.chevron_right))),
+        ] else ...[
+          Card(
+              child: ListTile(
+                  onTap: () => context.push('/buyer-profile'),
+                  leading: const Icon(Icons.badge_outlined),
+                  title: const Text('采购商资料'),
+                  subtitle: const Text('维护联系人、电话和地区'),
+                  trailing: const Icon(Icons.chevron_right))),
+        ],
+      ]),
     );
   }
 }

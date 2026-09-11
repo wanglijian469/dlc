@@ -112,7 +112,7 @@ func (h SEOHandler) Sitemap(c *gin.Context) {
 	base := h.baseURL(c)
 	sections := h.sitemapSections(base)
 	index := sitemapIndexDocument{Xmlns: "http://www.sitemaps.org/schemas/sitemap/0.9"}
-	for _, name := range []string{"static", "categories", "vendors", "products", "market", "content"} {
+	for _, name := range []string{"static", "categories", "vendors", "products", "content"} {
 		rows := sections[name]
 		pages := (len(rows) + sitemapChunkSize - 1) / sitemapChunkSize
 		if pages == 0 {
@@ -172,7 +172,7 @@ func (h SEOHandler) SitemapSection(c *gin.Context) {
 }
 
 func (h SEOHandler) sitemapSections(base string) map[string][]sitemapURL {
-	sections := map[string][]sitemapURL{"static": {{Loc: base + "/"}, {Loc: base + "/vendors"}, {Loc: base + "/products"}, {Loc: base + "/service"}, {Loc: base + "/purchase"}, {Loc: base + "/guides"}}, "categories": {}, "vendors": {}, "products": {}, "market": {}, "content": {}}
+	sections := map[string][]sitemapURL{"static": {{Loc: base + "/"}, {Loc: base + "/vendors"}, {Loc: base + "/products"}, {Loc: base + "/service"}, {Loc: base + "/guides"}}, "categories": {}, "vendors": {}, "products": {}, "content": {}}
 	appendURL := func(section, path string, publishedAt *time.Time, updatedAt time.Time) {
 		entry := sitemapURL{Loc: base + path}
 		stamp := updatedAt
@@ -204,12 +204,6 @@ func (h SEOHandler) sitemapSections(base string) map[string][]sitemapURL {
 		if row.Vendor.Slug != "" {
 			appendURL("products", showroomPath(row), nil, row.UpdatedAt)
 		}
-	}
-	var marketPosts []model.MarketPost
-	h.DB.Where("status = ? AND expires_at > ?", "published", time.Now()).Order("id asc").Find(&marketPosts)
-	for _, item := range marketPosts {
-		published := item.CreatedAt
-		appendURL("market", "/purchase/"+strconv.FormatUint(uint64(item.ID), 10), &published, item.UpdatedAt)
 	}
 	var categories []model.Category
 	publishedCategoryQuery(h.DB).Order("id asc").Find(&categories)
@@ -356,33 +350,6 @@ func (h SEOHandler) document(c *gin.Context) (seoDocument, bool) {
 		doc.Title = "农机配件加工服务｜" + meta.SiteName
 		doc.BodyTitle = "农机配件加工服务"
 		doc.Schema = map[string]any{"@context": "https://schema.org", "@type": "Service", "name": doc.BodyTitle, "provider": map[string]any{"@type": "Organization", "name": meta.SiteName}}
-		return doc, true
-	}
-	if path == "/purchase" {
-		doc.Title = "农机配件供求信息｜" + meta.SiteName
-		doc.Description = "查看采购商发布的求购需求和源头厂家发布的供应信息。"
-		doc.BodyTitle, doc.BodyText = "供求信息", doc.Description
-		doc.NoIndex = len(c.Request.URL.Query()) > 0
-		doc.Schema = map[string]any{"@context": "https://schema.org", "@type": "CollectionPage", "name": doc.BodyTitle, "url": doc.Canonical}
-		return doc, true
-	}
-	if id, ok := routeID(path, "/purchase/"); ok {
-		var item model.MarketPost
-		if h.DB.Preload("Media", func(db *gorm.DB) *gorm.DB { return db.Order("sort_order asc, id asc") }).First(&item, "id = ? AND status = ? AND expires_at > ?", id, "published", time.Now()).Error != nil {
-			return seoDocument{}, false
-		}
-		doc.Title = item.Title + "｜" + meta.SiteName
-		doc.Description = fallbackSEO(item.Description, "查看农机配件供求详情。")
-		doc.BodyTitle, doc.BodyText = item.Title, doc.Description
-		doc.Breadcrumbs = []seoBreadcrumb{{Name: "供求信息", URL: base + "/purchase"}, {Name: item.Title, URL: canonical}}
-		schemaType := "Demand"
-		if item.PostType == "supply" {
-			schemaType = "Offer"
-		}
-		doc.Schema = withBreadcrumbSchema(map[string]any{"@context": "https://schema.org", "@type": schemaType, "name": item.Title, "description": doc.Description, "url": canonical, "areaServed": strings.TrimSpace(item.Province + " " + item.City)}, doc.Breadcrumbs)
-		if len(item.Media) > 0 {
-			doc.Image = base + "/api/media/" + strconv.FormatUint(uint64(item.Media[0].AssetID), 10)
-		}
 		return doc, true
 	}
 	if path == "/guides" {

@@ -9,7 +9,7 @@ vi.mock("../api/admin", () => ({ login: vi.fn(), logoutSession: vi.fn(), registe
 describe("AccountLoginPage", () => {
   beforeEach(() => { localStorage.clear(); vi.mocked(register).mockResolvedValue({ username: "buyer-a", role: "buyer" }); });
   it("registers a buyer and enters their posts", async () => {
-    render(<MemoryRouter initialEntries={["/account/login"]}><Routes><Route path="/account/login" element={<AccountLoginPage />} /><Route path="/account/posts" element={<div>我的发布页面</div>} /></Routes></MemoryRouter>);
+    render(<MemoryRouter initialEntries={["/account/login"]}><Routes><Route path="/account/login" element={<AccountLoginPage />} /><Route path="/account/profile" element={<div>账号资料页面</div>} /></Routes></MemoryRouter>);
     fireEvent.click(screen.getByRole("button", { name: "注册" }));
 	fireEvent.click(screen.getByRole("button", { name: "我是采购商" }));
     fireEvent.change(screen.getByLabelText("账号"), { target: { value: "buyer-a" } });
@@ -18,7 +18,7 @@ describe("AccountLoginPage", () => {
     fireEvent.change(passwords[1], { target: { value: "secret1" } });
     fireEvent.click(screen.getByRole("button", { name: "注册采购商账号" }));
     await waitFor(() => expect(register).toHaveBeenCalledWith(expect.objectContaining({ username: "buyer-a", role: "buyer" })));
-    expect(await screen.findByText("我的发布页面")).toBeInTheDocument();
+    expect(await screen.findByText("账号资料页面")).toBeInTheDocument();
   });
 
   it("puts the vendor role first and selects it by default", () => {

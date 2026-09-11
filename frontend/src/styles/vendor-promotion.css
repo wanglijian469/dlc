@@ -63,9 +63,14 @@
 .showroom-section-nav a { display:flex; align-items:center; min-height:44px; color:var(--promotion-ink); font-weight:600; white-space:nowrap; }
 [id^=showroom-] { scroll-margin-top:80px; }
 .vendor-card-visual { position:relative; display:flex; align-items:center; justify-content:center; height:168px; background:linear-gradient(130deg,#e5eefb,#f6f9fd); border-radius:10px; margin-bottom:16px; color:var(--promotion-muted); overflow:hidden; }
-.vendor-card-visual>img:not(.vendor-card-logo) { width:100%; height:100%; object-fit:contain; }
+.vendor-card-visual>img { width:100%; height:100%; object-fit:cover; object-position:center; }
 .vendor-card-visual>span { max-width:80%; text-align:center; font-size:20px; line-height:1.5; font-weight:600; }
-.vendor-card-visual .vendor-card-logo { position:absolute; width:46px; height:46px; object-fit:contain; bottom:10px; left:10px; border-radius:8px; padding:4px; background:#fff; border:1px solid var(--promotion-border); }
+.vendor-card .vendor-card-header { display:flex; align-items:flex-start; gap:10px; }
+.vendor-card-header .vendor-card-logo { position:static; width:40px; height:40px; flex:0 0 40px; object-fit:contain; border-radius:8px; padding:4px; background:#fff; border:1px solid var(--border-color); }
+.vendor-card.compact .vendor-card-logo { width:32px; height:32px; flex-basis:32px; }
+.vendor-card .vendor-title-block { flex:1; min-width:0; }
+.vendor-card .vendor-title-block h3 { white-space:normal; overflow-wrap:anywhere; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.vendor-card-visual > span { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
 .vendor-card.compact .vendor-card-visual { height:128px; }
 .own-product-hero { display:grid; grid-template-columns:1fr 1fr; background:#fff; border:1px solid var(--promotion-border); border-radius:16px; overflow:hidden; margin-bottom:22px; }
 .own-product-media { min-height:400px; padding:24px; background:var(--promotion-surface); display:grid; place-items:center; }

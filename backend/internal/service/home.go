@@ -350,10 +350,9 @@ var requiredTopMenus = []model.Menu{
 	{ID: 4_000_000_002, Name: "厂商资源", Path: "/vendors", Icon: "factory", MenuType: "top", SortOrder: 20, IsEnabled: true},
 	{ID: 4_000_000_003, Name: "配件货源", Path: "/products", Icon: "grid", MenuType: "top", SortOrder: 30, IsEnabled: true},
 	{ID: 4_000_000_004, Name: "加工服务", Path: "/service", Icon: "settings", MenuType: "top", SortOrder: 40, IsEnabled: true},
-	{ID: 4_000_000_005, Name: "供求信息", Path: "/purchase", Icon: "clipboard", MenuType: "top", SortOrder: 50, IsEnabled: true},
 }
 
-// NormalizeTopMenus keeps the public site's five primary destinations stable.
+// NormalizeTopMenus keeps the public site's four primary destinations stable.
 // Database records still provide their persistent IDs and timestamps, while a
 // missing or disabled record cannot remove a required public entry.
 func NormalizeTopMenus(menus []model.Menu) []model.Menu {
@@ -375,7 +374,7 @@ func NormalizeTopMenus(menus []model.Menu) []model.Menu {
 		result = append(result, required)
 	}
 	for _, menu := range menus {
-		if !requiredPaths[menu.Path] {
+		if !requiredPaths[menu.Path] && !IsRetiredPublicPath(menu.Path) {
 			result = append(result, menu)
 		}
 	}

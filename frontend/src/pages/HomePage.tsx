@@ -13,15 +13,17 @@ import { ProcessingSection } from "../components/public/HomeMarketplaceSections"
 import type { HomeModule, HomePayload, Vendor } from "../types/api";
 import { useSite } from "../contexts/SiteContext";
 import { buildVendorNavigationMenus } from "../utils/vendorNavigation";
-import { MobileMarketHome } from "../components/public/MobileMarketHome";
+import { MobileDirectoryHome } from "../components/public/MobileDirectoryHome";
 import { useMobileLayout } from "../utils/useMobileLayout";
+import { PageFrame } from "../components/public/PageFrame";
+import { ErrorState } from "../components/public/StateViews";
 
 export function HomePage() {
   const [home, setHome] = useState<HomePayload | null>(null);
   const [error, setError] = useState("");
   const load = () => { setError(""); getHome().then(setHome).catch(() => setError("首页数据加载失败，请检查后端服务")); };
   useEffect(load, []);
-  if (error) return <div className="state-page"><p>{error}</p><button className="primary-btn" onClick={load}>重试</button></div>;
+  if (error) return <PageFrame title="首页"><ErrorState text={error} onRetry={load} /></PageFrame>;
   if (!home) return <HomeSkeleton />;
   return <HomeView home={dedupeHome(home)} />;
 }
@@ -64,14 +66,14 @@ export function HomeView({ home }: { home: HomePayload }) {
   const hasVendors = home.recommendedVendors.length > 0 || home.moreVendors.length > 0 || Boolean(home.processingVendors?.length);
 
   return (
-    <div className="site-shell">
+    <div className="site-shell industrial-home">
       <PublicHeader menus={home.topMenus} siteMeta={home.siteMeta} />
       <MobileHeader auxiliaryMenus={home.auxiliaryMenus} menus={vendorMenus} navigationTitle="厂商分类" siteMeta={home.siteMeta} />
       <main className="site-body">
         <SidebarNav menus={vendorMenus} title="厂商分类" />
         <div className="content">
-          {mobileLayout && <MobileMarketHome home={home} />}
-          <div className="desktop-home-flow"><HeroSearch banner={home.banner} />
+          {mobileLayout && <MobileDirectoryHome home={home} />}
+          <div className="desktop-home-flow"><div className="home-intro-line"><span>大陆农机配件 <span className="intro-divider">/</span> 产业资源平台</span><span>找到合适的配件与合作伙伴</span></div><HeroSearch banner={home.banner} />
           <MobileCategoryGrid menus={home.mobileMenus} />
           {!hasVendors ? <section className="home-empty-directory"><h2>公开厂商资料正在完善</h2><p>厂商资料经核验或提交审核通过后，将在这里公开展示。</p><a className="primary-btn" href="/vendors">查看厂商目录</a></section> : <>
             {recommended.visible && home.recommendedVendors.length > 0 && <RecommendedVendors homeSections={{ recommendedTitle: recommended.title || "推荐厂商", recommendedLink: recommended.path }} vendors={home.recommendedVendors.slice(0, recommended.limit || 4)} />}
@@ -87,5 +89,5 @@ export function HomeView({ home }: { home: HomePayload }) {
 }
 
 function HomeSkeleton() {
-  return <div className="site-shell"><div className="skeleton-header" /><main className="site-body"><div className="skeleton-sidebar" /><div className="content"><div className="skeleton-hero" /><div className="skeleton-grid">{Array.from({ length: 8 }).map((_, index) => <div className="skeleton-card" key={index} />)}</div></div></main></div>;
+  return <div className="site-shell" role="status" aria-label="正在加载首页"><div className="skeleton-header" /><main className="site-body"><div className="skeleton-sidebar" /><div className="content"><div className="skeleton-hero" /><div className="skeleton-grid">{Array.from({ length: 8 }).map((_, index) => <div className="skeleton-card" key={index} />)}</div></div></main></div>;
 }

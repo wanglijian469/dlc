@@ -27,13 +27,8 @@ const AdminLogsPage = lazy(() => import("./pages/admin/AdminLogsPage").then((mod
 const ProductReviewsPage = lazy(() => import("./pages/admin/ProductReviewsPage").then((module) => ({ default: module.ProductReviewsPage })));
 const AdminAnalyticsPage = lazy(() => import("./pages/admin/AdminAnalyticsPage").then((module) => ({ default: module.AdminAnalyticsPage })));
 const AdminSEOPage = lazy(() => import("./pages/admin/AdminSEOPage").then((module) => ({ default: module.AdminSEOPage })));
-const MarketPostReviewsPage = lazy(() => import("./pages/admin/MarketPostReviewsPage").then((module) => ({ default: module.MarketPostReviewsPage })));
 const AccountLoginPage = lazy(() => import("./pages/AccountLoginPage").then((module) => ({ default: module.AccountLoginPage })));
-const MarketPostDetailPage = lazy(() => import("./pages/MarketPostDetailPage").then((module) => ({ default: module.MarketPostDetailPage })));
-const MarketPostEditorPage = lazy(() => import("./pages/MarketPostEditorPage").then((module) => ({ default: module.MarketPostEditorPage })));
-const MarketPostsPage = lazy(() => import("./pages/MarketPostsPage").then((module) => ({ default: module.MarketPostsPage })));
 const MobileCategoriesPage = lazy(() => import("./pages/MobileCategoriesPage").then((module) => ({ default: module.MobileCategoriesPage })));
-const MyMarketPostsPage = lazy(() => import("./pages/MyMarketPostsPage").then((module) => ({ default: module.MyMarketPostsPage })));
 const BuyerProfilePage = lazy(() => import("./pages/BuyerProfilePage").then((module) => ({ default: module.BuyerProfilePage })));
 const AuctionsPage = lazy(() => import("./pages/AuctionsPage").then((module) => ({ default: module.AuctionsPage })));
 const AuctionDetailPage = lazy(() => import("./pages/AuctionsPage").then((module) => ({ default: module.AuctionDetailPage })));
@@ -69,12 +64,7 @@ export function App() {
       <Route path="/join" element={<ContentPage slug="join" />} />
       <Route path="/about" element={<ContentPage slug="about" />} />
       <Route path="/service" element={<ProcessingServicesPage />} />
-      <Route path="/purchase" element={<MarketPostsPage />} />
-      <Route path="/purchase/:id" element={<MarketPostDetailPage />} />
       <Route path="/categories" element={<MobileCategoriesPage />} />
-      <Route path="/publish" element={<MarketPostEditorPage />} />
-      <Route path="/publish/:id" element={<MarketPostEditorPage />} />
-      <Route path="/account/posts" element={<MyMarketPostsPage />} />
       <Route path="/account/profile" element={<BuyerProfilePage />} />
       <Route path="/auctions" element={<AuctionsPage />} />
       <Route path="/auctions/:id" element={<AuctionDetailPage />} />
@@ -110,7 +100,6 @@ export function App() {
       <Route path="/admin/capture" element={<ProtectedAdminRoute roles={["admin", "vendor"]}><CaptureWorkbenchPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-reviews" element={<ProtectedAdminRoute roles={["admin"]}><VendorReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/product-reviews" element={<ProtectedAdminRoute roles={["admin"]}><ProductReviewsPage /></ProtectedAdminRoute>} />
-      <Route path="/admin/market-posts" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><MarketPostReviewsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/vendor-post-reviews" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><VendorPostsPage /></ProtectedAdminRoute>} />
       <Route path="/admin/auctions" element={<ProtectedAdminRoute roles={["admin", "reviewer"]}><AuctionsAdminPage /></ProtectedAdminRoute>} />
       <Route path="/admin/users" element={<ProtectedAdminRoute roles={["admin"]}><AdminUsersPage /></ProtectedAdminRoute>} />

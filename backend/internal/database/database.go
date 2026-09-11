@@ -123,9 +123,6 @@ func AutoMigrate(db *gorm.DB) error {
 		&model.AuthSession{},
 		&model.BuyerProfile{},
 		&model.AppSession{},
-		&model.MarketPost{},
-		&model.MarketPostMedia{},
-		&model.MarketContactAccessLog{},
 		&model.ContentRevision{},
 		&model.StaticPageBuild{},
 		&model.StaticBuildJob{},
@@ -156,7 +153,7 @@ func AutoMigrate(db *gorm.DB) error {
 	if err := migrateVendorPublicationState(db); err != nil {
 		return err
 	}
-	if err := dropRetiredVendorColumns(db); err != nil {
+	if err := dropRetiredDatabaseObjects(db); err != nil {
 		return err
 	}
 	if err := backfillVendorImageAssetLinks(db); err != nil {
@@ -206,8 +203,8 @@ func ensureAccessProtectionConfig(db *gorm.DB) error {
 }
 
 const (
-	CurrentSchemaVersion       uint = 20
-	currentSchemaMigrationName      = "vendor-showroom-workspace-v1"
+	CurrentSchemaVersion       uint = 23
+	currentSchemaMigrationName      = "remove-supply-demand-v1"
 )
 
 func schemaMigrationRequired(latest uint) bool {
@@ -227,9 +224,17 @@ func Migrate(db *gorm.DB) error {
 	if !schemaMigrationRequired(latest) {
 		return nil
 	}
-	// Version 19 upgrades are strictly additive; do not rerun legacy cleanup/backfills.
-	if latest == 19 {
-		if err := migrateVendorPromotion(db); err != nil {
+	// Recent schemas use a narrow upgrade path without rerunning legacy backfills.
+	if latest >= 19 {
+		if latest < 22 {
+			if err := migrateVendorPromotion(db); err != nil {
+				return err
+			}
+			if err := dropRetiredDatabaseObjects(db); err != nil {
+				return err
+			}
+		}
+		if err := removeSupplyDemand(db); err != nil {
 			return err
 		}
 		return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: currentSchemaMigrationName, AppliedAt: time.Now()}).Error
@@ -244,11 +249,6 @@ func Migrate(db *gorm.DB) error {
 	}
 	if latest < 17 {
 		if err := backfillStructuredSupplierPrices(db); err != nil {
-			return err
-		}
-	}
-	if latest < 18 {
-		if err := EnsurePublicMarketNavigationV5(db); err != nil {
 			return err
 		}
 	}
@@ -289,6 +289,9 @@ func Migrate(db *gorm.DB) error {
 		return err
 	}
 	if err := migrateVendorPromotion(db); err != nil {
+		return err
+	}
+	if err := removeSupplyDemand(db); err != nil {
 		return err
 	}
 	return db.Create(&model.SchemaMigration{Version: CurrentSchemaVersion, Name: currentSchemaMigrationName, AppliedAt: time.Now()}).Error
@@ -609,17 +612,6 @@ func mediaAssetExists(db *gorm.DB, id uint) bool {
 	return count > 0
 }
 
-func dropRetiredVendorColumns(db *gorm.DB) error {
-	for _, column := range []string{"quality_control", "supply_regions", "cooperation_terms", "source_url", "source_note", "service_models"} {
-		if db.Migrator().HasColumn(&model.Vendor{}, column) {
-			if err := db.Migrator().DropColumn(&model.Vendor{}, column); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
-
 func migrateProductCatalog(db *gorm.DB) error {
 	return db.Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.Product{}).Where("content_version = 0").Update("content_version", 1).Error; err != nil {
@@ -740,9 +732,8 @@ func ensureStructuredContent(db *gorm.DB) error {
 			{Type: "cta", Title: "已经获得厂商账号？", Text: "登录 CMS 更新企业资料，审核期间原有公开资料不会受到影响。", ButtonText: "登录厂商 CMS", ButtonPath: "/admin/login"},
 			{Type: "faq", Title: "常见问题", Items: []string{"提交后会立即展示吗？|不会。资料需要管理员审核通过后才会更新到前台。", "审核期间旧资料是否下线？|不会，平台继续展示上一版已审核资料。", "可以上传哪些资料？|支持 Logo、封面、厂房、设备和证书等企业图片。"}},
 		},
-		"about":    {{Type: "hero", Title: "连接农机采购需求与源头厂商", Text: "大陆农机配件聚合厂商、配件产品和加工能力信息，为维修门店、经销商和采购人员提供清晰可信的行业目录。"}, {Type: "text", Title: "平台价值", Items: []string{"按地区、品类和服务能力快速筛选厂商", "集中查看产品适配信息、企业能力与联系方式", "厂商自主维护资料，平台审核后发布"}}, {Type: "steps", Title: "信息保障", Items: []string{"厂商资料变更留存审核记录", "隐藏厂商和下架产品不对外展示", "公开来源信息与厂商自有资料分开标识"}}},
-		"purchase": {{Type: "hero", Title: "按品类查产品，按能力找厂商", Text: "当前平台以公开行业目录为核心，您可以通过搜索、产品分类和厂商筛选快速定位供应资源。", ButtonText: "浏览配件产品", ButtonPath: "/products"}, {Type: "cta", Title: "需要定制加工？", Text: "查看支持来图来样、数控加工和批量代工的厂商。", ButtonText: "查看加工服务", ButtonPath: "/service"}},
-		"links":    {{Type: "text", Title: "行业合作入口", Text: "友情链接仅展示经平台维护的农机行业与服务合作伙伴。"}},
+		"about": {{Type: "hero", Title: "连接农机采购需求与源头厂商", Text: "大陆农机配件聚合厂商、配件产品和加工能力信息，为维修门店、经销商和采购人员提供清晰可信的行业目录。"}, {Type: "text", Title: "平台价值", Items: []string{"按地区、品类和服务能力快速筛选厂商", "集中查看产品适配信息、企业能力与联系方式", "厂商自主维护资料，平台审核后发布"}}, {Type: "steps", Title: "信息保障", Items: []string{"厂商资料变更留存审核记录", "隐藏厂商和下架产品不对外展示", "公开来源信息与厂商自有资料分开标识"}}},
+		"links": {{Type: "text", Title: "行业合作入口", Text: "友情链接仅展示经平台维护的农机行业与服务合作伙伴。"}},
 	}
 	for slug, pageBlocks := range blocks {
 		payload, _ := json.Marshal(pageBlocks)

@@ -114,7 +114,7 @@ func (h AnalyticsHandler) resolveTarget(path, contentType string, contentID uint
 	if path == "" || len(path) > 255 || strings.Contains(path, "?") || !strings.HasPrefix(path, "/") {
 		return "", "", 0, false
 	}
-	if path == "/" || map[string]bool{"/vendors": true, "/products": true, "/service": true, "/join": true, "/about": true, "/purchase": true, "/links": true, "/guides": true, "/search": true}[path] {
+	if path == "/" || map[string]bool{"/vendors": true, "/products": true, "/service": true, "/join": true, "/about": true, "/links": true, "/guides": true, "/search": true}[path] {
 		if contentType == "category" && path == "/products" && contentID > 0 {
 			var category model.Category
 			if h.DB.First(&category, "id = ? AND is_enabled = ?", contentID, true).Error != nil {

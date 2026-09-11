@@ -34,13 +34,8 @@ void main(List<String> arguments) {
   const requiredPaths = <String>{
     '/api/v1/app/auth/login',
     '/api/v1/app/auth/refresh',
-    '/api/v1/market-posts',
-    '/api/v1/market-posts/{id}/contact',
-    '/api/v1/me/market-posts',
     '/api/v1/me/profile',
     '/api/v1/media',
-    '/api/admin/market-posts',
-    '/api/admin/market-posts/{id}/status',
     '/api/v1/auctions',
     '/api/v1/auctions/{id}',
     '/api/v1/auctions/{id}/bids',

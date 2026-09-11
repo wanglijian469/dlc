@@ -9,7 +9,9 @@
 升级会保留现有配置和已上传文件。**不要**用安装包中的示例配置覆盖
 `/etc/dalu-parts/dlc.env`。
 
-当前厂商推广版需要数据库 Schema 20。Schema 19 升级请先阅读 [厂商推广增量升级说明](VENDOR_PROMOTION_UPGRADE.md)，使用本次重新构建的程序包；旧发布包不包含这些功能。
+当前版本需要数据库 Schema 23。该版本还会删除供求专用表 `market_posts`、`market_post_media`、`market_contact_access_logs` 及旧供求导航、占位页面，并将静态页面标记为待重新生成。执行前请备份数据库。升级会删除已无软件引用的 `master_*` 原型表，
+以及分类、媒体、产品、供货关系和厂商表中的遗留目录字段。Schema 19 的厂商推广
+升级背景请阅读 [厂商推广增量升级说明](VENDOR_PROMOTION_UPGRADE.md)。
 
 ## 一、升级前准备
 
@@ -29,8 +31,8 @@ sudo cp /etc/nginx/conf.d/dalu-parts.conf \
 
 ```bash
 cd /tmp
-tar -xzf dlc-deploy-linux-x86_64-v2026.08.24-linux.1.tar.gz
-cd dlc-deploy-linux-x86_64-v2026.08.24-linux.1
+tar -xzf dlc-deploy-linux-x86_64-v2026.09.11-linux.1.tar.gz
+cd dlc-deploy-linux-x86_64-v2026.09.11-linux.1
 chmod +x server initdb scripts/*.sh
 sha256sum -c SHA256SUMS
 sudo ./scripts/upgrade.sh
@@ -63,12 +65,12 @@ sudo ./scripts/upgrade.sh
 若程序文件已提前部署，或需要先单独验证数据库迁移，可执行：
 
 ```bash
-cd /tmp/dlc-deploy-linux-x86_64-v2026.08.24-linux.1
+cd /tmp/dlc-deploy-linux-x86_64-v2026.09.11-linux.1
 sudo ./scripts/database-upgrade.sh
 ```
 
 该脚本会备份数据库和媒体文件、停止正在运行的应用、使用升级包内的 `initdb`
-执行迁移，成功后恢复服务并执行健康检查。版本 19 迁移可重复执行；如果数据库已是
+执行迁移，成功后恢复服务并执行健康检查。Schema 23 迁移可重复执行；如果数据库已是
 当前版本，脚本会正常完成而不会重复创建表。
 
 若迁移失败，应用会保持停止状态，脚本会输出备份目录。确认并恢复数据库后再重新启动，

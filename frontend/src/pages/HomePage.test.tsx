@@ -2,10 +2,34 @@ import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import { dedupeHome, HomeView } from "./HomePage";
+import type { HomePayload } from "../types/api";
 
 vi.mock("../api/public", async (importOriginal) => ({ ...(await importOriginal<typeof import("../api/public")>()), getFriendLinks: vi.fn().mockResolvedValue([]) }));
 
 describe("HomeView", () => {
+  const moduleFixture: HomePayload = {
+    topMenus: [], sidebarMenus: [], auxiliaryMenus: [], mobileMenus: [], banner: { title: "目录入口" },
+    recommendedVendors: [{ id: 81, name: "推荐甲" }, { id: 82, name: "推荐乙" }],
+    moreVendors: [{ id: 83, name: "普通甲" }], processingVendors: [], stats: [], safeguards: [],
+    join: { text: "", buttonText: "", path: "/join" },
+  };
+  it("preserves configured module visibility, titles and limits", () => {
+    render(<MemoryRouter><HomeView home={{ ...moduleFixture, modules: [
+      { type: "recommendedVendors", title: "精选合作伙伴", visible: true, limit: 1, path: "/vendors?sort=recommended", sortOrder: 10 },
+      { type: "moreVendors", title: "普通厂商", visible: false, limit: 5, sortOrder: 20 },
+      { type: "processingServices", title: "加工服务", visible: false, limit: 4, sortOrder: 30 },
+    ] }} /></MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "精选合作伙伴" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "推荐甲" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "推荐乙" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "普通甲" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /浏览全部厂商/ })).toHaveAttribute("href", "/vendors?sort=recommended");
+  });
+  it("provides a directory entry when no vendors are available", () => {
+    render(<MemoryRouter><HomeView home={{ ...moduleFixture, recommendedVendors: [], moreVendors: [] }} /></MemoryRouter>);
+    expect(screen.getByRole("heading", { name: "公开厂商资料正在完善" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "查看厂商目录" })).toHaveAttribute("href", "/vendors");
+  });
   it("keeps processing vendors independent while deduplicating general homepage modules", () => {
     const home = dedupeHome({
       topMenus: [], sidebarMenus: [], auxiliaryMenus: [], mobileMenus: [],

@@ -9,7 +9,7 @@
 	<key>CFBundleDisplayName</key>
 	<string>大陆农机配件</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>用于选择供求信息和产品图片。</string>
+	<string>用于选择企业和产品图片。</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

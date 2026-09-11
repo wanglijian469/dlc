@@ -12,12 +12,10 @@ final homeProvider = FutureProvider<_HomeData>((ref) async {
   final values = await Future.wait([
     api.getJson('/api/home'),
     api.getJson('/api/products', query: {'recommended': true, 'pageSize': 6}),
-    api.getJson('/api/v1/market-posts', query: {'pageSize': 6})
   ]);
   final home = values[0];
   return _HomeData(
     products: ApiClient.page(values[1], ProductSummary.fromJson).items,
-    posts: ApiClient.page(values[2], MarketPost.fromJson).items,
     vendors: [
       ...(home['recommendedVendors'] as List? ?? const []),
       ...(home['moreVendors'] as List? ?? const [])
@@ -74,22 +72,10 @@ class HomePage extends ConsumerWidget {
                                 onTap: () =>
                                     context.push('/vendors?processing=true')),
                             _Shortcut(
-                                icon: Icons.add_circle_outline,
-                                label: '发供求',
-                                onTap: () => context.go('/publish')),
+                                icon: Icons.person_outline,
+                                label: '我的账号',
+                                onTap: () => context.go('/me')),
                           ]),
-                      if (data.posts.isNotEmpty) ...[
-                        _Title('最新供求', onMore: () => context.go('/market')),
-                        SizedBox(
-                            height: 178,
-                            child: ListView.separated(
-                                scrollDirection: Axis.horizontal,
-                                itemCount: data.posts.length,
-                                separatorBuilder: (_, __) =>
-                                    const SizedBox(width: 10),
-                                itemBuilder: (_, index) =>
-                                    _PostTile(data.posts[index])))
-                      ],
                       if (data.products.isNotEmpty) ...[
                         _Title('推荐配件', onMore: () => context.go('/categories')),
                         GridView.builder(
@@ -134,10 +120,8 @@ class HomePage extends ConsumerWidget {
 }
 
 class _HomeData {
-  const _HomeData(
-      {required this.products, required this.posts, required this.vendors});
+  const _HomeData({required this.products, required this.vendors});
   final List<ProductSummary> products;
-  final List<MarketPost> posts;
   final List<VendorSummary> vendors;
 }
 
@@ -179,41 +163,6 @@ class _Title extends StatelessWidget {
                     ?.copyWith(fontWeight: FontWeight.bold))),
         TextButton(onPressed: onMore, child: const Text('查看全部'))
       ]));
-}
-
-class _PostTile extends StatelessWidget {
-  const _PostTile(this.post);
-  final MarketPost post;
-  @override
-  Widget build(BuildContext context) => SizedBox(
-      width: 154,
-      child: Card(
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-              onTap: () => context.push('/market/${post.id}'),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    RemoteImage(post.images.isEmpty ? null : post.images.first,
-                        height: 96, width: 154),
-                    Padding(
-                        padding: const EdgeInsets.all(9),
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(post.title,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                      fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 5),
-                              Text(
-                                  post.isDemand
-                                      ? '求购 · ${post.province ?? '全国'}'
-                                      : '供应 · ${post.province ?? '全国'}',
-                                  style: Theme.of(context).textTheme.labelSmall)
-                            ]))
-                  ]))));
 }
 
 class _ProductTile extends StatelessWidget {

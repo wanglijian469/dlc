@@ -212,7 +212,6 @@ func defaultMenus() []SeedMenu {
 		{Key: "top-vendors", Name: "厂商目录", Icon: "factory", MenuType: "top", Path: "/vendors", SortOrder: 2},
 		{Key: "top-products", Name: "配件产品", Icon: "package", MenuType: "top", Path: "/products", SortOrder: 3},
 		{Key: "top-service", Name: "加工服务", Icon: "settings", MenuType: "top", Path: "/service", SortOrder: 4},
-		{Key: "top-purchase", Name: "供求信息", Icon: "clipboard", MenuType: "top", Path: "/purchase", SortOrder: 5},
 		{Key: "side-home", Name: "首页", Icon: "home", MenuType: "sidebar", Path: "/", SortOrder: 1},
 		{Key: "wearing", Name: "农机易损件", Icon: "wrench", MenuType: "sidebar", Path: "/products?categoryId=1", SortOrder: 2, IsTop: true},
 		{Key: "transmission", Name: "传动配件", Icon: "cog", MenuType: "sidebar", Path: "/products?categoryId=2", SortOrder: 3},
@@ -373,7 +372,7 @@ func defaultBanners() []model.Banner {
 }
 
 func defaultPages() []model.ContentPage {
-	return []model.ContentPage{{Slug: "join", Title: "厂商入驻", Summary: "提交入驻资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "purchase", Title: "采购信息", Summary: "采购信息入口已预留。", Content: "当前版本重点展示厂商和产品信息，采购信息可在后续版本开放发布和审核。", SEOKeywords: "农机配件采购", IsEnabled: true, SortOrder: 4}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
+	return []model.ContentPage{{Slug: "join", Title: "厂商入驻", Summary: "提交入驻资料后平台运营人员会尽快联系。", Content: "请准备企业名称、主营产品、联系人、联系电话、所在地区、官网或产品资料。平台审核后将协助完善厂商主页。", SEOKeywords: "农机配件厂商入驻", IsEnabled: true, SortOrder: 1}, {Slug: "about", Title: "关于平台", Summary: "大陆农机配件聚合源头厂商、配件产品和加工服务信息。", Content: "平台面向农机用户、维修门店、经销商和采购商，帮助用户按分类、地区和服务能力快速找到源头厂商。", SEOKeywords: "农机配件平台", IsEnabled: true, SortOrder: 2}, {Slug: "service", Title: "加工服务", Summary: "聚合定制加工、来图加工和批量配套能力。", Content: "服务栏目可展示厂商加工范围、设备能力、交付周期和合作方式。", SEOKeywords: "农机配件加工服务", IsEnabled: true, SortOrder: 3}, {Slug: "links", Title: "友情链接", Summary: "合作伙伴和行业服务入口。", Content: "友情链接由平台运营人员在后台维护。", SEOKeywords: "农机行业友情链接", IsEnabled: true, SortOrder: 5}}
 }
 
 func defaultFriendLinks() []model.FriendLink { return []model.FriendLink{} }

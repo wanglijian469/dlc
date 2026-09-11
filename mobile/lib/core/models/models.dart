@@ -64,64 +64,6 @@ class VendorSummary {
       );
 }
 
-class MarketPost {
-  const MarketPost(
-      {required this.id,
-      required this.type,
-      required this.title,
-      required this.description,
-      required this.publisherName,
-      required this.status,
-      required this.images,
-      required this.expiresAt,
-      required this.createdAt,
-      this.categoryId,
-      this.compatibleModels,
-      this.province,
-      this.city,
-      this.quantity,
-      this.deliveryNote,
-      this.vendorId});
-  final int id;
-  final String type;
-  final String title;
-  final String description;
-  final String publisherName;
-  final String status;
-  final List<String> images;
-  final DateTime expiresAt;
-  final DateTime createdAt;
-  final int? categoryId;
-  final String? compatibleModels;
-  final String? province;
-  final String? city;
-  final String? quantity;
-  final String? deliveryNote;
-  final int? vendorId;
-  bool get isDemand => type == 'demand';
-
-  factory MarketPost.fromJson(Map<String, dynamic> json) => MarketPost(
-        id: (json['id'] as num).toInt(),
-        type: json['type'] as String? ?? 'demand',
-        title: json['title'] as String? ?? '',
-        description: json['description'] as String? ?? '',
-        publisherName: json['publisherName'] as String? ?? '',
-        status: json['status'] as String? ?? 'published',
-        images: (json['images'] as List? ?? const [])
-            .map((value) => value.toString())
-            .toList(),
-        expiresAt: DateTime.parse(json['expiresAt'] as String),
-        createdAt: DateTime.parse(json['createdAt'] as String),
-        categoryId: (json['categoryId'] as num?)?.toInt(),
-        compatibleModels: json['compatibleModels'] as String?,
-        province: json['province'] as String?,
-        city: json['city'] as String?,
-        quantity: json['quantity'] as String?,
-        deliveryNote: json['deliveryNote'] as String?,
-        vendorId: (json['vendorId'] as num?)?.toInt(),
-      );
-}
-
 class PageData<T> {
   const PageData(
       {required this.items,

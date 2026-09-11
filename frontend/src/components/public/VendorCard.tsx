@@ -1,4 +1,5 @@
 import { ExternalLink } from "lucide-react";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { Vendor } from "../../types/api";
 import { vendorPath } from "../../utils/vendorPath";
@@ -11,10 +12,13 @@ interface VendorCardProps {
 
 export function VendorCard({ vendor, compact = false, directory = false }: VendorCardProps) {
   const region = [vendor.province, vendor.city].filter(Boolean).join(" · ");
+  const [failedCover, setFailedCover] = useState<string>();
+  const [failedLogo, setFailedLogo] = useState<string>();
   return (
     <article className={`${compact ? "vendor-card compact" : "vendor-card"} ${directory ? "directory-card" : ""}`}>
-      <Link className="vendor-card-visual" to={vendorPath(vendor)}>{vendor.coverImage ? <img loading="lazy" src={vendor.coverImage} alt={vendor.name + " 企业展示"}/> : <span>{vendor.shortName?.slice(0, 4) || vendor.name.slice(0, 2)} · 企业展厅</span>}{vendor.logo && <img className="vendor-card-logo" src={vendor.logo} alt={vendor.name + " Logo"}/>}</Link>
+      <Link className="vendor-card-visual" to={vendorPath(vendor)}>{vendor.coverImage && vendor.coverImage !== failedCover ? <img loading="lazy" src={vendor.coverImage} alt={vendor.name + " 企业展示"} onError={() => setFailedCover(vendor.coverImage)} /> : <span title={vendor.name}>{vendor.shortName || vendor.name} · 企业展厅</span>}</Link>
       <div className="vendor-card-header">
+        {vendor.logo && vendor.logo !== failedLogo && <img className="vendor-card-logo" src={vendor.logo} alt={vendor.name + " Logo"} onError={() => setFailedLogo(vendor.logo)} />}
         <div className="vendor-title-block">
           <h3 title={vendor.name}>{vendor.name}</h3>
           <div className="tag-row">

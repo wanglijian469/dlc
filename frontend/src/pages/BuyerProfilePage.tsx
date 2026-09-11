@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getApiErrorMessage } from "../api/client";
-import { getAccountProfile, updateBuyerProfile, type BuyerProfile } from "../api/market";
+import { getAccountProfile, updateBuyerProfile, type BuyerProfile } from "../api/account-commerce";
 import { PageFrame } from "../components/public/PageFrame";
 
 const emptyProfile: BuyerProfile = { displayName: "", contactName: "", phone: "", province: "", city: "" };
@@ -35,17 +35,17 @@ export function BuyerProfilePage() {
       .finally(() => setSaving(false));
   };
 
-  return <PageFrame title="采购商资料" breadcrumbs={[{ label: "我的", path: "/account/posts" }]}>
-    {loading ? <div className="state-page">正在加载…</div> : <form className="market-editor buyer-profile-form" onSubmit={submit}>
+  return <PageFrame title="采购商资料" breadcrumbs={[{ label: "我的", path: "/account/profile" }]}>
+    {loading ? <div className="state-page">正在加载…</div> : <form className="account-editor buyer-profile-form" onSubmit={submit}>
       {message && <p className="admin-message" role="status">{message}</p>}
-      <div className="market-form-grid">
+      <div className="account-form-grid">
         <label>称呼<input maxLength={80} value={profile.displayName} onChange={(event) => change("displayName", event.target.value)} /></label>
         <label>联系人<input maxLength={80} value={profile.contactName} onChange={(event) => change("contactName", event.target.value)} /></label>
         <label>联系电话<input inputMode="tel" maxLength={40} value={profile.phone || ""} onChange={(event) => change("phone", event.target.value)} /></label>
         <label>省份<input maxLength={50} value={profile.province} onChange={(event) => change("province", event.target.value)} /></label>
         <label>城市<input maxLength={50} value={profile.city} onChange={(event) => change("city", event.target.value)} /></label>
       </div>
-      <button className="primary-btn market-submit" disabled={saving}>{saving ? "正在保存…" : "保存资料"}</button>
+      <button className="primary-btn account-submit" disabled={saving}>{saving ? "正在保存…" : "保存资料"}</button>
     </form>}
   </PageFrame>;
 }

@@ -1,7 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { getMenuLabel, getSearchPath, getVendorEntryTarget } from "./navigation";
+import { getMenuLabel, getSearchPath, getVendorEntryTarget, normalizeTopMenus } from "./navigation";
 
 describe("navigation helpers", () => {
+  it("removes retired supply links from stale navigation while retaining custom entries", () => {
+    const menus = normalizeTopMenus([
+      { id: 8, name: "旧入口", path: "/purchase?type=supply" },
+      { id: 9, name: "发布", path: "/publish/3" },
+      { id: 10, name: "指南", path: "/guides" },
+    ]);
+    expect(menus.map((menu) => menu.path)).toEqual(["/", "/vendors", "/products", "/service", "/guides"]);
+  });
   it("creates encoded search paths", () => {
     expect(getSearchPath(" 液压油泵 ")).toBe("/search?keyword=%E6%B6%B2%E5%8E%8B%E6%B2%B9%E6%B3%B5");
   });

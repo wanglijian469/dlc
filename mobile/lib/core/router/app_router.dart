@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import '../../features/account/account_pages.dart';
 import '../../features/catalog/catalog_pages.dart';
 import '../../features/home/home_page.dart';
-import '../../features/market/market_pages.dart';
 import '../../features/shell/app_shell.dart';
 import '../auth/auth_controller.dart';
 
@@ -15,9 +14,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       if (auth.isLoading) return null;
       final account = auth.valueOrNull;
-      final protected = state.matchedLocation == '/publish' ||
-          state.matchedLocation.startsWith('/publish/') ||
-          state.matchedLocation == '/buyer-profile' ||
+      final protected = state.matchedLocation == '/buyer-profile' ||
           state.matchedLocation.startsWith('/vendor-');
       if (protected && account == null) {
         return '/login?returnTo=${Uri.encodeComponent(state.uri.toString())}';
@@ -47,13 +44,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   path: '/categories', builder: (_, __) => const CatalogPage())
             ]),
             StatefulShellBranch(routes: [
-              GoRoute(path: '/publish', builder: (_, __) => const PublishPage())
-            ]),
-            StatefulShellBranch(routes: [
-              GoRoute(
-                  path: '/market', builder: (_, __) => const MarketPostsPage())
-            ]),
-            StatefulShellBranch(routes: [
               GoRoute(path: '/me', builder: (_, __) => const MyPage())
             ]),
           ]),
@@ -68,13 +58,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/vendors/:id',
           builder: (_, state) => VendorDetailPage(state.pathParameters['id']!)),
-      GoRoute(
-          path: '/market/:id',
-          builder: (_, state) =>
-              MarketPostDetailPage(state.pathParameters['id']!)),
-      GoRoute(
-          path: '/publish/:id',
-          builder: (_, state) => PublishPage(id: state.pathParameters['id'])),
       GoRoute(
           path: '/login',
           builder: (_, state) =>

@@ -3,7 +3,7 @@ set -euo pipefail
 export LC_ALL=C
 export TZ=UTC
 
-VERSION="${1:-v2026.09.08-linux.1}"
+VERSION="${1:-v2026.09.11-linux.1}"
 case "$VERSION" in
   *[!A-Za-z0-9._-]*|'')
     echo "version may contain only letters, numbers, dots, underscores, and hyphens" >&2

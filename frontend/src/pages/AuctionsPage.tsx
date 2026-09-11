@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getAuction, listAuctions, placeAuctionBid } from "../api/market";
+import { getAuction, listAuctions, placeAuctionBid } from "../api/account-commerce";
 import { getApiErrorMessage } from "../api/client";
 import { PageFrame } from "../components/public/PageFrame";
 import type { ProcurementAuction } from "../types/api";

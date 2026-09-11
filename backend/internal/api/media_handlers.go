@@ -234,11 +234,6 @@ func (h AdminHandler) PublicMedia(c *gin.Context) {
 		h.DB.Model(&model.SiteConfig{}).Where("config_key = ? AND config_value LIKE ?", "site.meta", "%"+url+"%").Count(&references)
 	}
 	if references == 0 {
-		h.DB.Model(&model.MarketPostMedia{}).
-			Joins("JOIN market_posts ON market_posts.id = market_post_media.market_post_id").
-			Where("market_post_media.asset_id = ? AND market_posts.status = ? AND market_posts.expires_at > ?", asset.ID, "published", time.Now()).Count(&references)
-	}
-	if references == 0 {
 		h.DB.Model(&model.VendorPost{}).Where("cover_asset_id = ? AND status = ? AND published_at <= ?", asset.ID, "approved", time.Now()).Count(&references)
 	}
 	if references == 0 {

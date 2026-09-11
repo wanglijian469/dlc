@@ -4,9 +4,9 @@ import { VendorCard } from "./VendorCard";
 
 export function MoreVendors({ vendors, homeSections }: { vendors: Vendor[]; homeSections?: HomeSections }) {
   return (
-    <section className="section-block home-scroll-section">
+    <section className="section-block home-scroll-section home-directory">
       <div className="section-title filters">
-        <h2>{homeSections?.moreTitle || "更多厂商"}</h2>
+        <div><span className="section-eyebrow">SUPPLIER DIRECTORY</span><h2>{homeSections?.moreTitle || "更多厂商"}</h2></div>
         <div>
           <Link to={homeSections?.moreLink || "/vendors"}>全部地区</Link>
           <Link to="/vendors?sort=recommended">推荐优先</Link>

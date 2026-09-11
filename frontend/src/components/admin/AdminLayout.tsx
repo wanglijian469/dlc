@@ -22,7 +22,6 @@ const links: AdminLink[] = [
   { label: "资料审核", path: "/admin/vendor-reviews", icon: ClipboardCheck, group: "业务内容" },
   { label: "配件产品", path: "/admin/products", icon: Package, group: "业务内容", roles: ["admin", "editor"] },
   { label: "产品审核", path: "/admin/product-reviews", icon: ClipboardCheck, group: "业务内容" },
-  { label: "供求治理", path: "/admin/market-posts", icon: ClipboardCheck, group: "业务内容", roles: ["admin", "reviewer"] },
   { label: "厂商动态审核", path: "/admin/vendor-post-reviews", icon: Newspaper, group: "业务内容", roles: ["admin", "reviewer"] },
   { label: "采购竞价监管", path: "/admin/auctions", icon: Gavel, group: "业务内容", roles: ["admin", "reviewer"] },
   { label: "页面与快捷导航", path: "/admin/menus", icon: ListTree, group: "基础配置" },

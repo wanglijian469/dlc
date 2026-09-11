@@ -47,7 +47,7 @@ export function PublicHeader({ menus, siteMeta }: { menus: Menu[]; siteMeta?: Si
         <Link className="primary-btn" to="/join" onClick={() => trackAnalytics({ eventType: "join_cta_click", path: "/join" })}>{meta.submitVendorText}</Link>
         {session ? (
           <span className="header-account">
-            <Link className="outline-btn" to={session.role === "vendor" ? "/admin/vendor-profile" : session.role === "buyer" ? "/account/posts" : "/admin/dashboard"}><UserRound size={16} />{session.role === "vendor" ? "厂商工作台" : session.role === "buyer" ? "我的发布" : "管理中心"}</Link>
+            <Link className="outline-btn" to={session.role === "vendor" ? "/admin/vendor-profile" : session.role === "buyer" ? "/account/profile" : "/admin/dashboard"}><UserRound size={16} />{session.role === "vendor" ? "厂商工作台" : session.role === "buyer" ? "账号资料" : "管理中心"}</Link>
             <button className="header-text-link" type="button" onClick={logout}>退出</button>
           </span>
         ) : (
